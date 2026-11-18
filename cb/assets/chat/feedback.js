@@ -10,6 +10,8 @@
   var SVG_UP = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 22V11l5-9a2 2 0 0 1 2 2v5h5a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 17.6 22H7z"/><path d="M7 11H3v11h4"/></svg>';
   var SVG_DOWN = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2v11l-5 9a2 2 0 0 1-2-2v-5H5a2 2 0 0 1-2-2.3l1.4-7A2 2 0 0 1 6.4 2H17z"/><path d="M17 13h4V2h-4"/></svg>';
 
+  var SVG_SHARE = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M12 16V3"/><path d="M8 7l4-4 4 4"/></svg>';
+
   var SEL = '[aria-label="重新生成"],[title="重新生成"],[aria-label="Regenerate"],[title="Regenerate"]';
 
   function save() {
@@ -39,6 +41,36 @@
     }
   }
 
+
+  function messageText(wrapEl) {
+    var el = wrapEl.parentElement;
+    for (var i = 0; i < 12 && el; i++) {
+      var t = (el.textContent || '').trim();
+      if (t.length > 40) return t;
+      el = el.parentElement;
+    }
+    return '';
+  }
+
+  function share(wrapEl) {
+    var text = messageText(wrapEl);
+    if (!text) return;
+    if (navigator.share) {
+      navigator.share({ text: text }).catch(function () {});
+      return;
+    }
+    /* 不支持系统分享时退回复制 */
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        var b = wrapEl.querySelector('.ds-share-btn');
+        if (b) {
+          b.classList.add('on');
+          setTimeout(function () { b.classList.remove('on'); }, 900);
+        }
+      }).catch(function () {});
+    }
+  }
+
   function inject() {
     var anchors = document.querySelectorAll(SEL);
     for (var i = 0; i < anchors.length; i++) {
@@ -54,8 +86,9 @@
       var wrap = document.createElement('span');
       wrap.className = 'ds-fb-wrap';
       wrap.innerHTML =
-        '<button class="ds-fb-btn" data-v="up" type="button" aria-label="有用">' + SVG_UP + '</button>' +
-        '<button class="ds-fb-btn" data-v="down" type="button" aria-label="没用">' + SVG_DOWN + '</button>';
+        '<button class="ds-fb-btn" data-v="up" type="button" aria-label="喜欢">' + SVG_UP + '</button>' +
+        '<button class="ds-fb-btn" data-v="down" type="button" aria-label="不喜欢">' + SVG_DOWN + '</button>' +
+        '<button class="ds-fb-btn ds-share-btn" data-v="share" type="button" aria-label="分享">' + SVG_SHARE + '</button>';
       wrap.dataset.dsKey = keyFor(b) || '';
       host.insertBefore(wrap, b.nextSibling);
 
@@ -66,6 +99,10 @@
         var wrapEl = t.parentElement;
         var key = wrapEl.dataset.dsKey;
         var v = t.getAttribute('data-v');
+        if (v === 'share') {
+          share(wrapEl);
+          return;
+        }
         if (key) {
           if (store[key] === v) delete store[key];
           else store[key] = v;
