@@ -7,7 +7,7 @@
 | | |
 |---|---|
 | 应用名 | DeepSeek Chat |
-| 包名 | `com.deepseek.chatbot`（历史遗留，见下方说明） |
+| 包名 | `com.deepseek.chatbot`（沿用初版，见下） |
 | 版本 | 2.0.0 (versionCode 20) |
 | minSdk / targetSdk | 26 / 35 |
 | 体积 | 约 2.1 MB |
@@ -74,11 +74,7 @@ bash assemble.sh
 
 ## 关于包名
 
-包名是 `com.deepseek.chatbot`，带着 "chatbot" 这个词，看起来跟现在的项目定位不符。**但它不能改。**
-
-Android 的包名就是应用的唯一标识，改了包名等于换了一个 App——旧 App 的数据（IndexedDB 里的全部对话记录）不会跟过来，用户会丢掉所有历史。这个项目已经在真机上存了 678 个会话，所以包名保持原样。
-
-应用名（桌面上显示的名字）、主题名、界面文案都已经改掉了，只有包名这一个内部标识保留。
+包名 `com.deepseek.chatbot` 沿用初版标识，**未做改动**。Android 的包名就是应用唯一标识，改了等于换一个 App，已存的对话数据（IndexedDB）不会迁移过来。应用名、主题名、界面文案都是新的。
 
 ## 底包从哪来
 

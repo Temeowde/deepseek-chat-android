@@ -15,7 +15,7 @@
 | 项 | 值 |
 |---|---|
 | 应用名 | `DeepSeek Chat` |
-| 包名 | `com.deepseek.chatbot`（**不能改**，改了用户会丢全部对话数据） |
+| 包名 | `com.deepseek.chatbot`（沿用初版，见第 9 节） |
 | versionName / versionCode | `2.0.0` / `20` |
 | minSdk / targetSdk | 26 / 35 |
 | 签名 | 工作区根目录的 `deepseek-demo.keystore`，alias `deepseekdemo`，密码均为 `deepseekdemo` |
@@ -331,13 +331,9 @@ pm install -r -t /data/local/tmp/DeepSeek-Chat-2.0.0.apk
 
 ## 9. 命名遗留
 
-包名 `com.deepseek.chatbot` 里的 "chatbot" 是起点那个壳留下的，跟现在的项目定位已经不符，但**改不了**：
+包名 `com.deepseek.chatbot` 沿用初版，**未做改动**：包名是应用唯一标识，改了等于换 App，已导入的 678 个会话（IndexedDB）不会迁移。
 
-- 包名是 Android 应用的唯一标识，改了等于换 App
-- 旧 App 的数据（IndexedDB 里的全部对话）不会迁移
-- 真机上已经有 678 个会话，改了就是全丢
-
-已经改掉的：应用名 `DeepSeek Chat`、主题名 `Theme.DeepSeekChat`、界面文案里所有品牌字样。
+其余标识都是新的：应用名 `DeepSeek Chat`、主题名 `Theme.DeepSeekChat`、界面文案、图标。
 
 ## 10. 许可
 
