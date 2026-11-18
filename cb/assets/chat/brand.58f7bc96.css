@@ -304,3 +304,32 @@
   font-size: 15px;
   color: var(--dsw-alias-label-tertiary, #888);
 }
+
+
+/* 字体大小：覆盖 markdown 字号变量。标准档是 16px/28px */
+html.ds-fs-small {
+  --dsw-font-markdown-base: 14px/25px var(--dsw-font-family);
+  --dsw-font-markdown-base-strong: 600 14px/25px var(--dsw-font-family);
+  --dsw-font-markdown-h1: 700 21px/30px var(--dsw-font-family);
+  --dsw-font-markdown-h2: 700 19px/28px var(--dsw-font-family);
+  --dsw-font-markdown-h3: 700 17px/26px var(--dsw-font-family);
+  --dsw-font-markdown-h4: 600 14px/25px var(--dsw-font-family);
+}
+
+html.ds-fs-large {
+  --dsw-font-markdown-base: 18px/31px var(--dsw-font-family);
+  --dsw-font-markdown-base-strong: 600 18px/31px var(--dsw-font-family);
+  --dsw-font-markdown-h1: 700 27px/38px var(--dsw-font-family);
+  --dsw-font-markdown-h2: 700 25px/36px var(--dsw-font-family);
+  --dsw-font-markdown-h3: 700 22px/33px var(--dsw-font-family);
+  --dsw-font-markdown-h4: 600 18px/31px var(--dsw-font-family);
+}
+
+html.ds-fs-xlarge {
+  --dsw-font-markdown-base: 20px/34px var(--dsw-font-family);
+  --dsw-font-markdown-base-strong: 600 20px/34px var(--dsw-font-family);
+  --dsw-font-markdown-h1: 700 30px/42px var(--dsw-font-family);
+  --dsw-font-markdown-h2: 700 27px/38px var(--dsw-font-family);
+  --dsw-font-markdown-h3: 700 24px/36px var(--dsw-font-family);
+  --dsw-font-markdown-h4: 600 20px/34px var(--dsw-font-family);
+}
