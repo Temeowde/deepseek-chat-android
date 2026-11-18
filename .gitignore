@@ -1,25 +1,25 @@
-# 签名密钥 —— 绝对不能提交
+# 签名密钥
 *.keystore
 *.jks
 *.p12
 
-# 二进制产物
+# 构建产物
 *.apk
 *.aab
 *.idsig
-*-aligned.apk
-*-unsigned.apk
+.build/
 
-# 构建中间产物
+# 编译中间物
 wicon/ext/
 wicon/out.apk
 wicon/res.zip
 dec2/linked.apk
 dec2/res.zip
-dec2/assets/
-dec2/classes*.dex
-dec2/unknown/
 dec2/original/
+dec2/build/
+dec2/assets/
+dec2/unknown/
+dec2/classes*.dex
 
 # 系统
 .DS_Store

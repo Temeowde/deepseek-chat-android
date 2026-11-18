@@ -1,8 +1,8 @@
-com.deepseek.chatbot:drawable/ic_launcher=0x7f010000
-com.deepseek.chatbot:string/api_key_required=0x7f020000
-com.deepseek.chatbot:string/app_name=0x7f020001
-com.deepseek.chatbot:string/exit_hint=0x7f020002
-com.deepseek.chatbot:string/open_platform=0x7f020003
-com.deepseek.chatbot:style/Theme.DeepSeekChat=0x7f030000
-com.deepseek.chatbot:xml/backup_rules=0x7f040000
-com.deepseek.chatbot:xml/data_extraction_rules=0x7f040001
+com.temeowde.dschat:drawable/ic_launcher=0x7f010000
+com.temeowde.dschat:string/api_key_required=0x7f020000
+com.temeowde.dschat:string/app_name=0x7f020001
+com.temeowde.dschat:string/exit_hint=0x7f020002
+com.temeowde.dschat:string/open_platform=0x7f020003
+com.temeowde.dschat:style/Theme.DeepSeekChat=0x7f030000
+com.temeowde.dschat:xml/backup_rules=0x7f040000
+com.temeowde.dschat:xml/data_extraction_rules=0x7f040001

@@ -1,19 +1,31 @@
 #!/bin/bash
-# DeepSeek Chat 2.0.0 构建脚本
-# 依赖：aapt2 / zipalign / apksigner（Android build-tools）、python3
+# DeepSeek Chat 构建脚本（完全自包含，不依赖任何外部 APK）
+#
+# 依赖：aapt2 / zipalign / apksigner（Android build-tools）、apktool.jar、python3
 # 用法：bash assemble.sh
 set -e
 cd "$(dirname "$0")"
 
-BT=/usr/lib/android-sdk/build-tools/debian
-ANDROID_JAR=/root/sdk/android-11/android.jar
-KEYSTORE="$(dirname "$0")/deepseek-demo.keystore"   # 跟着包走，换签名会丢用户数据
-KS_ALIAS=deepseekdemo
-KS_PASS=deepseekdemo
-BASE_APK=base.apk                      # 底包，提供 dex（自行准备，见 README）
+# 路径可用环境变量覆盖
+BT="${BT:-$(dirname "$(command -v aapt2)")}"
+ANDROID_JAR="${ANDROID_JAR:-$ANDROID_HOME/platforms/android-30/android.jar}"
+# apktool：设 APKTOOL_JAR 走 jar，否则用 PATH 里的 apktool 命令
+if [ -n "${APKTOOL_JAR:-}" ]; then APKTOOL="java -jar $APKTOOL_JAR"; else APKTOOL="apktool"; fi
+KEYSTORE="$(dirname "$0")/release.keystore"
+KS_ALIAS=release
+KS_PASS="${KS_PASS:?请设置环境变量 KS_PASS}"
 
-# ── 1. 编译图标矢量 ──────────────────────────────
-echo "[1/5] 编译图标"
+OUT=DeepSeek-Chat-2.0.0.apk
+
+# ── 1. 编译 smali → dex ──────────────────────────
+echo "[1/5] 编译 dex"
+rm -rf .build && mkdir -p .build
+cp -r src/smali src/smali_classes2 src/apktool.yml .build/
+$APKTOOL b --no-res .build -o .build/dex.apk >/dev/null
+mkdir -p .build/dex && unzip -o -q .build/dex.apk "classes*.dex" -d .build/dex
+
+# ── 2. 编译图标 ─────────────────────────────────
+echo "[2/5] 编译图标"
 cd wicon
 rm -f res.zip out.apk && rm -rf ext
 $BT/aapt2 compile --dir res -o res.zip
@@ -21,9 +33,8 @@ $BT/aapt2 link -o out.apk -I "$ANDROID_JAR" --manifest AndroidManifest.xml res.z
 unzip -o -q out.apk -d ext
 cd ..
 
-# ── 2. 重编资源表（app_name / 主题 / 图标）──────
-# dec2 是 apktool 解码出的资源，stable-ids.txt 保证资源 ID 不变
-echo "[2/5] 重编资源表"
+# ── 3. 编译资源表 ───────────────────────────────
+echo "[3/5] 编译资源表"
 cd dec2
 cp ../wicon/res/drawable/ic_launcher.xml res/drawable/ic_launcher.xml
 rm -f res.zip linked.apk
@@ -34,14 +45,15 @@ $BT/aapt2 link -o linked.apk -I "$ANDROID_JAR" \
   --version-code 20 --version-name 2.0.0 res.zip
 cd ..
 
-# ── 3. 组装 ─────────────────────────────────────
-echo "[3/5] 组装 APK"
+# ── 4. 组装 ─────────────────────────────────────
+echo "[4/5] 组装"
 python3 - <<'PY'
-import zipfile, os
+import zipfile, os, glob
 
-src    = zipfile.ZipFile('base.apk')   # dex 与其它 assets
-linked = zipfile.ZipFile('dec2/linked.apk')            # manifest / res / arsc
+linked = zipfile.ZipFile('dec2/linked.apk')
 icon   = open('wicon/ext/res/drawable/ic_launcher.xml','rb').read()
+dexes  = {os.path.basename(p): open(p,'rb').read()
+          for p in glob.glob('.build/dex/classes*.dex')}
 
 front = {}
 for r,_,fs in os.walk('cb/assets/chat'):
@@ -51,41 +63,35 @@ for r,_,fs in os.walk('cb/assets/chat'):
 
 out = 'DeepSeek-Chat-2.0.0-unsigned.apk'
 with zipfile.ZipFile(out,'w') as z:
-    # 新资源表与清单
+    # 资源表与清单
     for i in linked.infolist():
         zi = zipfile.ZipInfo(i.filename, date_time=(1981,1,1,1,1,0))
-        # resources.arsc 必须 STORED，否则真机 INSTALL_FAILED (-124)
+        # resources.arsc 必须 STORED，压缩会 INSTALL_FAILED (-124)
         zi.compress_type = zipfile.ZIP_STORED if i.filename=='resources.arsc' else zipfile.ZIP_DEFLATED
         data = icon if i.filename=='res/drawable/ic_launcher.xml' else linked.read(i.filename)
         z.writestr(zi, data)
-    # 原包的 dex 和其余 assets（跳过旧前端、旧资源）
-    for i in src.infolist():
-        n = i.filename
-        if n.startswith(('assets/chat/','res/','META-INF/')): continue
-        if n in ('AndroidManifest.xml','resources.arsc'): continue
-        zi = zipfile.ZipInfo(n, date_time=(1981,1,1,1,1,0))
+    # dex
+    for name, data in sorted(dexes.items()):
+        zi = zipfile.ZipInfo(name, date_time=(1981,1,1,1,1,0))
         zi.compress_type = zipfile.ZIP_DEFLATED
-        z.writestr(zi, src.read(n))
-    # 改写后的前端
+        z.writestr(zi, data)
+    # 前端
     for n,d in front.items():
         zi = zipfile.ZipInfo(n, date_time=(1981,1,1,1,1,0))
         zi.compress_type = zipfile.ZIP_DEFLATED
         z.writestr(zi, d)
-print(f"  {out}  {os.path.getsize(out)/1e6:.2f} MB")
+print(f"  {out}  {os.path.getsize(out)/1e6:.2f} MB  ({len(dexes)} 个 dex)")
 PY
 
-# ── 4. 对齐 ─────────────────────────────────────
-echo "[4/5] zipalign"
-rm -f dsc-aligned.apk DeepSeek-Chat-2.0.0.apk
-$BT/zipalign -f -p 4 DeepSeek-Chat-2.0.0-unsigned.apk dsc-aligned.apk
-
-# ── 5. 签名 ─────────────────────────────────────
-echo "[5/5] 签名"
+# ── 5. 对齐签名 ─────────────────────────────────
+echo "[5/5] 对齐签名"
+rm -f .build/aligned.apk "$OUT"
+$BT/zipalign -f -p 4 DeepSeek-Chat-2.0.0-unsigned.apk .build/aligned.apk
 $BT/apksigner sign --ks "$KEYSTORE" --ks-key-alias "$KS_ALIAS" \
   --ks-pass pass:$KS_PASS --key-pass pass:$KS_PASS \
-  --min-sdk-version 26 --out DeepSeek-Chat-2.0.0.apk dsc-aligned.apk
-$BT/apksigner verify DeepSeek-Chat-2.0.0.apk && echo "BUILD_OK"
+  --min-sdk-version 26 --out "$OUT" .build/aligned.apk
+$BT/apksigner verify "$OUT" && echo "BUILD_OK"
 
+rm -f DeepSeek-Chat-2.0.0-unsigned.apk
 echo
-echo "产物: $(pwd)/DeepSeek-Chat-2.0.0.apk"
-echo "安装: su -c 'pm install -r -t DeepSeek-Chat-2.0.0.apk'  或  adb install -r -t"
+echo "产物: $(pwd)/$OUT"
