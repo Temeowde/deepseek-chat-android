@@ -239,3 +239,33 @@
   border-radius: 0 !important;
   align-self: stretch !important;
 }
+
+
+/* 自检面板里的 DOM 诊断区 */
+.ds-diag {
+  margin-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08));
+  padding-top: 10px;
+}
+
+.ds-diag-title {
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary, #888);
+  margin-bottom: 6px;
+}
+
+.ds-diag-body {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-secondary, #555);
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--dsw-alias-bg-secondary, #f6f6f8);
+  border-radius: 8px;
+  padding: 8px;
+  -webkit-user-select: text;
+  user-select: text;
+}

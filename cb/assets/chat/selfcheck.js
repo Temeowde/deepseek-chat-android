@@ -63,6 +63,28 @@
     return rows;
   }
 
+
+  /* 把页面上所有可点元素的命名导出来，用来核对选择器是否猜对 */
+  function diagnose() {
+    var btns = document.querySelectorAll('button,[role="button"],a[href]');
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < btns.length && out.length < 60; i++) {
+      var b = btns[i];
+      var lab = (b.getAttribute('aria-label') || '').trim();
+      var ttl = (b.getAttribute('title') || '').trim();
+      var txt = (b.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 24);
+      var key = lab + '|' + ttl + '|' + txt;
+      if (seen[key]) continue;
+      if (!lab && !ttl && !txt) continue;
+      seen[key] = 1;
+      out.push('aria=' + (lab || '-') + ' title=' + (ttl || '-') + ' text=' + (txt || '-'));
+    }
+    return out;
+  }
+
+  window.__dsDiagnose = diagnose;
+
   window.__dsCheck = check;
 
   var LABEL = '功能自检';
@@ -90,7 +112,12 @@
     }).join('');
     var mask = document.createElement('div');
     mask.className = 'ds-check-mask';
-    mask.innerHTML = '<div class="ds-check-panel"><h3>功能自检</h3>' + html +
+    var diag = diagnose();
+    var diagHtml = diag.length
+      ? '<div class="ds-diag"><div class="ds-diag-title">页面按钮（共 ' + diag.length + ' 种）</div><pre class="ds-diag-body">' +
+        diag.join('\n') + '</pre></div>'
+      : '';
+    mask.innerHTML = '<div class="ds-check-panel"><h3>功能自检</h3>' + html + diagHtml +
       '<button type="button" class="ds-check-close">关闭</button></div>';
     document.body.appendChild(mask);
     mask.addEventListener('click', function (ev) {
