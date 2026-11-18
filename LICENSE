@@ -2,13 +2,12 @@ MIT License
 
 Copyright (c) 2025 DeepSeek Chat (Android wrapper modifications)
 
-本仓库是以下项目的衍生作品：
+This repository is a derivative work of:
 
-  deepseek-ai/chat-demo (MIT)
+  deepseek-ai/chat-demo (MIT License)
     https://github.com/deepseek-ai/chat-demo
 
-  chuhongliang2001/DeepSeek-Chatbot (Android 封装)
-    https://github.com/chuhongliang2001/DeepSeek-Chatbot
+The WebView shell APK used as build input is not included in this repository.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

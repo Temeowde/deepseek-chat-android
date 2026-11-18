@@ -1,13 +1,13 @@
 # DeepSeek Chat (Android)
 
-把 DeepSeek 官方开源的 [chat-demo](https://github.com/deepseek-ai/chat-demo) Web 前端封装成 Android 客户端，并做了一系列针对手机端的改造。
+把 DeepSeek 官方开源的 [chat-demo](https://github.com/deepseek-ai/chat-demo) Web 前端封装成原生 Android 客户端，并针对手机做了大量改造——移动端布局、历史对话导入、长列表性能、图标与首页样式。
 
 用你自己的 API Key，外观和交互对齐官方 App，可以把官方 App 导出的历史对话完整导入。
 
 | | |
 |---|---|
 | 应用名 | DeepSeek Chat |
-| 包名 | `com.deepseek.chatbot` |
+| 包名 | `com.deepseek.chatbot`（历史遗留，见下方说明） |
 | 版本 | 2.0.0 (versionCode 20) |
 | minSdk / targetSdk | 26 / 35 |
 | 体积 | 约 2.1 MB |
@@ -30,9 +30,9 @@
 需要 Android build-tools（aapt2 / zipalign / apksigner）、`android.jar`、apktool、python3。
 
 ```bash
-# 1. 下载原版底包（提供 dex），放到仓库根目录
-#    https://github.com/chuhongliang2001/DeepSeek-Chatbot 的 Releases 里的 V1.0
-#    文件名需要是 DeepSeekChatbot-V1.0.apk
+# 1. 准备底包（提供 classes.dex，WebView 壳的启动代码在这里）
+#    这是一个已编译好的 chat-demo Android 壳，重命名为 base.apk 放到根目录
+#    README 末尾「底包从哪来」一节有说明
 
 # 2. 准备签名密钥（换签名必须卸载重装，会丢数据）
 keytool -genkeypair -keystore deepseek-demo.keystore -alias deepseekdemo \
@@ -72,8 +72,27 @@ bash assemble.sh
 
 详见 HANDOFF.md 第 5 节。
 
+## 关于包名
+
+包名是 `com.deepseek.chatbot`，带着 "chatbot" 这个词，看起来跟现在的项目定位不符。**但它不能改。**
+
+Android 的包名就是应用的唯一标识，改了包名等于换了一个 App——旧 App 的数据（IndexedDB 里的全部对话记录）不会跟过来，用户会丢掉所有历史。这个项目已经在真机上存了 678 个会话，所以包名保持原样。
+
+应用名（桌面上显示的名字）、主题名、界面文案都已经改掉了，只有包名这一个内部标识保留。
+
+## 底包从哪来
+
+构建需要一个预先编译好的 Android 壳 APK，它提供 `classes.dex`（WebView 初始化、文件选择器、分享等原生能力）和 `assets/chat/` 的原始前端。仓库里不放这个文件，因为：
+
+- 它是二进制，不适合进 git
+- 它有自己的发布渠道
+
+获取方式：GitHub 上有若干现成的 chat-demo Android 壳，从 Releases 拿一个 V1.0 级别的版本，重命名为 `base.apk` 即可。任何「加载 `file:///android_asset/chat/index.html` 的 WebView Activity」都能当底包。
+
+如果找不到，本项目本质上是「WebView + 一个加载 `file:///android_asset/chat/index.html` 的 Activity」，自己用 Android Studio 写一个 30 行的壳也能替代，`AndroidManifest.xml` 和资源结构见 `dec2/`。
+
 ## 许可
 
-上游 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) 是 MIT；[chuhongliang2001/DeepSeek-Chatbot](https://github.com/chuhongliang2001/DeepSeek-Chatbot) 是其 Android 封装。
+上游 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) 是 MIT，本仓库的 `cb/assets/chat/` 即其构建产物改造而来，完整版权声明见 [LICENSE](LICENSE)。
 
-本仓库只包含修改部分（前端资源 + 构建脚本 + 图标），**不含原版 APK 与签名密钥**，需自行准备。
+本仓库只包含修改部分（前端资源 + 构建脚本 + 图标 + 文档），**不含底包 APK 与签名密钥**。

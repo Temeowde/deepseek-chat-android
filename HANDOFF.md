@@ -6,14 +6,16 @@
 
 ## 1. 这个项目是什么
 
-基于第三方开源项目 `chuhongliang2001/DeepSeek-Chatbot` V1.0（其上游是 DeepSeek 官方开源的 [`deepseek-ai/chat-demo`](https://github.com/deepseek-ai/chat-demo)，MIT 协议）二次修改的 Android 客户端。
+把 DeepSeek 官方开源的 [`deepseek-ai/chat-demo`](https://github.com/deepseek-ai/chat-demo)（MIT）Web 前端，装进一个 Android WebView 壳里，并针对手机端做了大量改造。
+
+起点是一个已编译好的 WebView 壳 APK，它提供 `classes.dex` 和原始前端资源。本仓库是在它基础上替换前端、改资源、重签名的结果。
 
 **核心目标**：外观和交互对齐 DeepSeek 官方 App，但用用户自己的 API Key，并且能把官方 App 导出的历史对话完整导入。
 
 | 项 | 值 |
 |---|---|
 | 应用名 | `DeepSeek Chat` |
-| 包名 | `com.deepseek.chatbot` |
+| 包名 | `com.deepseek.chatbot`（**不能改**，改了用户会丢全部对话数据） |
 | versionName / versionCode | `2.0.0` / `20` |
 | minSdk / targetSdk | 26 / 35 |
 | 签名 | 工作区根目录的 `deepseek-demo.keystore`，alias `deepseekdemo`，密码均为 `deepseekdemo` |
@@ -32,7 +34,7 @@
 /root/workspace/gh/
 ├── assemble.sh                    一键构建脚本（改完代码跑这个）
 ├── deepseek-demo.keystore         ★ 签名密钥，必须跟着走（换签名必须卸载重装，会丢 678 个会话）
-├── DeepSeekChatbot-V1.0.apk       原版底包，提供 classes.dex / classes2.dex 和其它 assets
+├── base.apk                       底包，提供 classes.dex / classes2.dex 和其它 assets（自行准备）
 ├── DeepSeek-Chat-2.0.0.apk        构建产物
 ├── cb/assets/chat/                ★ 前端资源（所有 WebView 侧改动的唯一真源）
 │   ├── index.html                 入口，引用下面这些带哈希的文件
@@ -205,7 +207,7 @@ L=190 → 上限 30.2
 
 改 `app_name` 必须重编 `resources.arsc`，流程：
 
-1. `java -jar /root/workspace/tools/apktool.jar d -f -s DeepSeekChatbot-V1.0.apk -o dec2`
+1. `java -jar /root/workspace/tools/apktool.jar d -f -s base.apk -o dec2`
 2. 改 `dec2/res/values/strings.xml` 的 `app_name`
 3. 用 `dec2/res/values/public.xml` 生成 `stable-ids.txt`（保证 8 个资源 ID 全部不变，否则 dex 里的 R 引用会错乱）
 4. `aapt2 compile --dir res -o res.zip`
@@ -327,6 +329,16 @@ pm install -r -t /data/local/tmp/DeepSeek-Chat-2.0.0.apk
 
 原始前端构建产物在 `chat-demo-v0.1.1.zip`（官方 `deepseek-ai/chat-demo` 的 dist）。
 
-## 9. 许可
+## 9. 命名遗留
 
-上游 `deepseek-ai/chat-demo` 是 MIT，`chuhongliang2001/DeepSeek-Chatbot` 是其二次封装的 Android 壳。本项目在此基础上修改，**仅供个人使用，不要再分发**。`cb/assets/chat/LICENSE` 是原有的 MIT 许可文本。
+包名 `com.deepseek.chatbot` 里的 "chatbot" 是起点那个壳留下的，跟现在的项目定位已经不符，但**改不了**：
+
+- 包名是 Android 应用的唯一标识，改了等于换 App
+- 旧 App 的数据（IndexedDB 里的全部对话）不会迁移
+- 真机上已经有 678 个会话，改了就是全丢
+
+已经改掉的：应用名 `DeepSeek Chat`、主题名 `Theme.DeepSeekChat`、界面文案里所有品牌字样。
+
+## 10. 许可
+
+上游 `deepseek-ai/chat-demo` 是 MIT。本仓库的 `cb/assets/chat/` 是其构建产物的改造版本，完整声明见 `LICENSE`。

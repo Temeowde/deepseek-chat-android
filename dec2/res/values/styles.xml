@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.DeepSeekChatbot" parent="@android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.DeepSeekChat" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">#fffafafc</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#ff4d63d2</item>

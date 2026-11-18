@@ -10,7 +10,7 @@ ANDROID_JAR=/root/sdk/android-11/android.jar
 KEYSTORE="$(dirname "$0")/deepseek-demo.keystore"   # 跟着包走，换签名会丢用户数据
 KS_ALIAS=deepseekdemo
 KS_PASS=deepseekdemo
-BASE_APK=DeepSeekChatbot-V1.0.apk      # 原版底包，提供 dex
+BASE_APK=base.apk                      # 底包，提供 dex（自行准备，见 README）
 
 # ── 1. 编译图标矢量 ──────────────────────────────
 echo "[1/5] 编译图标"
@@ -39,7 +39,7 @@ echo "[3/5] 组装 APK"
 python3 - <<'PY'
 import zipfile, os
 
-src    = zipfile.ZipFile('DeepSeekChatbot-V1.0.apk')   # dex 与其它 assets
+src    = zipfile.ZipFile('base.apk')   # dex 与其它 assets
 linked = zipfile.ZipFile('dec2/linked.apk')            # manifest / res / arsc
 icon   = open('wicon/ext/res/drawable/ic_launcher.xml','rb').read()
 

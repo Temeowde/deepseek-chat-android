@@ -1,5 +1,5 @@
 version: 2.11.1
-apkFileName: DeepSeekChatbot-V1.0.apk
+apkFileName: base.apk
 isFrameworkApk: false
 usesFramework:
   ids:
