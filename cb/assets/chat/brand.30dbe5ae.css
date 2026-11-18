@@ -269,3 +269,38 @@
   -webkit-user-select: text;
   user-select: text;
 }
+
+
+/* 注入到设置页的行：不克隆原生结构，自建保持可控 */
+.ds-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: 68px;
+  padding: 0 16px;
+  margin: 0 0 8px;
+  background: var(--dsw-alias-bg-base, #fff);
+  border-radius: 14px;
+  color: var(--dsw-alias-label-primary, #1a1a1a);
+  font-size: 16px;
+  line-height: 24px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ds-setting-row:active {
+  background: var(--dsw-alias-bg-secondary, #f4f4f6);
+}
+
+.ds-setting-label {
+  flex: 0 0 auto;
+}
+
+.ds-setting-value {
+  flex: 1;
+  text-align: right;
+  font-size: 15px;
+  color: var(--dsw-alias-label-tertiary, #888);
+}

@@ -63,7 +63,8 @@
       var r0 = document.querySelector('.ds-theme-row');
       if (r0.dataset.dsVal !== pref) {
         r0.dataset.dsVal = pref;
-        r0.textContent = rowText();
+        var v = r0.querySelector('.ds-setting-value');
+        if (v) v.textContent = LABELS[pref];
       }
       return;
     }
@@ -73,20 +74,21 @@
     var container = row && row.parentElement;
     if (!container) return;
 
-    var el = row.cloneNode(true);
-    el.classList.add('ds-theme-row');
+    /* 不 clone 原生行：克隆后再覆盖 textContent 会把图标和布局冲掉，
+       这里自建元素，样式由 .ds-setting-row 控制 */
+    var el = document.createElement('div');
+    el.className = 'ds-setting-row ds-theme-row';
     el.dataset.dsVal = pref;
-    el.removeAttribute('aria-label');
-    /* cloneNode 不复制 React 事件，自己绑 */
-    el.textContent = rowText();
+    el.innerHTML = '<span class="ds-setting-label">外观</span>' +
+                   '<span class="ds-setting-value">' + LABELS[pref] + '</span>';
     el.style.cursor = 'pointer';
     el.addEventListener('click', function (ev) {
       ev.stopPropagation();
       var order = ['system', 'light', 'dark'];
       var next = order[(order.indexOf(pref) + 1) % order.length];
       window.__dsSetTheme(next);
-      el.dataset.dsVal = pref;
-      el.textContent = rowText();
+      var v2 = el.querySelector('.ds-setting-value');
+      if (v2) v2.textContent = LABELS[pref];
     });
     container.insertBefore(el, row);
   }

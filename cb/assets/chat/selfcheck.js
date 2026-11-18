@@ -133,9 +133,8 @@
     var container = row && row.parentElement;
     if (!container) return;
     var el = document.createElement('div');
-    el.className = 'ds-check-entry';
-    el.textContent = LABEL;
-    el.style.cssText = 'cursor:pointer;padding:12px 0;';
+    el.className = 'ds-setting-row ds-check-entry';
+    el.innerHTML = '<span class="ds-setting-label">' + LABEL + '</span>';
     el.addEventListener('click', function (ev) { ev.stopPropagation(); show(); });
     container.insertBefore(el, row);
   }
