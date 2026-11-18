@@ -41,8 +41,20 @@
     document.body.appendChild(inp);
     inp.addEventListener('change', function () {
       var f = inp.files;
-      if (f && f.length) feed(f);
       setTimeout(function () { inp.remove(); }, 0);
+      if (!f || !f.length) return;
+      /* 图片先过编辑（旋转/裁剪），非图片直接放行 */
+      var file = f[0];
+      var isImage = /^image\//.test(file.type || '');
+      if (isImage && typeof window.__dsEditImage === 'function') {
+        window.__dsEditImage(file, function (edited) {
+          var dt = new DataTransfer();
+          dt.items.add(edited);
+          feed(dt.files);
+        });
+      } else {
+        feed(f);
+      }
     });
     inp.click();
   }

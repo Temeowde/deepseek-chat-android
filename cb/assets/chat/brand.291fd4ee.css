@@ -333,3 +333,71 @@ html.ds-fs-xlarge {
   --dsw-font-markdown-h3: 700 24px/36px var(--dsw-font-family);
   --dsw-font-markdown-h4: 600 20px/34px var(--dsw-font-family);
 }
+
+
+/* 图片编辑器 */
+.ds-edit-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-edit-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  color: #fff;
+  font-size: 16px;
+}
+
+.ds-edit-top button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+
+.ds-edit-canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 24px;
+}
+
+.ds-edit-canvas {
+  display: block;
+  border-radius: 4px;
+}
+
+.ds-edit-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 16px calc(18px + env(safe-area-inset-bottom));
+}
+
+.ds-edit-bar button {
+  flex: 1;
+  max-width: 130px;
+  padding: 11px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.ds-edit-bar button:active {
+  background: rgba(255, 255, 255, .24);
+}
