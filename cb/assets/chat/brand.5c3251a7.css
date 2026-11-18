@@ -94,3 +94,34 @@
   background: var(--dsw-alias-brand-primary, #4d6bfe);
   pointer-events: none;
 }
+
+
+/* 品牌主色对齐官方 App（#426efe），chat-demo 默认是 #3964fe */
+:root {
+  --dsw-static-blue-500: #426efe;
+}
+
+
+/* 消息反馈按钮 */
+.ds-fb-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.ds-fb-btn {
+  background: none;
+  border: none;
+  padding: 4px 3px;
+  color: inherit;
+  opacity: .45;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ds-fb-btn.on {
+  opacity: 1;
+  color: var(--dsw-alias-brand-primary, #426efe);
+}
