@@ -7,10 +7,11 @@
   try { store = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { store = {}; }
   if (!store || typeof store !== 'object') store = {};
 
-  var SVG_UP = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 22V11l5-9a2 2 0 0 1 2 2v5h5a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 17.6 22H7z"/><path d="M7 11H3v11h4"/></svg>';
-  var SVG_DOWN = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2v11l-5 9a2 2 0 0 1-2-2v-5H5a2 2 0 0 1-2-2.3l1.4-7A2 2 0 0 1 6.4 2H17z"/><path d="M17 13h4V2h-4"/></svg>';
+  var ICONS = window.__DS_ICONS || {};
+  var SVG_UP = ICONS.like || '<svg viewBox="0 0 24 24" width="1em" height="1em"><path d="M7 22V11l5-9a2 2 0 0 1 2 2v5h5a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 17.6 22H7z" fill="currentColor"/></svg>';
+  var SVG_DOWN = ICONS.dislike || '<svg viewBox="0 0 24 24" width="1em" height="1em"><path d="M17 2v11l-5 9a2 2 0 0 1-2-2v-5H5a2 2 0 0 1-2-2.3l1.4-7A2 2 0 0 1 6.4 2H17z" fill="currentColor"/></svg>';
 
-  var SVG_SHARE = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M12 16V3"/><path d="M8 7l4-4 4 4"/></svg>';
+  var SVG_SHARE = ICONS.share || '<svg viewBox="0 0 24 24" width="1em" height="1em"><path d="M12 3l5 5M12 3L7 8M12 3v12" stroke="currentColor" stroke-width="2" fill="none"/></svg>';
 
   var NAMES = ['重新生成', 'Regenerate'];
 

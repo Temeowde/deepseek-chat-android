@@ -1,0 +1,17 @@
+{
+  "call_notification_control_background": "#14000000",
+  "call_notification_control_foreground": "#ff1f1f1f",
+  "call_notification_control_ripple": "#1f000000",
+  "call_notification_hangup_foreground": "#ffd93025",
+  "call_notification_label_primary": "#ff0f0f0f",
+  "colorTransparent": "#00000000",
+  "ic_launcher_background": "#ffffffff",
+  "primary": "#ff426efe",
+  "primary_dark_material_dark": "@android:color/black",
+  "primary_dark_material_light": "@color/material_grey_600",
+  "primary_text_default_material_dark": "#ffffffff",
+  "primary_text_default_material_light": "#de000000",
+  "primary_text_disabled_material_dark": "#4dffffff",
+  "primary_text_disabled_material_light": "#39000000",
+  "splashscreenBackground": "#ffffffff"
+}

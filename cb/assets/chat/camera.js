@@ -8,9 +8,9 @@
     return document.querySelectorAll('[aria-label="上传文件"],[title="上传文件"]');
   }
 
-  var IC_CAM = '<svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7l1.2-1.8A1 1 0 0 1 9.2 4h5.6a1 1 0 0 1 .8.4L16.8 6h1.7A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-9z"/><circle cx="12" cy="12.5" r="3.6"/></svg>';
-  var IC_ALBUM = '<svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.3" cy="9.6" r="1.6"/><path d="M3.6 17.2l4.6-4.3a1.6 1.6 0 0 1 2.2 0l3.2 3.1"/><path d="M14 15.4l1.9-1.7a1.6 1.6 0 0 1 2.2 0l2.2 2"/></svg>';
-  var IC_FILE = '<svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 11.5l-8.1 8.1a5 5 0 0 1-7.1-7.1l8.4-8.4a3.3 3.3 0 0 1 4.7 4.7l-8.3 8.3a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6"/></svg>';
+  var IC_CAM = (window.__DS_ICONS||{}).camera || '';
+  var IC_ALBUM = (window.__DS_ICONS||{}).album || '';
+  var IC_FILE = (window.__DS_ICONS||{}).file || '';
 
   function chatInput() {
     var els = document.querySelectorAll('input[type="file"]');
