@@ -76,3 +76,21 @@
   padding-bottom: 2px !important;
   margin-bottom: 0 !important;
 }
+
+
+/* 置顶会话：左侧品牌色竖条 */
+[data-ds-sid] {
+  position: relative;
+}
+
+[data-ds-sid].ds-pinned::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 22%;
+  bottom: 22%;
+  width: 2.5px;
+  border-radius: 2px;
+  background: var(--dsw-alias-brand-primary, #4d6bfe);
+  pointer-events: none;
+}
