@@ -1,0 +1,28 @@
+/* 侧栏性能优化：合成层提示 + 屏幕外列表项跳过渲染 */
+.drawer-ac14ac {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* 滚动容器独立层，678 条不随抽屉重绘 */
+.list-ac14ac {
+  contain: layout paint;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 屏幕外的分组不参与布局与绘制 —— 对 678 条会话提升最明显 */
+.list-ac14ac > .section-ac14ac {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+/* 阴影从 48px 降到 24px，阴影模糊是掉帧主因之一 */
+.sider-ac14ac {
+  box-shadow: none;
+}
+
+.drawerOpen-ac14ac {
+  box-shadow: 8px 0 24px rgba(12, 15, 24, .10);
+}

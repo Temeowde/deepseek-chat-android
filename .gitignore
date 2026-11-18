@@ -1,0 +1,26 @@
+# 签名密钥 —— 绝对不能提交
+*.keystore
+*.jks
+*.p12
+
+# 二进制产物
+*.apk
+*.aab
+*.idsig
+*-aligned.apk
+*-unsigned.apk
+
+# 构建中间产物
+wicon/ext/
+wicon/out.apk
+wicon/res.zip
+dec2/linked.apk
+dec2/res.zip
+dec2/assets/
+dec2/classes*.dex
+dec2/unknown/
+dec2/original/
+
+# 系统
+.DS_Store
+Thumbs.db
