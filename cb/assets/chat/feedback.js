@@ -16,7 +16,27 @@
   var NAMES = ['重新生成', 'Regenerate'];
 
   function anchors() {
-    if (window.__dsFind && window.__dsFind.buttons) return window.__dsFind.buttons(NAMES);
+    var F = window.__dsFind;
+    if (F && F.buttons) {
+      var hit = F.buttons(NAMES);
+      if (hit.length) return hit;
+      /* 名字对不上时按结构兜底：消息操作栏里最靠右的按钮通常是「重新生成」 */
+      if (F.actionBars) {
+        var bars = F.actionBars();
+        var out = [];
+        for (var i = 0; i < bars.length; i++) {
+          var btns = bars[i].querySelectorAll(':scope > button, :scope > [role="button"]');
+          if (!btns.length) continue;
+          var arr = [];
+          for (var j = 0; j < btns.length; j++) arr.push(btns[j]);
+          arr.sort(function (a, b) {
+            return a.getBoundingClientRect().left - b.getBoundingClientRect().left;
+          });
+          out.push(arr[arr.length - 1]);
+        }
+        if (out.length) return out;
+      }
+    }
     return document.querySelectorAll('[aria-label="重新生成"],[title="重新生成"],[aria-label="Regenerate"],[title="Regenerate"]');
   }
 

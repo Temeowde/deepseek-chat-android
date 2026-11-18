@@ -4,7 +4,30 @@
   var NAMES = ['上传文件', 'Upload file', 'Upload'];
 
   function uploadButtons() {
-    if (window.__dsFind && window.__dsFind.buttons) return window.__dsFind.buttons(NAMES);
+    var F = window.__dsFind;
+    if (F && F.buttons) {
+      var hit = F.buttons(NAMES);
+      if (hit.length) return hit;
+      /* 名字对不上时按结构兜底：输入区里最靠右的那组按钮中，
+         通常是「上传 / 语音 / 发送」，取最左边那个当作上传 */
+      if (F.inputButtons) {
+        var btns = F.inputButtons();
+        var area = F.inputArea && F.inputArea();
+        if (btns.length && area) {
+          /* 只取同一行里靠右侧的（换行的话取 top 最大的一行） */
+          var maxTop = -1e9;
+          for (var i = 0; i < btns.length; i++) {
+            var t = btns[i].getBoundingClientRect().top;
+            if (t > maxTop) maxTop = t;
+          }
+          var row = [];
+          for (var j = 0; j < btns.length; j++) {
+            if (Math.abs(btns[j].getBoundingClientRect().top - maxTop) < 8) row.push(btns[j]);
+          }
+          if (row.length >= 2) return [row[row.length >= 3 ? row.length - 3 : 0]];
+        }
+      }
+    }
     return document.querySelectorAll('[aria-label="上传文件"],[title="上传文件"]');
   }
 
