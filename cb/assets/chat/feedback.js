@@ -12,7 +12,12 @@
 
   var SVG_SHARE = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M12 16V3"/><path d="M8 7l4-4 4 4"/></svg>';
 
-  var SEL = '[aria-label="重新生成"],[title="重新生成"],[aria-label="Regenerate"],[title="Regenerate"]';
+  var NAMES = ['重新生成', 'Regenerate'];
+
+  function anchors() {
+    if (window.__dsFind && window.__dsFind.buttons) return window.__dsFind.buttons(NAMES);
+    return document.querySelectorAll('[aria-label="重新生成"],[title="重新生成"],[aria-label="Regenerate"],[title="Regenerate"]');
+  }
 
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {}
@@ -72,9 +77,9 @@
   }
 
   function inject() {
-    var anchors = document.querySelectorAll(SEL);
-    for (var i = 0; i < anchors.length; i++) {
-      var b = anchors[i];
+    var list = anchors();
+    for (var i = 0; i < list.length; i++) {
+      var b = list[i];
       var host = b.parentElement;
       if (!host) continue;
       if (host.querySelector(':scope > .ds-fb-wrap')) {

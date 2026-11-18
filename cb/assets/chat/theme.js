@@ -41,11 +41,15 @@
   /* 在设置页插入「外观」一行：点一次循环 跟随系统 → 浅色 → 深色 */
   var LABELS = { system: '跟随系统', light: '浅色', dark: '深色' };
 
+  var ANCHORS = ['更换 API Key', 'Change API Key', '语言', 'Language', '朗读音色', 'TTS voice'];
+
   function settingsAnchor() {
     var all = document.querySelectorAll('div,span,button');
-    for (var i = 0; i < all.length; i++) {
-      var t = (all[i].textContent || '').trim();
-      if (t === '更换 API Key' || t === 'Change API Key') return all[i];
+    for (var k = 0; k < ANCHORS.length; k++) {
+      for (var i = 0; i < all.length; i++) {
+        var t = (all[i].textContent || '').trim();
+        if (t === ANCHORS[k]) return all[i];
+      }
     }
     return null;
   }

@@ -25,7 +25,9 @@
         : '脚本未加载'
     });
 
-    var regen = q('[aria-label="重新生成"],[title="重新生成"],[aria-label="Regenerate"],[title="Regenerate"]');
+    var regen = (window.__dsFind && window.__dsFind.buttons)
+      ? window.__dsFind.buttons(['重新生成', 'Regenerate'])
+      : q('[aria-label="重新生成"],[title="重新生成"]');
     var fb = q('.ds-fb-wrap');
     rows.push({
       name: '消息反馈/分享',
@@ -33,7 +35,9 @@
       detail: '回答 ' + regen.length + ' 条，已注入按钮 ' + fb.length + ' 组'
     });
 
-    var up = q('[aria-label="上传文件"],[title="上传文件"]');
+    var up = (window.__dsFind && window.__dsFind.buttons)
+      ? window.__dsFind.buttons(['上传文件', 'Upload file', 'Upload'])
+      : q('[aria-label="上传文件"],[title="上传文件"]');
     var camHooked = 0;
     for (var i = 0; i < up.length; i++) if (up[i].dataset.dsCam) camHooked++;
     rows.push({
@@ -63,11 +67,15 @@
 
   var LABEL = '功能自检';
 
+  var ANCHORS = ['更换 API Key', 'Change API Key', '语言', 'Language', '朗读音色', 'TTS voice'];
+
   function anchor() {
     var all = document.querySelectorAll('div,span,button');
-    for (var i = 0; i < all.length; i++) {
-      var t = (all[i].textContent || '').trim();
-      if (t === '更换 API Key' || t === 'Change API Key') return all[i];
+    for (var k = 0; k < ANCHORS.length; k++) {
+      for (var i = 0; i < all.length; i++) {
+        var t = (all[i].textContent || '').trim();
+        if (t === ANCHORS[k]) return all[i];
+      }
     }
     return null;
   }

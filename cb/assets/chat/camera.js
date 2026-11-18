@@ -1,7 +1,12 @@
 /* 上传入口增强：点击上传按钮弹出「拍照 / 相册 / 文件」面板，
    对应官方输入区的三个入口。选中的图片塞回 chat-demo 的隐藏 input。 */
 (function () {
-  var SEL = '[aria-label="上传文件"],[title="上传文件"]';
+  var NAMES = ['上传文件', 'Upload file', 'Upload'];
+
+  function uploadButtons() {
+    if (window.__dsFind && window.__dsFind.buttons) return window.__dsFind.buttons(NAMES);
+    return document.querySelectorAll('[aria-label="上传文件"],[title="上传文件"]');
+  }
 
   var IC_CAM = '<svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7l1.2-1.8A1 1 0 0 1 9.2 4h5.6a1 1 0 0 1 .8.4L16.8 6h1.7A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-9z"/><circle cx="12" cy="12.5" r="3.6"/></svg>';
   var IC_ALBUM = '<svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.3" cy="9.6" r="1.6"/><path d="M3.6 17.2l4.6-4.3a1.6 1.6 0 0 1 2.2 0l3.2 3.1"/><path d="M14 15.4l1.9-1.7a1.6 1.6 0 0 1 2.2 0l2.2 2"/></svg>';
@@ -70,7 +75,7 @@
   }
 
   function attach() {
-    var btns = document.querySelectorAll(SEL);
+    var btns = uploadButtons();
     for (var i = 0; i < btns.length; i++) {
       var b = btns[i];
       if (b.dataset.dsCam) continue;
