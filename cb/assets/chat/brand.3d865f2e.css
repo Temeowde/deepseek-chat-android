@@ -180,3 +180,34 @@
   justify-content: center;
   color: var(--dsw-alias-label-primary, #1a1a1a);
 }
+
+
+/* 设置页：行改为卡片式，对齐官方 */
+.cell-_85c1b {
+  background: var(--dsw-alias-bg-base, #fff);
+  border-radius: 14px;
+  margin: 0 0 8px;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  min-height: 68px;
+  box-shadow: none !important;
+  align-items: center;
+}
+
+.content-_85c1b {
+  background: var(--dsw-alias-bg-secondary, #f4f4f6);
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  margin-right: 0 !important;
+}
+
+.label-_85c1b {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.description-_85c1b {
+  font-size: 13px;
+  line-height: 19px;
+  margin-top: 3px;
+}
