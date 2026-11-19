@@ -1,0 +1,13 @@
+@media (max-width:768px) {
+  .ds-voice-pad { position:absolute;inset:0;z-index:2;width:100%;margin:0;padding:10px 16px 0;border:0;background:var(--dsw-specific-input-major,white);color:var(--dsw-alias-label-caption,#969aa1);font:inherit;text-align:start;display:flex;align-items:flex-start;cursor:text;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none; }
+  .ds-voice-pad.ds-talk { align-items:center;justify-content:center;padding:0;color:var(--dsw-alias-label-primary);font-weight:600;cursor:pointer; }
+  .ds-voice-pad.ds-cancel { color:var(--dsw-alias-state-error-primary,#cf4949); }
+  .ds-voice-mode { width:36px;height:36px;display:inline-grid;place-items:center;flex:none;padding:0;background:none;color:var(--dsw-alias-label-primary);border:none;cursor:pointer; }
+  .functionRow-ed6f47 { gap:4px;padding:7px 9px 9px; }
+  .toggles-ed6f47 { gap:6px; }
+  .toggle-ed6f47 { height:30px;padding:0 8px;border-color:var(--dsw-alias-border-l2); }
+  .right-ed6f47 { gap:3px; }
+  .ds-speaker { position:relative;display:grid;place-items:center;width:22px;height:22px; }
+  .ds-speaker > svg { width:21px;height:21px; }
+  .ds-speaker.ds-muted::after { content:"";position:absolute;width:25px;height:2px;background:currentColor;transform:rotate(48deg);box-shadow:0 -1.5px var(--dsw-alias-bg-base,white);border-radius:1px; }
+}

@@ -1,0 +1,72 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--chat-canvas);
+}
+
+.stage {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.welcome {
+  position: absolute;
+  inset: 0 min(9vw, 52px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(5px);
+  transition:
+    opacity var(--ds-motion-quick) ease,
+    transform var(--ds-motion-base) var(--ds-ease-out);
+}
+
+.welcome[data-visible='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+.welcome h1 {
+  max-width: 24ch;
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.4;
+  font-weight: 500;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.dock {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  box-sizing: border-box;
+  width: min(100%, 680px);
+  margin-inline: auto;
+  padding: 6px var(--ds-mobile-gutter) max(5px, env(safe-area-inset-bottom));
+}
+
+.caveat {
+  padding-top: 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome {
+    transform: none;
+  }
+}

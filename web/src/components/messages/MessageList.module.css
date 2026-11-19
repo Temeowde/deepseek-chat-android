@@ -1,0 +1,101 @@
+.container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-color: var(--scroll-color) transparent;
+}
+
+.scroll {
+  display: contents;
+}
+
+@media not all and (min-width: 768px) {
+  .container {
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .scroll {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    overflow-anchor: none;
+    scrollbar-color: var(--scroll-color) transparent;
+  }
+
+  .column > [data-chat-message] {
+    transition: opacity var(--ds-motion-base) var(--ds-ease-out);
+  }
+
+  .column > [data-edit-target] ~ [data-chat-message] {
+    opacity: 0.2;
+  }
+
+  .scroll .column {
+    max-width: calc(100% - 2 * var(--ds-mobile-gutter));
+    animation: messagesIn var(--ds-motion-base) var(--ds-ease-out) both;
+  }
+}
+
+.historyPage {
+  display: block;
+  min-height: 44px;
+  margin: 6px auto;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.historyPage:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+@keyframes messagesIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* The zero-height anchor tracks the top of the composer, including when the IME is open. */
+.jumpAnchor { position: relative; flex: none; height: 0; z-index: 1; }
+.jump {
+  position: absolute;
+  inset-inline-end: var(--ds-mobile-gutter);
+  bottom: 8px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding-inline: 11px;
+  border-radius: 12px;
+  border: 1px solid var(--chat-line);
+  background: var(--chat-paper);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 7%);
+  animation: jumpIn var(--ds-motion-quick) var(--ds-ease-out) both;
+}
+.jump svg { width: 16px; height: 16px; }
+
+@keyframes jumpIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.column {
+  width: calc(var(--message-list-max-width) - 2 * var(--message-list-padding-horizontal));
+  max-width: calc(100% - 40px);
+  margin: 0 auto;
+  padding-bottom: 24px;
+}

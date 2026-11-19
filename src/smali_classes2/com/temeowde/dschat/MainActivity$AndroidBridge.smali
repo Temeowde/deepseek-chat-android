@@ -94,6 +94,84 @@
 
 
 # virtual methods
+.method private readAloudPrefs()Landroid/content/SharedPreferences;
+    .locals 3
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    const-string v1, "chat_ui"
+    const/4 v2, 0x0
+    invoke-virtual {v0, v1, v2}, Landroid/content/Context;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+    move-result-object v0
+    return-object v0
+.end method
+
+.method public getAutoReadEnabled()Z
+    .locals 3
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    invoke-direct {p0}, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->readAloudPrefs()Landroid/content/SharedPreferences;
+    move-result-object v0
+    const-string v1, "auto_read"
+    const/4 v2, 0x0
+    invoke-interface {v0, v1, v2}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+    move-result v0
+    return v0
+.end method
+
+.method public openSource(Ljava/lang/String;Ljava/lang/String;Z)Z
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0, p1, p2, p3}, Lcom/temeowde/dschat/SourceReader;->open(Landroid/app/Activity;Ljava/lang/String;Ljava/lang/String;Z)Z
+    move-result v0
+    return v0
+.end method
+
+.method public shareMessage(Ljava/lang/String;Ljava/lang/String;Z)Z
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0, p1, p2, p3}, Lcom/temeowde/dschat/MessageShare;->send(Landroid/app/Activity;Ljava/lang/String;Ljava/lang/String;Z)Z
+    move-result v0
+    return v0
+.end method
+
+.method public getUiOption(Ljava/lang/String;)Ljava/lang/String;
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0, p1}, Lcom/temeowde/dschat/UiOptions;->read(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    return-object v0
+.end method
+
+.method public setUiOption(Ljava/lang/String;Ljava/lang/String;)Z
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0, p1, p2}, Lcom/temeowde/dschat/UiOptions;->write(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)Z
+    move-result v0
+    return v0
+.end method
+
+.method public setAutoReadEnabled(Z)Z
+    .locals 2
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    invoke-direct {p0}, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->readAloudPrefs()Landroid/content/SharedPreferences;
+    move-result-object v0
+    invoke-interface {v0}, Landroid/content/SharedPreferences;->edit()Landroid/content/SharedPreferences$Editor;
+    move-result-object v0
+    const-string v1, "auto_read"
+    invoke-interface {v0, v1, p1}, Landroid/content/SharedPreferences$Editor;->putBoolean(Ljava/lang/String;Z)Landroid/content/SharedPreferences$Editor;
+    invoke-interface {v0}, Landroid/content/SharedPreferences$Editor;->commit()Z
+    move-result v0
+    return v0
+.end method
+
 .method public clearApiKey()V
     .locals 1
     .annotation runtime Landroid/webkit/JavascriptInterface;

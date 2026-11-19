@@ -251,29 +251,26 @@
     invoke-static {v0, p2}, Lcom/temeowde/dschat/MainActivity;->-$$Nest$fputfileCallback(Lcom/temeowde/dschat/MainActivity;Landroid/webkit/ValueCallback;)V
 
     .line 441
-    invoke-virtual {p3}, Landroid/webkit/WebChromeClient$FileChooserParams;->createIntent()Landroid/content/Intent;
+    invoke-virtual {p3}, Landroid/webkit/WebChromeClient$FileChooserParams;->isCaptureEnabled()Z
+    move-result v2
+    if-eqz v2, :choose_document
+    invoke-static {v0}, Lcom/temeowde/dschat/AttachmentPicker;->startCamera(Landroid/app/Activity;)Z
+    move-result v2
+    if-nez v2, :camera_handled
+    invoke-static {v0, v1}, Lcom/temeowde/dschat/MainActivity;->-$$Nest$fputfileCallback(Lcom/temeowde/dschat/MainActivity;Landroid/webkit/ValueCallback;)V
+    invoke-interface {p2, v1}, Landroid/webkit/ValueCallback;->onReceiveValue(Ljava/lang/Object;)V
+    :camera_handled
+    const/4 v3, 0x1
+    return v3
+
+    :choose_document
+    invoke-static {v0, p3}, Lcom/temeowde/dschat/AttachmentPicker;->picker(Landroid/app/Activity;Landroid/webkit/WebChromeClient$FileChooserParams;)Landroid/content/Intent;
 
     move-result-object v0
 
     .line 442
     .local v0, "intent":Landroid/content/Intent;
-    const-string v2, "android.intent.category.OPENABLE"
-
-    invoke-virtual {v0, v2}, Landroid/content/Intent;->addCategory(Ljava/lang/String;)Landroid/content/Intent;
-
-    .line 443
-    invoke-virtual {p3}, Landroid/webkit/WebChromeClient$FileChooserParams;->getMode()I
-
-    move-result v2
-
     const/4 v3, 0x1
-
-    if-ne v2, v3, :cond_1
-
-    .line 444
-    const-string v2, "android.intent.extra.ALLOW_MULTIPLE"
-
-    invoke-virtual {v0, v2, v3}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Z)Landroid/content/Intent;
 
     .line 447
     :cond_1

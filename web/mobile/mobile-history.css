@@ -1,0 +1,76 @@
+.ds-ui-icon { display:inline-block;flex:none;width:21px;height:21px;background:currentColor;mask:var(--ds-icon) center/contain no-repeat;-webkit-mask:var(--ds-icon) center/contain no-repeat; }
+.ds-history,.ds-history-scrim { --ds-ui-paper:var(--chat-paper,#fff);--ds-ui-fill:var(--chat-prompt,#eef0f4);--ds-ui-text:var(--dsw-alias-label-primary,#17181a);--ds-ui-sub:var(--dsw-alias-label-secondary,#666);--ds-ui-line:var(--chat-line,#e0e3e9);--ds-ui-accent:var(--dsw-alias-brand-text);--ds-ui-danger:#d64847;color:var(--ds-ui-text); }
+.ds-history.sider-ac14ac { width:100%;max-width:none;padding:0;border:0;background:var(--ds-ui-paper); }
+.ds-history [hidden] { display:none!important; }
+.ds-history .ds-history-search,.ds-selection-bar { flex:none;box-sizing:border-box;height:68px;padding:12px 14px 8px; }
+.ds-history .ds-history-search {
+  display: grid;
+  grid-template-columns: 0px minmax(0, 1fr);
+  gap: 0;
+  transition: grid-template-columns var(--ds-motion-base) var(--ds-ease-out);
+}
+.ds-history[data-searching=true] .ds-history-search { grid-template-columns: 48px minmax(0, 1fr); }
+.ds-history .ds-history-search-back {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ds-motion-quick) ease;
+}
+.ds-history[data-searching=true] .ds-history-search-back { opacity: 1; pointer-events: auto; }
+.ds-history .ds-history-search-back:active { background: var(--ds-ui-fill); }
+.ds-history .ds-search-input { height:44px;border-radius:22px;font:inherit;font-size:15px;padding-inline-start:38px;background-color:var(--ds-ui-fill);background-position:14px center; }
+.ds-history .listWrap-ac14ac { min-height:0;margin:0; }
+.ds-history .list-ac14ac { margin:0;padding:0 8px; }
+.ds-history .section-ac14ac { margin-top:12px;padding-top:0; }
+.ds-history .section-ac14ac:first-child { margin-top:0; }
+.ds-history .sectionHeader-ac14ac { box-sizing:border-box;background:var(--ds-ui-paper);padding:6px 12px 4px;line-height:18px; }
+.ds-history .item-ff6fc9 { box-sizing:border-box;min-height:44px;height:auto;border-radius:9px;padding:9px 12px;font-size:16px;line-height:24px;gap:10px;user-select:none;-webkit-user-select:none;touch-action:pan-y; }
+.ds-history .item-ff6fc9:has([data-match]) { min-height:56px; }
+.ds-history .title-ff6fc9 { flex:1;min-width:0;white-space:nowrap;text-overflow:ellipsis;overflow:hidden; }
+.ds-history .ds-search-status { pointer-events:none;position:absolute;top:0;left:8px;right:8px; }
+.ds-history .ds-history-bottom { align-items:center;padding:3px 12px;border-top:1px solid var(--ds-ui-line);height:58px; }
+.ds-history button,.ds-history-scrim button { font:inherit;cursor:pointer;color:inherit;border:0;background:transparent; }
+.ds-history button:disabled,.ds-history-scrim button:disabled { opacity:.4;cursor:default; }
+.ds-history .ds-history-settings { width:100%;display:flex;align-items:center;gap:10px;padding:8px 4px;text-align:start; }
+.ds-history-settings span:nth-child(2) { flex:1; }
+.ds-history-settings .ds-ui-icon:last-child { width:19px;height:19px; }
+.ds-selection-bar,.ds-history[data-selecting=true] .ds-history-bottom { display:flex;align-items:center;justify-content:space-between;gap:8px; }
+.ds-selection-bar strong { font-size:16px;font-weight:600; }
+.ds-selection-bar button { min-height:44px;color:var(--ds-ui-accent); }
+.ds-history[data-selecting=true] .ds-history-bottom button { flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px; }
+.ds-row-check { flex:none;border:1.5px solid var(--ds-ui-sub);width:19px;height:19px;border-radius:100%;display:grid;place-items:center;box-sizing:border-box; }
+.ds-row-check.checked { color:white;background:var(--dsw-alias-button-primary-fill);border-color:var(--dsw-alias-button-primary-fill); }
+.ds-row-check .ds-ui-icon { width:14px;height:14px; }
+.ds-history-scrim { position:fixed;inset:0;z-index:1300; }
+.ds-history-popup { position:absolute;box-sizing:border-box;width:150px;padding:4px;border-radius:15px;background:var(--ds-ui-paper);box-shadow:0 2px 18px #0002,0 0 0 1px var(--ds-ui-line); }
+.ds-history-popup button { display:flex;align-items:center;gap:13px;width:100%;min-height:44px;padding:0 12px;font-size:16px;text-align:start;border-radius:9px; }
+.ds-history-popup button:active,.ds-history-bottom button:active { background:var(--ds-ui-fill); }
+.ds-history .ds-danger,.ds-history-scrim .ds-danger { color:var(--ds-ui-danger); }
+.ds-history-dim { display:grid;place-items:center;background:#0004;padding:16px; }
+.ds-history-dialog { width:min(290px,100%);background:var(--ds-ui-paper);border-radius:18px;padding:20px 18px 12px;box-sizing:border-box; }
+.ds-history-dialog h2 { font:600 18px/26px system-ui;margin:0 0 14px;text-align:center; }
+.ds-history-dialog p { font:400 15px/22px system-ui;margin:0 0 18px;text-align:center;color:var(--ds-ui-sub); }
+.ds-history-dialog input { box-sizing:border-box;width:100%;font:inherit;color:var(--ds-ui-text);background:var(--ds-ui-fill);border:1px solid var(--ds-ui-line);border-radius:9px;height:44px;padding:0 12px; }
+.ds-history-actions { display:flex;gap:8px;margin-top:14px; }
+.ds-history-actions button { flex:1;min-height:44px;font-weight:500; }
+.ds-history-actions .ds-confirm { color:var(--ds-ui-accent); }
+
+.ds-history .ds-search-input {
+  border: 1px solid transparent;
+  background-color: var(--dsw-alias-interactive-bg-hover);
+  transition: background-color var(--ds-motion-quick) ease, border-color var(--ds-motion-quick) ease;
+}
+.ds-history .ds-search-input:focus {
+  background-color: var(--ds-ui-paper);
+  border-color: var(--dsw-alias-button-ghost-active-border);
+}
+.ds-history .item-ff6fc9 { transition: background-color var(--ds-motion-quick) ease; }
+.ds-history .item-ff6fc9:active { background-color: var(--dsw-alias-interactive-bg-active); }
+.ds-history .item-ff6fc9.active-ff6fc9 { background: var(--dsw-alias-button-ghost-active-fill); }
+.ds-history .ds-history-settings { min-height: 44px; border-radius: 10px; }
+.ds-history .ds-search-status { padding: 16px 12px; text-align: center; }

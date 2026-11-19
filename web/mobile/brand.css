@@ -1,0 +1,82 @@
+/* 首页文案按官方比例 */
+.greeting-_1f155 {
+  flex-direction: column !important;
+  font-size: 20px !important;
+  line-height: 28px !important;
+  letter-spacing: -.4px !important;
+  font-weight: 500 !important;
+}
+
+/* 去掉底栏提示行 */
+.caveat-_1f155 {
+  display: none !important;
+}
+
+.welcome-_1f155 {
+  padding-bottom: 8px !important;
+}
+
+/* 侧栏搜索框 */
+.ds-search-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.ds-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 12px 0 32px;
+  border: none;
+  outline: none;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--dsw-alias-label-primary);
+  background-color: var(--dsw-alias-bg-secondary, rgba(0,0,0,.04));
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8f98' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E");
+  background-size: 16px 16px;
+  background-repeat: no-repeat;
+  background-position: 10px center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ds-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.ds-search-input::placeholder {
+  color: var(--dsw-alias-label-tertiary, #8a8f98);
+}
+
+.ds-search-hidden {
+  display: none !important;
+}
+
+.title-ff6fc9[data-match]::after {
+  content: attr(data-match);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+}
+.item-ff6fc9:has([data-match]) { min-height: 52px; }
+.ds-search-status { padding: 12px; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.ds-search-status:empty { display: none; }
+
+
+/* 对话页：去掉那行提示文字下方的多余空白 */
+.inputContainer-_5fa77 {
+  padding-bottom: 0 !important;
+}
+
+.caveat-_5fa77 {
+  padding-bottom: 2px !important;
+  margin-bottom: 0 !important;
+}

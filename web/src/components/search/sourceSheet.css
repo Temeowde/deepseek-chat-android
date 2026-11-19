@@ -1,0 +1,32 @@
+.ds-source-dialog {
+  position: fixed; inset: 0; box-sizing: border-box; width: 100%; height: 100%;
+  max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: hidden;
+  background: transparent; color: var(--dsw-alias-label-primary);
+}
+.ds-source-dialog[open] { display: flex; flex-direction: column; justify-content: flex-end; }
+.ds-source-dialog::backdrop { background: rgb(0 0 0 / 32%); animation: ds-source-fade 160ms ease-out; }
+.ds-source-sheet {
+  display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0;
+  max-height: calc(100% - min(40px, 8vh)); border-radius: 20px 20px 0 0;
+  box-sizing: border-box; background: var(--dsw-alias-bg-base); overflow: hidden;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateY(var(--drag-y, 0)); animation: ds-source-enter 200ms cubic-bezier(.2,.75,.22,1);
+}
+.ds-source-sheet header { position: relative; flex: none; display: grid; place-items: center; min-height: 52px; padding: 0 48px; touch-action: none; }
+.ds-source-sheet h2 { font: 650 16px/22px var(--dsw-font-family); margin: 0; }
+.ds-source-close { position: absolute; right: 4px; top: 4px; width: 44px; height: 44px; display: grid; place-items: center; background: none; color: inherit; border: 0; cursor: pointer; }
+.ds-source-close::before { content: ''; position: absolute; width: 28px; height: 28px; border-radius: 50%; background: var(--dsw-alias-interactive-bg-hover); }
+.ds-source-close svg { position: relative; width: 16px; height: 16px; }
+.ds-source-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+.ds-source-list [data-source-index] { display: block; padding: 14px 16px; color: inherit; overflow-wrap: anywhere; }
+.ds-source-list a:active { background: var(--dsw-alias-interactive-bg-hover); }
+.ds-source-number { margin-left: auto; flex: none; min-width: 18px; border-radius: 11px; padding: 0 5px; box-sizing: border-box; text-align: center;
+  border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); font: 12px/16px var(--dsw-font-family); }
+.ds-source-dialog[data-closing=true] .ds-source-sheet { animation: ds-source-exit 150ms ease-in forwards; }
+.ds-source-dialog[data-closing=true]::backdrop { animation: ds-source-fade 150ms ease-in reverse forwards; }
+@keyframes ds-source-enter { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes ds-source-exit { to { transform: translateY(100%); } }
+@keyframes ds-source-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .ds-source-dialog::backdrop, .ds-source-sheet, .ds-source-dialog[data-closing=true] .ds-source-sheet, .ds-source-dialog[data-closing=true]::backdrop { animation: none; }
+}

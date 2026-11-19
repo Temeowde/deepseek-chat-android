@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.temeowde.dschat.cameratest">
+    <application android:label="Chat camera fixture" android:testOnly="true" android:allowBackup="false">
+        <!-- Explicit test calls only: this must never appear as a camera choice. -->
+        <activity android:name=".CardCamera" android:exported="true" />
+        <activity android:name=".ShareProbe" android:exported="true" android:label="Chat QA receiver">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="text/csv" />
+            </intent-filter>
+        </activity>
+    </application>
+    <instrumentation android:name=".Runner" android:targetPackage="com.temeowde.dschat" />
+</manifest>

@@ -1,0 +1,34 @@
+.header {
+  display: flex;
+  align-items: center;
+  flex: none;
+  box-sizing: border-box;
+  min-height: 52px;
+  padding-inline: max(6px, calc(var(--ds-mobile-gutter) - 6px));
+  gap: 2px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--chat-canvas);
+  border-block-end: 1px solid transparent;
+}
+
+.header[data-conversation='true'] {
+  border-block-end-color: var(--chat-line);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin-inline: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  animation: titleIn var(--ds-motion-base) var(--ds-ease-out) both;
+}
+
+@keyframes titleIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

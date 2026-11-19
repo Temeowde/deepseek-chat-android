@@ -3,7 +3,7 @@
     <style name="Theme.DeepSeekChat" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">#fffafafc</item>
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#ff4d63d2</item>
+        <item name="android:colorAccent">#ff365bc5</item>
         <item name="android:statusBarColor">#fffafafc</item>
         <item name="android:navigationBarColor">#fffafafc</item>
         <item name="android:windowLightStatusBar">true</item>

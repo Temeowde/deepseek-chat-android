@@ -1,0 +1,8 @@
+.ds-attach-toggle { width:36px;height:36px;display:inline-grid;place-items:center;flex-shrink:0;background:none;border:none;padding:0;color:var(--dsw-alias-label-primary);cursor:pointer; }
+.ds-attach-toggle svg path { transform-origin:center;transition:transform .16s ease; }
+.ds-attach-toggle[aria-expanded=true] svg path { transform:rotate(45deg); }
+.ds-attach-panel { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%;box-sizing:border-box;padding:18px 6px 12px;flex:none;animation:ds-panel-in .16s ease-out; }
+.ds-attach-panel button { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;background:var(--dsw-alias-bg-secondary,#f4f4f5);color:var(--dsw-alias-label-primary);border:0;border-radius:14px;font:500 14px/20px system-ui,sans-serif;cursor:pointer; }
+.ds-attach-panel button:active { opacity:.72; }
+@keyframes ds-panel-in { from { opacity:0;transform:translateY(7px); } to { opacity:1;transform:none; } }
+@media (prefers-reduced-motion:reduce) { .ds-attach-toggle svg path {transition:none} .ds-attach-panel {animation:none} }

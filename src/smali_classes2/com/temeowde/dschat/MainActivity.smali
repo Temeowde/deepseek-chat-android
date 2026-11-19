@@ -1585,8 +1585,20 @@
     invoke-virtual {v0, v1, v4}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
 
     .line 194
+    sget v1, Landroid/os/Build$VERSION;->SDK_INT:I
+
+    const/16 v3, 0x1e
+
+    if-lt v1, v3, :chat_legacy_insets
+
+    invoke-static {p0, v0}, Lcom/temeowde/dschat/ChatWindowInsets;->install(Landroid/app/Activity;Landroid/view/View;)V
+
+    goto :chat_insets_ready
+
+    :chat_legacy_insets
     invoke-static {v0}, Lcom/temeowde/dschat/SystemUi;->installInsets(Landroid/view/View;)V
 
+    :chat_insets_ready
     .line 195
     invoke-virtual {p0, v0}, Lcom/temeowde/dschat/MainActivity;->setContentView(Landroid/view/View;)V
 
@@ -2070,6 +2082,13 @@
     .line 270
     invoke-super {p0, p1, p2, p3}, Landroid/app/Activity;->onActivityResult(IILandroid/content/Intent;)V
 
+    const/16 v0, 0x3eb
+    if-ne p1, v0, :not_camera_result
+    invoke-static {p0, p2}, Lcom/temeowde/dschat/AttachmentPicker;->finishCamera(Landroid/app/Activity;I)Landroid/content/Intent;
+    move-result-object p3
+    const/16 p1, 0x3e9
+    :not_camera_result
+
     .line 271
     const/16 v0, 0x3e9
 
@@ -2287,26 +2306,10 @@
 
     invoke-static {p0, v0}, Lcom/temeowde/dschat/SystemUi;->applyTheme(Landroid/app/Activity;Z)V
 
-    .line 62
-    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity;->apiKeyStore:Lcom/temeowde/dschat/ApiKeyStore;
-
-    invoke-virtual {v0}, Lcom/temeowde/dschat/ApiKeyStore;->get()Ljava/lang/String;
-
-    move-result-object v0
-
-    if-nez v0, :cond_0
-
-    .line 63
-    invoke-direct {p0}, Lcom/temeowde/dschat/MainActivity;->showKeySetup()V
-
-    goto :goto_0
-
     .line 65
-    :cond_0
     invoke-direct {p0}, Lcom/temeowde/dschat/MainActivity;->showChat()V
 
     .line 67
-    :goto_0
     return-void
 .end method
 
