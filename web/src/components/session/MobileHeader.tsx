@@ -6,7 +6,7 @@ import { IconButton } from '../base/IconButton.js'
 import { openMobileSider } from '../sider/mobileSiderState.js'
 import styles from './MobileHeader.module.css'
 
-/** 移动端顶栏：首页标识客户端，进入会话后显示会话标题。 */
+/** 移动端顶栏，打开会话后显示会话标题。 */
 export const MobileHeader = ({ title }: { title?: string }) => {
   const t = useTranslate()
   const speaking = useSyncExternalStore(autoRead.subscribe, autoRead.isEnabled)
@@ -19,7 +19,7 @@ export const MobileHeader = ({ title }: { title?: string }) => {
         aria-label={t('expandSiderbarButton')}
         onClick={openMobileSider}
       />
-      <div key={title ?? ''} className={styles.title}>{title ?? t('apiChatTitle')}</div>
+      <div key={title} className={styles.title}>{title}</div>
       <IconButton size="xl" tone="primary" role="switch" aria-checked={speaking}
         tooltip={t('autoReadAloud')} aria-label={t('autoReadAloud')} onClick={autoRead.toggle}
         icon={<span className={speaking ? 'ds-speaker' : 'ds-speaker ds-muted'} aria-hidden><IconPlayMediaOutline16 /></span>} />

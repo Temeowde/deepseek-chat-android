@@ -7,7 +7,6 @@ export const en = {
   collapseSiderbarButton: 'Close sidebar',
   newChat: 'New chat',
   untitledChat: 'New chat',
-  apiChatTitle: 'DeepSeek Chat',
   sessionLoading: 'Loading chats...',
   sessionListLoadFailed: 'Unable to load the chat list. Please try again.',
   historyHitUnavailable: 'This search result is no longer available. The chat is open.',

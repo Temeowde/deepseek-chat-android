@@ -5,7 +5,6 @@ export const zh = {
   collapseSiderbarButton: '收起边栏',
   newChat: '开启新对话',
   untitledChat: '新对话',
-  apiChatTitle: 'DeepSeek Chat',
   sessionLoading: '正在加载对话...',
   sessionListLoadFailed: '对话列表加载失败，请重试',
   sessionLoadFailed: '对话加载失败，请重试',

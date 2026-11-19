@@ -45,6 +45,7 @@ export const MobileConversation = ({
       <MobileHeader title={session ? session.title || t('untitledChat') : undefined} />
       <div className={styles.stage}>
         <div className={styles.welcome} data-visible={atHome} aria-hidden={!atHome}>
+          <img className={styles.whale} src="./whale.svg" width={56} height={56} alt="" />
           <h1>{t('welcomeMessageChat250808')}</h1>
         </div>
         {loading}
