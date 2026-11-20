@@ -81,6 +81,15 @@ export const loadSessionSummaries = async (): Promise<SessionSummary[]> =>
 export const loadSession = async (id: string): Promise<Session | undefined> =>
   (await getDB()).get('sessions', id)
 
+/** 只登记摘要（例如官方账号同步来的会话），消息在打开时再拉取。 */
+export const saveSummary = async (summary: SessionSummary): Promise<void> => {
+  const db = await getDB()
+  const existing = await db.get('sessionSummaries', summary.id)
+  const tx = db.transaction('sessionSummaries', 'readwrite')
+  await tx.store.put({ ...summary, fileIds: existing?.fileIds ?? [] })
+  await tx.done
+}
+
 export const saveSession = async (session: Session, files: StoredFile[] = []): Promise<void> => {
   const summary = storedSummary(session)
   const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')

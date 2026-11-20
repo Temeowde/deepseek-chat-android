@@ -44,6 +44,15 @@ type MessageEdit = {
 type InputProps = { sessionId: string | null; unavailable?: boolean; edit?: MessageEdit | null }
 
 /** 移动端保留输入节点，切换会话时独立重置录音和文件选择。 */
+/** 轻触反馈，和原生开关一致 */
+const vibrate = () => {
+  try {
+    navigator.vibrate?.(8)
+  } catch {
+    // 不支持震动时忽略
+  }
+}
+
 export const ChatInput = memo(function ChatInput(props: InputProps) {
   const isMobile = useIsMobile()
   return <Input key={isMobile ? 'mobile' : props.sessionId === null ? 'new' : 'session:' + props.sessionId} {...props} />
@@ -307,7 +316,7 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
               className={clsx(styles.toggle, thinking && styles.selected)}
               aria-label={t('thinkingSwitch')}
               aria-pressed={thinking}
-              onClick={() => setThinking(!thinking)}
+              onClick={() => { vibrate(); setThinking(!thinking) }}
             >
               <IconThinkOutline14 />
               <span className={styles.toggleLabel}>{t('thinkingSwitch')}</span>
@@ -319,7 +328,7 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
               className={clsx(styles.toggle, search && styles.selected)}
               aria-label={t('search')}
               aria-pressed={search}
-              onClick={() => setSearch(!search)}
+              onClick={() => { vibrate(); setSearch(!search) }}
             >
               <IconGlobeLanguageOutline14 />
               <span className={styles.toggleLabel}>{t('search')}</span>

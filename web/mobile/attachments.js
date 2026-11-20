@@ -23,10 +23,10 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
       document.removeEventListener('keydown', key);
     };
   }, [open]);
-  const icon = (d, plus) => h('svg', {width: plus ? 24 : 21, height: plus ? 24 : 21, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:1.85, strokeLinecap:'round', strokeLinejoin:'round', 'aria-hidden':true},
+  const icon = (d, plus) => h('svg', {width: plus ? 24 : 21, height: plus ? 24 : 21, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round', 'aria-hidden':true},
     plus && h('circle', {cx:12, cy:12, r:9.25}), h('path', {d}));
   return {
-    toggle: h('button', {className:'ds-attach-toggle',type:'button', disabled,'aria-expanded':open,'aria-label':open ? (zh?'收起附件':'Close attachments') : (zh?'添加附件':'Add attachments'), onClick:()=>{if (!open && document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur(); setOpen(!open);}}, icon('M12 8v8 M8 12h8',true)),
+    toggle: h('button', {className:'ds-attach-toggle',type:'button', disabled,'aria-expanded':open,'aria-label':open ? (zh?'收起附件':'Close attachments') : (zh?'添加附件':'Add attachments'), onClick:()=>{if (!open && document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur(); setOpen(!open);}}, icon('M12 8.6v6.8 M8.6 12h6.8',true)),
     inputs: rows.map(([ref], i) => h('input', {key:(sessionId ?? 'new') + ':' + i,ref,hidden:true,type:'file',capture:i===0?'environment':undefined,multiple:i!==0,accept:i===2?accept:'image/*',onChange:e=>{const f=Array.from(e.target.files || []);e.target.value='';if(f.length)onFiles(f);}})),
     panel: open && h('div', {className:'ds-attach-panel',role:'group','aria-label':zh?'附件':'Attachments'}, rows.map(([ref,label,d])=>h('button',{key:label,type:'button',disabled,onClick:()=>{setOpen(false);if(ensureKey())ref.current?.click();}},icon(d),label)))
   };

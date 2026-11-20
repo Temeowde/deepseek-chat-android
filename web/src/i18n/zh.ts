@@ -1,6 +1,6 @@
 export const zh = {
-  welcomeMessageChat250808: '今天想聊什么？',
-  contentCaveat: '内容由 AI 生成，请仔细甄别',
+  welcomeMessageChat250808: '欢迎回来，想从哪里开始？',
+  contentCaveat: '回答由 AI 生成，仅供参考',
   expandSiderbarButton: '打开边栏',
   collapseSiderbarButton: '收起边栏',
   newChat: '开启新对话',

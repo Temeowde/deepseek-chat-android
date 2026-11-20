@@ -155,3 +155,43 @@ python tests/android-sources.py --adb adb --serial <device-serial> --live --exte
 - 核对大列表下的侧栏手势性能及其他屏幕尺寸
 - 核对更多官方导出格式版本；现已验证 V3 ZIP 在本应用内往返
 - 主题色支持自定义
+
+## 官方账号通道
+
+v3.1.0 新增。用于把官方 App 的会话同步到本地，并在额度用完时用 API 续聊。
+
+### 组成
+
+- `src/java/com/temeowde/dschat/OfficialAccount.java`：令牌用 AndroidKeyStore（AES/GCM）加密存 `SharedPreferences("official_account")`；提供 `GET /api/v0/...` 与密码登录，结果通过 `window.__officialBridgeDeliver(id, payload)` 回到网页。路径限制在 `/api/v0/` 前缀内。
+- `src/java/com/temeowde/dschat/LoginActivity.java`：加载 `https://chat.deepseek.com/`，每 800ms 轮询 `localStorage.userToken`，用 `/api/v0/users/current` 校验通过后才保存。
+- `MainActivity$AndroidBridge.smali`：新增 `officialLogin`、`officialHasToken`、`officialLogout`、`officialRequest`、`officialPasswordLogin`，全部标注 `@JavascriptInterface`。
+- `web/src/services/official/bridge.ts`：网页侧封装，用自增 id 与 Promise 匹配响应。
+- `web/src/services/official/sync.ts`：会话列表（`fetch_page`）、消息（`history_messages`）、头像昵称（`users/current`）。
+- `web/src/services/chat/store.ts`：`setOfficialLoader` 与「先缓存后刷新」的加载顺序。
+
+### 数据结构
+
+接口统一返回 `{ code, data: { biz_code, biz_data } }`。
+
+- 会话：`biz_data.chat_sessions[]`，字段 `id`、`title`、`updated_at`（秒）、`pinned`。
+- 消息：`biz_data.chat_messages[]`，正文在 `fragments` 里：`REQUEST` 是用户输入，`RESPONSE` / `TEMPLATE_RESPONSE` 是回答，`THINK` 是思考；消息还有 `message_id`、`parent_id`、`role`、`inserted_at`。
+
+本地映射：会话 id `off_<官方 id>`，消息 id `o_<官方 message_id>`。合并时官方消息保持服务器顺序，本地 API 消息按 `createdAt` 插入。
+
+### 失效处理
+
+`401`、`403` 或响应体含 `INVALID_TOKEN` / `code:40003` 时清空本机令牌。注意：账号在别处反复登录会触发官方风控，表现是所有端同时掉线，这不是本应用的 bug。
+
+### 登录方式
+
+- 密码：`POST /api/v0/users/login`，字段 `mobile|email`、`password`、`device_id`、`os`，不需要验证码。
+- 短信/网页：走官方网页登录，可能弹出安全验证（依赖第三方指纹脚本，国内网络下可能空白）。
+
+## 构建环境（v3.1.0 起）
+
+`assemble.sh` 支持 `SMALI_CP` 环境变量：设置时用 `org.jf.smali.Main` 直接汇编 `src/smali` 与 `src/smali_classes2`，不再需要 apktool；未设置时回退到原来的 apktool 流程。
+
+smali 2.5.2 在 Maven 上的 `smali` 包没有 Main-Class，需要一并提供 `dexlib2`、`util`、`antlr-runtime`、`stringtemplate`、`jcommander`、`antlr` 与 `guava`。
+
+Windows 上只有 `.exe` 形式的 build-tools，WSL 里需要 Linux 版 build-tools 与便携 JDK；JDK 可从华为云镜像获取（比 GitHub Releases 稳定）。
+

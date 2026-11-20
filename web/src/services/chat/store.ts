@@ -80,6 +80,10 @@ type ChatState = {
   historyLocation: HistoryLocation | null
   /** 正在生成回复的会话 */
   streaming: Record<string, AbortController>
+  /** 重新读取本地摘要列表（官方会话同步后调用）。 */
+  reloadSummaries: () => Promise<void>
+  /** 官方会话的按需加载器，由 official 模块注册。 */
+  setOfficialLoader: (loader: ((id: string) => Promise<Session | undefined>) | null) => void
 }
 
 export const useChatStore = create<ChatState>(() => ({
@@ -93,6 +97,13 @@ export const useChatStore = create<ChatState>(() => ({
   activeId: null,
   historyLocation: null,
   streaming: {},
+  reloadSummaries: async () => {
+    const summaries = await db.loadSessionSummaries()
+    set({ sessions: sortSessions(summaries) })
+  },
+  setOfficialLoader: (loader) => {
+    officialLoader = loader
+  },
 }))
 
 const { getState: get, setState: set } = useChatStore
@@ -339,8 +350,12 @@ const resolveHistoryLocation = (session: Session, location: HistoryLocation | nu
 }
 
 /** 同一会话合并并发读取，旧请求仅更新各自缓存。 */
+/** 官方账号会话按需从服务端拉取，由账号模块注册。 */
+let officialLoader: ((id: string) => Promise<Session | undefined>) | null = null
+
 const ensureSessionLoaded = (id: string): Promise<void> => {
-  if (getSession(id)) {
+  // 官方会话每次打开都重新拉取，才能看到官方 App 里新增的消息。
+  if (getSession(id) && !id.startsWith('off_')) {
     return Promise.resolve()
   }
   const pending = sessionLoads.get(id)
@@ -353,7 +368,19 @@ const ensureSessionLoaded = (id: string): Promise<void> => {
   sessionLoads.set(id, load)
   load.promise = (async () => {
     try {
-      const stored = await db.loadSession(id)
+      let stored = await db.loadSession(id)
+      // 官方会话：先用手上的缓存秒开，再从服务器刷新。
+      if (stored && id.startsWith('off_') && epoch === historyEpoch) {
+        const cached = settleInterrupted(normalizeSession(stored))
+        set((state) => ({ sessionCache: { ...state.sessionCache, [id]: cached } }))
+      }
+      // 官方会话每次都重新拉取，本地缓存只作为网络失败时的兜底。
+      if (officialLoader && id.startsWith('off_')) {
+        const remote = await officialLoader(id)
+        if (remote) {
+          stored = remote
+        }
+      }
       if (epoch !== historyEpoch || sessionLoads.get(id) !== load) {
         return
       }
@@ -478,6 +505,14 @@ export const applyHistory = async (write: () => Promise<void>, mode: HistoryImpo
     } else if (!ready) {
       void initChat()
     }
+  }
+}
+
+/** 回到前台时刷新当前官方会话（如果正在看的是官方会话）。 */
+export const refreshActiveSession = () => {
+  const id = get().activeId
+  if (id && id.startsWith('off_')) {
+    void ensureSessionLoaded(id)
   }
 }
 

@@ -74,3 +74,21 @@
 .ds-history .item-ff6fc9.active-ff6fc9 { background: var(--dsw-alias-button-ghost-active-fill); }
 .ds-history .ds-history-settings { min-height: 44px; border-radius: 10px; }
 .ds-history .ds-search-status { padding: 16px 12px; text-align: center; }
+
+/* 侧栏底部：官方账号入口 + 设置按钮 */
+.ds-history-account-row { display:flex;align-items:center;gap:2px;width:100%; }
+.ds-history-account-row .ds-history-settings { flex:1;min-width:0; }
+.ds-history-account-row .ds-history-settings span:nth-child(2) { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.ds-history-gear { flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:10px; }
+.ds-history-gear .ds-ui-icon { width:20px;height:20px; }
+.ds-account-on { color:var(--ds-ui-accent); }
+.ds-history-dialog input + input { margin-top:10px; }
+.ds-official-error { color:var(--ds-ui-danger); font:400 14px/20px system-ui; margin:10px 0 0; text-align:center; }
+.ds-history-dialog .ds-history-actions button { font-size:15px; white-space:nowrap; }
+.ds-history-account { flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:6px 4px;text-align:start; }
+.ds-account-avatar { flex:none;width:32px;height:32px;border-radius:50%;background:var(--ds-ui-fill);display:grid;place-items:center; }
+.ds-account-avatar .ds-ui-icon { width:18px;height:18px; }
+.ds-account-name { flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px;color:var(--ds-ui-text); }
+.ds-account-avatar img { width:100%;height:100%;border-radius:50%;object-fit:cover; }
+.ds-account-initial { font:600 15px/1 system-ui;color:var(--ds-ui-text); }
+.ds-pull { display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--ds-ui-sub);font:400 13px/1 system-ui;transition:height .18s ease; }

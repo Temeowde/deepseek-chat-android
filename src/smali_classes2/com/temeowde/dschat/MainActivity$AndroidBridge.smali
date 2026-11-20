@@ -340,3 +340,53 @@
     .line 518
     return-void
 .end method
+
+.method public officialLogin()V
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0}, Lcom/temeowde/dschat/OfficialAccount;->startLogin(Landroid/app/Activity;)V
+    return-void
+.end method
+
+.method public officialHasToken()Z
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0}, Lcom/temeowde/dschat/OfficialAccount;->hasToken(Landroid/content/Context;)Z
+    move-result v0
+    return v0
+.end method
+
+.method public officialLogout()V
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0}, Lcom/temeowde/dschat/OfficialAccount;->clear(Landroid/content/Context;)V
+    return-void
+.end method
+
+.method public officialRequest(Ljava/lang/String;Ljava/lang/String;)V
+    .locals 2
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-virtual {v0}, Lcom/temeowde/dschat/MainActivity;->bridgeWebView()Landroid/webkit/WebView;
+    move-result-object v1
+    invoke-static {v1, p1, p2}, Lcom/temeowde/dschat/OfficialAccount;->request(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
+.method public officialPasswordLogin(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    .locals 2
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-virtual {v0}, Lcom/temeowde/dschat/MainActivity;->bridgeWebView()Landroid/webkit/WebView;
+    move-result-object v1
+    invoke-static {v1, p1, p2, p3}, Lcom/temeowde/dschat/OfficialAccount;->passwordLogin(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method

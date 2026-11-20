@@ -1,10 +1,13 @@
 /* 首页文案按官方比例 */
 .greeting-_1f155 {
   flex-direction: column !important;
-  font-size: 20px !important;
-  line-height: 28px !important;
-  letter-spacing: -.4px !important;
-  font-weight: 500 !important;
+  font-size: 19px !important;
+  line-height: 27px !important;
+  letter-spacing: -.45px !important;
+  font-weight: 700 !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
 }
 
 /* 去掉底栏提示行 */

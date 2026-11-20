@@ -72,7 +72,7 @@ export const MobileConversation = ({
             onClose: closeEdit,
           } : null}
         />
-        <div className={styles.caveat}>{t('contentCaveat')}</div>
+        {activeId ? <div className={styles.caveat}>{t('contentCaveat')}</div> : null}
       </div>
     </div>
   )

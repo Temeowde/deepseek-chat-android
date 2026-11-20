@@ -99,9 +99,12 @@ window.useMobileComposerVoice = function (React, props) {
     : transcribing ? name('正在转写…','Transcribing…') : mode ? name('按住说话','Hold to talk') : name('发消息或按住说话','Message or hold to talk');
   const modeLabel = mode ? name('切换至文字','Switch to typing') : name('切换至语音','Switch to voice');
   const keyboard = 'M7 9h1m3 0h1m3 0h1M7 12h1m3 0h1m3 0h1M8 15h8';
-  const sound = 'M8 11v2m3-5a7 7 0 0 1 0 8m3-10a10 10 0 0 1 0 12';
-  const icon = h('svg',{width:25,height:25,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.8,strokeLinecap:'round','aria-hidden':true},
-    h('circle',{cx:12,cy:12,r:9.3}),h('path',{d:mode?keyboard:sound}));
+  const sound = 'M11 9.6a3.4 3.4 0 0 1 0 4.8M13.4 7.4a6.7 6.7 0 0 1 0 9.2';
+  const icon = h('svg',{width:25,height:25,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.7,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':true},
+    h('circle',{cx:12,cy:12,r:9.3}),
+    mode ? h('path',{d:keyboard}) : h(React.Fragment,null,
+      h('circle',{cx:8.9,cy:12,r:1.2,fill:'currentColor',stroke:'none'}),
+      h('path',{d:sound})));
   const pad = mobile && (recording || transcribing || (blank && !busy && (mode || !focused))) && h('button',{
     type:'button',className:'ds-voice-pad' + (mode || recording || transcribing ? ' ds-talk' : '') + (willCancel ? ' ds-cancel' : ''),
     'aria-label':holdLabel, onPointerDown:onDown, onPointerMove:onMove, onPointerUp:onUp,

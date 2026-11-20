@@ -128,9 +128,6 @@
 
 @media not all and (min-width: 768px) {
   .message {
-    border-inline-start: 2px solid var(--chat-reply-line);
-    padding-inline-start: 12px;
-
     &:not(:last-child) {
       margin-bottom: 24px;
     }

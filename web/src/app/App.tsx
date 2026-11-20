@@ -5,6 +5,7 @@ import { useIsMobile, useMobileViewport, usePreventPageScroll } from './viewport
 import {
   bindChatPersistence,
   initChat,
+  refreshActiveSession,
   retrySaveSessions,
   selectSession,
   useChatStore,
@@ -24,6 +25,7 @@ import { CollapsedSider } from '../components/sider/CollapsedSider.js'
 import { closeMobileSider } from '../components/sider/mobileSiderState.js'
 import { MobileSider, Sider } from '../components/sider/Sider.js'
 import { bindMobileGestures, bindNativeBack } from './mobileGestures.js'
+import { registerOfficialSync, syncOfficialSummaries } from '../services/official/sync.js'
 import styles from './App.module.css'
 
 export const App = () => {
@@ -70,7 +72,41 @@ export const App = () => {
   useEffect(closeMobileSider, [activeId, isMobile])
 
   useEffect(() => {
+    registerOfficialSync()
     void initChat()
+  }, [])
+
+  // 回到前台时同步官方会话：列表和当前正在看的官方会话都要刷新。
+  useEffect(() => {
+    let last = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const refresh = () => {
+      if (document.visibilityState === 'hidden') return
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        const now = Date.now()
+        if (now - last < 8000) return
+        last = now
+        void syncOfficialSummaries().then((ok) => {
+          if (ok) window.dispatchEvent(new Event('official-account-changed'))
+        })
+        refreshActiveSession()
+      }, 400)
+    }
+    // 原生 onResume 会派发 app-resume，比 WebView 的 focus 更可靠。
+    const resume = () => {
+      last = 0
+      refresh()
+    }
+    window.addEventListener('focus', refresh)
+    window.addEventListener('app-resume', resume)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      if (timer) clearTimeout(timer)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('app-resume', resume)
+      document.removeEventListener('visibilitychange', refresh)
+    }
   }, [])
 
   const available = ready && (activeId === null || !!session)

@@ -2450,3 +2450,30 @@
     :goto_1
     return-void
 .end method
+
+.method public bridgeWebView()Landroid/webkit/WebView;
+    .locals 1
+
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity;->webView:Landroid/webkit/WebView;
+
+    return-object v0
+.end method
+
+.method protected onResume()V
+    .locals 3
+
+    invoke-super {p0}, Landroid/app/Activity;->onResume()V
+
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity;->webView:Landroid/webkit/WebView;
+
+    if-eqz v0, :resume_done
+
+    const-string v1, "window.dispatchEvent(new Event('app-resume'))"
+
+    const/4 v2, 0x0
+
+    invoke-virtual {v0, v1, v2}, Landroid/webkit/WebView;->evaluateJavascript(Ljava/lang/String;Landroid/webkit/ValueCallback;)V
+
+    :resume_done
+    return-void
+.end method

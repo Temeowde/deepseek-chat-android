@@ -48,6 +48,15 @@ declare global {
       Tool: React.ComponentType<{ kind: 'like' | 'dislike' | 'share'; message: AssistantMessage }>
       Surface: React.ComponentType<React.PropsWithChildren<{ sessionId: string; messages: Message[] }>>
     }
+    __official?: {
+      supported: boolean
+      hasToken(): boolean
+      login(): void
+      logout(): void
+      sync(): Promise<boolean>
+      passwordLogin(account: string, password: string): Promise<boolean>
+      profile(): { name: string; avatar: string }
+    }
     chatHistoryMetadata(api: {
       epoch(): number; get(): { sessions: SessionSummary[]; importingHistory: boolean }; deleting(id: string): boolean
       keepTitle(id: string): void; publish(id: string, patch: Fields): void; write(id: string, patch: Fields): Promise<boolean>

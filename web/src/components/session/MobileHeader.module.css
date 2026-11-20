@@ -12,7 +12,7 @@
 }
 
 .header[data-conversation='true'] {
-  border-block-end-color: var(--chat-line);
+  border-block-end-color: transparent;
 }
 
 .title {
@@ -31,4 +31,24 @@
 @keyframes titleIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+
+/* 顶栏三个图标统一尺寸和描边，和官方一致 */
+.header svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* 三个图标的内部留白不同，按官方实测的墨迹大小分别校准 */
+.header > button:first-child svg { width: 22px; height: 22px; }
+.header > button:nth-child(3) svg { width: 18.6px; height: 18.6px; }
+.header > button:last-child svg { width: 20.2px; height: 20.2px; }
+
+.header svg path,
+.header svg line,
+.header svg circle,
+.header svg rect,
+.header svg polyline {
+  stroke-width: 1.75px;
 }

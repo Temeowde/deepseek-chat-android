@@ -24,12 +24,20 @@ echo "编译聊天前端"
 npm --prefix web ci --ignore-scripts --include=optional --no-audit --no-fund
 npm --prefix web run build
 
+# 解包 dex（无 unzip 时用 python 兜底）
+unpack_dex() { unzip -o -q .build/android/dex.apk "classes*.dex" -d .build/android/dex; }
+
 # ── 1. 编译 smali → dex ──────────────────────────
 echo "[1/5] 编译 dex"
-mkdir -p .build/android
-cp -r src/smali src/smali_classes2 src/apktool.yml .build/android/
-$APKTOOL b --no-res .build/android -o .build/android/dex.apk >/dev/null
-mkdir -p .build/android/dex && unzip -o -q .build/android/dex.apk "classes*.dex" -d .build/android/dex
+mkdir -p .build/android/dex
+if [ -n "${SMALI_JAR:-}" ]; then
+  java -cp "${SMALI_CP:-$SMALI_JAR}" org.jf.smali.Main assemble src/smali -o .build/android/dex/classes.dex >/dev/null
+  java -cp "${SMALI_CP:-$SMALI_JAR}" org.jf.smali.Main assemble src/smali_classes2 -o .build/android/dex/classes2.dex >/dev/null
+else
+  cp -r src/smali src/smali_classes2 src/apktool.yml .build/android/
+  $APKTOOL b --no-res .build/android -o .build/android/dex.apk >/dev/null
+  unpack_dex
+fi
 mkdir -p .build/android/java .build/android/picker
 javac -encoding UTF-8 -source 8 -target 8 -cp "$ANDROID_JAR" -d .build/android/java src/java/com/temeowde/dschat/*.java
 jar cf .build/android/picker.jar -C .build/android/java .

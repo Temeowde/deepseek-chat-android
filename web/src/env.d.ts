@@ -24,6 +24,11 @@ interface Window {
     getSystemTheme: () => string
     setTheme: (theme: string) => void
     exportFile: (filename: string, base64: string) => void
+    officialLogin?: () => void
+    officialHasToken?: () => boolean
+    officialLogout?: () => void
+    officialRequest?: (id: string, path: string) => void
+    officialPasswordLogin?: (id: string, account: string, password: string) => void
   }
 }
 
