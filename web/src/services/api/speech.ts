@@ -8,7 +8,12 @@ import { ApiError, API_ORIGIN, request } from './client.js'
  */
 const TOOLS_BASE_URL = `${API_ORIGIN}/v1/tools`
 
-export type TtsVoice = 'stella' | 'tide'
+/*
+ * 设置页可选的朗读音色（与官方 4 个一致）。
+ * 公开 API 实际只支持 stella / tide，mira 和 echo 会在朗读时回退，
+ * 见 services/speech/readAloud.ts。
+ */
+export type TtsVoice = 'mira' | 'echo' | 'stella' | 'tide'
 
 /** TTS 输出的裸 PCM 参数：24kHz、单声道、16-bit 小端 */
 export const TTS_SAMPLE_RATE = 24000

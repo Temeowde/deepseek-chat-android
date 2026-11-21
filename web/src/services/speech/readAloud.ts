@@ -3,6 +3,7 @@ import type { TranslationMessage } from '../../i18n/index.js'
 import { ApiError } from '../api/client.js'
 import { classifyApiError } from '../api/errors.js'
 import { synthesize, TTS_SAMPLE_RATE } from '../api/speech.js'
+import { API_KEY_TTS_VOICES } from '../official/sync.js'
 import { useSettings } from '../settings.js'
 
 /**
@@ -95,6 +96,13 @@ export const toggleReadAloud = (
   useReadAloud.setState({ messageId, status: 'loading' })
   // 音色在开始朗读时读取，设置中切换后下一次朗读生效
   const { apiKey, ttsVoice } = useSettings.getState()
+  /*
+   * 公开 TTS API（api.deepseek.com/v1/tools/tts，用用户自己的 API Key）
+   * 的 voice_id 枚举只有 stella / tide；mira（贝壳）和 echo（白浪）是官方 App
+   * 内部链路才有的音色。设置页四个都列出来是为了和官方一致，但这里要回退到
+   * 公开 API 支持的音色，否则选了贝壳朗读会直接 400。
+   */
+  const voiceId: string = API_KEY_TTS_VOICES.includes(ttsVoice) ? ttsVoice : API_KEY_TTS_VOICES[0]
 
   void (async () => {
     let nextTime = 0
@@ -102,7 +110,7 @@ export const toggleReadAloud = (
     let eof = false
     let rest = new Uint8Array(0)
     try {
-      const stream = await synthesize(apiKey ?? '', text, ttsVoice, controller.signal)
+      const stream = await synthesize(apiKey ?? '', text, voiceId, controller.signal)
       const reader = stream.getReader()
       controller.signal.addEventListener('abort', () => void reader.cancel().catch(() => {}))
       for (;;) {

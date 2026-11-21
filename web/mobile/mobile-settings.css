@@ -575,6 +575,26 @@
 .ds-voice-dots { display:flex;gap:9px;padding:14px 0 6px; }
 .ds-voice-dot { width:8px;height:8px;padding:0;border:0;border-radius:50%;background:#dcdcde;transition:background var(--ds-motion-quick) ease; }
 .ds-voice-dot.on { background:var(--dsw-alias-brand-text,#426efe); }
+
+/*
+ * 朗读音色：朴素单选列表（不再做官方那种色块 + 圆点动效）。
+ * 每行 = 单选圆点 + 名字 + 一句描述，点击即选中，底部「确认」保存。
+ */
+.ds-voice-list { display:flex;flex-direction:column;padding:4px 0 8px; }
+.ds-voice-option {
+  display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;
+  padding:14px 4px;border:0;background:none;text-align:left;cursor:pointer;
+  color:var(--ds-set-text);font:inherit;-webkit-tap-highlight-color:transparent;
+}
+.ds-voice-option + .ds-voice-option { border-top:1px solid var(--ds-set-sep,rgba(0,0,0,.06)); }
+.ds-voice-option-text { display:flex;flex-direction:column;gap:2px;min-width:0; }
+.ds-voice-option-text strong { font-size:16px;line-height:22px;font-weight:400; }
+.ds-voice-option-text em { font-style:normal;color:var(--ds-set-sub);font-size:13px;line-height:18px; }
+.ds-voice-option[aria-checked=true] .ds-radio-dot { border-color:var(--dsw-alias-brand-text,#426efe); }
+.ds-voice-option[aria-checked=true] .ds-radio-dot:after {
+  content:'';position:absolute;inset:3px;border-radius:50%;background:var(--dsw-alias-brand-text,#426efe);
+}
+.ds-voice-option:active { background:rgba(0,0,0,.03); }
 .ds-pref-sheet-confirm { width:100%;height:52px;margin-top:6px;border:0;border-radius:100px;background:var(--dsw-alias-button-primary-fill,#426efe);color:#fff;font-size:17px;font-weight:500;box-shadow:0 6px 18px rgb(66 110 254 / 22%); }
 .ds-pref-action { margin:0 14px;height:48px;border:0;border-radius:100px;background:var(--ds-set-card);color:var(--dsw-alias-brand-text,#426efe);font-size:16px;font-weight:500; }
 @keyframes ds-settings-in { from { transform:translateX(20px);opacity:.25; } to { transform:none;opacity:1; } }

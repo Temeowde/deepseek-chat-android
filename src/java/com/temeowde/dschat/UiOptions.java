@@ -11,7 +11,12 @@ public final class UiOptions {
         switch (key) {
             case "locale": return value.equals("system") || value.equals("zh-CN") || value.equals("en-US");
             case "theme": return value.equals("system") || value.equals("light") || value.equals("dark");
-            case "voice": return value.equals("stella") || value.equals("tide");
+            /*
+             * 朗读音色：官方 /api/v0/chat/tts/voices 返回的 id 不只有 stella/tide，
+             * 实测官方是 4 个音色（官方设置页面板底部 4 个圆点）。这里不能再写死，
+             * 否则从服务端拿到的其余音色会被原生侧拒绝保存。
+             */
+            case "voice": return value.matches("[A-Za-z0-9][A-Za-z0-9_-]{0,39}");
             case "font": return value.length() == 1 && value.charAt(0) >= '0' && value.charAt(0) <= '4';
             // 字体选择：内置 id（follow/system/serif/mono）或设备字体 id（dev-xxx），见 web/mobile/font-switch.js
             case "typeface": return value.matches("[a-z][a-z0-9-]{0,39}");

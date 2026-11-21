@@ -1,14 +1,20 @@
 (function () {
   const storageKeys={locale:'chat-demo:locale',theme:'chat-demo:theme-preference',voice:'chat-demo:tts-voice',font:'ds.chat-font.v1',collapse:'ds.chat-fold.v1'};
-  const accepted={locale:['system','zh-CN','en-US'],theme:['system','light','dark'],voice:['stella','tide'],font:['0','1','2','3','4'],collapse:['0','1']};
+  /*
+   * 朗读音色的 id 来自官方 /api/v0/chat/tts/voices（实测 4 个），不能写死成 stella/tide，
+   * 所以 voice 不做枚举校验，只校验字符集。其余 key 仍是枚举。
+   */
+  const accepted={locale:['system','zh-CN','en-US'],theme:['system','light','dark'],voice:null,font:['0','1','2','3','4'],collapse:['0','1']};
+  const voiceIdOk=v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(v);
+  const allowed=(key,value)=>key==='voice'?voiceIdOk(value):!!accepted[key]?.includes(value);
   const sizes=[14,16,18,20,22], listeners=new Set(), bridge=window.DeepSeekAndroid;
   function read(key,fallback) {
-    try { const v=bridge?.getUiOption?.(key); if(accepted[key]?.includes(v))return v; } catch (_) {}
-    try { const v=localStorage.getItem(storageKeys[key]); if(accepted[key]?.includes(v))return v; } catch (_) {}
+    try { const v=bridge?.getUiOption?.(key); if(allowed(key,v))return v; } catch (_) {}
+    try { const v=localStorage.getItem(storageKeys[key]); if(allowed(key,v))return v; } catch (_) {}
     return fallback;
   }
   function save(key,value) {
-    if (!accepted[key]?.includes(value))return false;
+    if (!allowed(key,value))return false;
     try { if (typeof bridge?.setUiOption==='function' && !bridge.setUiOption(key,value))return false; } catch (_) { return false; }
     try { localStorage.setItem(storageKeys[key],value); } catch (_) {}
     return true;
@@ -97,13 +103,39 @@ window.createChatMobileSettings=function(React,portal,api) {
     const [check,setCheck]=React.useState(null);
     const scroller=React.useRef(null), scrollTop=React.useRef(0), closeRef=React.useRef(null), closeTimer=React.useRef(null);
 
+    /*
+     * 朗读音色清单：官方有 4 个（官方设置页「朗读音色」面板底部是 4 个圆点），
+     * 我们之前只硬编码了 2 个所以一直少两个。这里先用内置两项渲染，
+     * 等 window.__official.ttsVoices() 拿到服务端清单后替换。
+     */
+    /*
+     * 官方朗读音色共 4 个（顺序：贝壳 → 白浪 → 海星 → 暗潮）。
+     * 名字是接口下发的中文名，这里做离线兜底，保证没登录/没网时也是 4 项。
+     * 注意 mira/echo 是官方 App 内部链路才支持的音色，用 API Key 朗读时
+     * 会回退到 stella（见 services/speech/readAloud.ts）。
+     */
+    const builtinVoices=()=>[['mira',tr('贝壳','Mira'),tr('百变活泼','Versatile and lively')],
+      ['echo',tr('白浪','Echo'),tr('明朗坚定','Bright and steady')],
+      ['stella',tr('海星','Stella'),tr('俏皮甜美','Playful and sweet')],
+      ['tide',tr('暗潮','Tide'),tr('低沉浑厚','Deep and rich')]];
+    const [voiceList,setVoiceList]=React.useState(builtinVoices);
+    React.useEffect(()=>{
+      const official=window.__official;
+      if(!official||typeof official.ttsVoices!=='function') return undefined;
+      let alive=true;
+      Promise.resolve().then(()=>official.ttsVoices()).then(list=>{
+        if(!alive||!Array.isArray(list)||!list.length) return;
+        setVoiceList(list.map(v=>[v.id,String(v.name||v.id),String(v.desc||'')]));
+      }).catch(()=>{});
+      return ()=>{ alive=false; };
+    },[]);
     const titles={root:tr('设置','Settings'),account:tr('账号管理','Account'),login:tr('登录','Sign in'),data:tr('数据管理','Data management'),
       locale:tr('语言','Language'),theme:tr('外观','Appearance'),font:tr('字体大小','Text size'),typeface:tr('字体','Typeface'),
       personal:tr('个性化','Personalization'),voice:tr('朗读音色','Reading voice'),
       update:tr('检查更新','Check for updates'),terms:tr('服务协议','Terms of service'),help:tr('帮助与反馈','Help and feedback')};
     const options={locale:[['system',tr('系统','System')],['zh-CN','中文 (简体中文)'],['en-US','English']],
       theme:[['system',tr('系统','System')],['light',tr('浅色','Light')],['dark',tr('深色','Dark')]],
-      voice:[['stella',tr('海星','Stella'),tr('俏皮甜美','Playful and sweet')],['tide',tr('暗潮','Tide'),tr('低沉磁性','Deep and magnetic')]]};
+      voice:voiceList};
     const voiceName=id=>options.voice.find(option=>option[0]===id)?.[1]||id;
     const voiceDesc=id=>options.voice.find(option=>option[0]===id)?.[2]||'';
     const values={locale:language,theme,voice}, label=k=>options[k].find(o=>o[0]===values[k])?.[1];
@@ -244,7 +276,6 @@ window.createChatMobileSettings=function(React,portal,api) {
       section(tr('应用','App'),row('locale','languages',tr('语言','Language'),localeValue),
         row('theme','sun-medium',tr('外观','Appearance'),label('theme')),
         row('font','a-large-small',tr('字体大小','Text size')),
-        fonts.available?row('typeface','type',tr('字体','Typeface'),fonts.name):null,
         row('personal','sliders-horizontal',tr('个性化','Personalization'))),
       section(tr('语音','Voice'),row('voice','volume-2',tr('朗读音色','Reading voice'),label('voice'))),
       section(tr('关于','About'),row('update','info',tr('检查更新','Check for updates'),version,openUpdate),row('terms','file-text',tr('服务协议','Terms of service'))),
@@ -320,6 +351,9 @@ window.createChatMobileSettings=function(React,portal,api) {
         h('button',{type:'button',className:'ds-pref-row ds-pref-toggle',role:'switch','aria-checked':fold,'aria-label':tr('思考内容自动折叠','Auto-collapse thinking'),
           onClick:()=>pref.setCollapse(!fold)},h('span',null,tr('思考内容自动折叠','Auto-collapse thinking')),h('i',{className:'ds-pref-switch','aria-hidden':true})))),
       note(tr('开启后，思考结束后将自动折叠思考内容。','Collapse reasoning content when the answer begins.')),
+      /* 字体选择放在个性化里（官方没有这项，是我们额外加的功能） */
+      fonts.available?h('div',{className:'ds-pref-block'},h('section',{className:'ds-pref-group'},
+        row('typeface','type',tr('字体','Typeface'),fonts.name))):null,
       caption(tr('高级','Advanced')),
       h('div',{className:'ds-pref-legacy'},p.advancedPanel));
 
@@ -339,6 +373,17 @@ window.createChatMobileSettings=function(React,portal,api) {
           h('span',{className:'ds-font-a ds-font-a-lg','aria-hidden':true},'A'))));
 
     /* ── 字体（字体清单来自 font-switch.js） ───── */
+    /*
+     * 进这一页时主动刷新一次设备字体清单：
+     * font-switch 默认用 localStorage 缓存，不刷新的话用户装了新主题字体也看不到。
+     */
+    React.useEffect(()=>{
+      if(view!=='typeface') return undefined;
+      const fonts=fontsApi();
+      if(!fonts||typeof fonts.refresh!=='function') return undefined;
+      Promise.resolve().then(()=>fonts.refresh()).catch(()=>{});
+      return undefined;
+    },[view]);
     const typefacePage=h(React.Fragment,null,
       h('div',{className:'ds-pref-block'},h('div',{className:'ds-type-preview',style:fonts.stack?{fontFamily:fonts.stack}:undefined},
         h('strong',null,tr('欢迎回来，想从哪里开始？','Welcome back, where to start?')),
@@ -400,14 +445,18 @@ window.createChatMobileSettings=function(React,portal,api) {
       h('div',{className:'ds-pref-sheet-head'},
         h('h2',null,titles.voice),
         h('button',{type:'button',className:'ds-pref-sheet-close','aria-label':tr('关闭','Close'),onClick:dismissChoice},icon('x'))),
-      h('div',{className:'ds-voice-preview'},
-        h('button',{type:'button',className:'ds-voice-blob','data-voice':draft,'aria-label':tr('切换音色','Switch voice'),
-          onClick:()=>setDraft(draft==='stella'?'tide':'stella')}),
-        h('strong',{className:'ds-voice-name'},voiceName(draft)),
-        h('span',{className:'ds-voice-desc'},voiceDesc(draft)),
-        h('div',{className:'ds-voice-dots'},options.voice.map(([id])=>h('button',{type:'button',key:id,
-          className:draft===id?'ds-voice-dot on':'ds-voice-dot','aria-label':voiceName(id),
-          'aria-checked':draft===id,role:'radio',onClick:()=>setDraft(id)})))),
+      /*
+       * 官方那个色块 + 圆点的高保真动效我们仿不到位，用户也说不需要，
+       * 所以这里就做朴素单选列表：每个音色一行，名字 + 一句描述。
+       */
+      h('div',{className:'ds-voice-list',role:'radiogroup','aria-label':titles.voice},
+        options.voice.map(([id,name,desc])=>h('button',{type:'button',role:'radio',key:id,
+          className:'ds-voice-option'+(draft===id?' on':''),'aria-checked':draft===id,
+          onClick:()=>setDraft(id)},
+          h('i',{className:'ds-radio-dot','aria-hidden':true}),
+          h('span',{className:'ds-voice-option-text'},
+            h('strong',null,name||id),
+            desc?h('em',null,desc):null)))),
       h('button',{type:'button',className:'ds-pref-sheet-confirm',onClick:()=>{api.set.voice(draft);dismissChoice();}},tr('确认','Confirm'))));
     const picker = choice==='voice'?voiceSheet:choiceDialog;
 

@@ -300,6 +300,188 @@ export const syncOfficialProfile = async (): Promise<OfficialProfile> => {
   return current
 }
 
+/**
+ * 官方朗读音色清单。
+ *
+ * 官方 app 的音色不是写死的：它把 /api/v0/chat/tts/voices 的结果缓存在
+ * key_tts_voice_list 里（这两条都能从官方 APK 的 dex 字符串表确认）。
+ * 我们之前只硬编码了 stella（海星）和 tide（暗潮）两个，所以设置页一直少两个——
+ * 官方是 4 个（官方设置页「朗读音色」面板底部就是 4 个圆点）。
+ *
+ * 这里做三件事：
+ *  1. 有官方登录态时调接口拿真实清单；
+ *  2. 结果缓存到 localStorage，下次启动先用缓存立即渲染（不阻塞首屏）；
+ *  3. 接口返回结构做防御式解析（官方字段名可能是 voices / voice_list，
+ *     id 可能是 voice_id / id），解析不出就退回内置默认项。
+ */
+export type OfficialTtsVoice = { id: string; name: string; desc: string }
+
+const TTS_VOICES_KEY = 'chat-demo:official-tts-voices:v2'
+
+/** 内置兜底：接口拿不到时至少这两项可用（对应 /v1/tools/tts 的 voice_id）。 */
+export const BUILTIN_TTS_VOICES: OfficialTtsVoice[] = [
+  { id: 'mira', name: '贝壳', desc: '百变活泼' },
+  { id: 'echo', name: '白浪', desc: '明朗坚定' },
+  { id: 'stella', name: '海星', desc: '俏皮甜美' },
+  { id: 'tide', name: '暗潮', desc: '低沉浑厚' },
+]
+
+/*
+ * 公开 TTS API（api.deepseek.com/v1/tools/tts，用用户自己的 API Key）
+ * 的 voice_id 枚举只有 stella / tide。mira、echo 是官方 App 内部链路
+ * （/api/v0/chat/tts/ + 一次性 ticket）才有的音色。
+ * 所以设置页四个都列出来（与官方一致），但朗读时要回退到可用的音色。
+ */
+export const API_KEY_TTS_VOICES: ReadonlyArray<string> = ['stella', 'tide']
+
+const pickString = (obj: Record<string, unknown>, keys: string[]): string => {
+  for (const key of keys) {
+    const value = obj[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+  return ''
+}
+
+/**
+ * 官方音色接口把名字和描述放在 i18n 对象里，例如
+ *   name_i18n: { zh: '贝壳', en: 'Mira', ... }
+ * 所以不能只按字符串取，要先按语言优先级找中文，再退化到任意语言。
+ */
+const pickI18n = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>
+    const order = ['zh', 'zh-CN', 'zh_cn', 'zh-Hans', 'zh-Hant', 'zh-TW', 'en', 'en-US']
+    for (const key of order) {
+      const text = record[key]
+      if (typeof text === 'string' && text.trim()) {
+        return text.trim()
+      }
+    }
+    for (const text of Object.values(record)) {
+      if (typeof text === 'string' && text.trim()) {
+        return text.trim()
+      }
+    }
+  }
+  return ''
+}
+
+/** 从接口返回体里尽力抽出音色数组；抽不到返回 null。 */
+const parseVoices = (body: string): OfficialTtsVoice[] | null => {
+  let root: unknown
+  try {
+    root = JSON.parse(body)
+  } catch {
+    return null
+  }
+  if (!root || typeof root !== 'object') {
+    return null
+  }
+  const asRecord = (value: unknown): Record<string, unknown> | null =>
+    value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+
+  const top = asRecord(root)
+  const data = top ? asRecord(top.data) : null
+  const biz = data ? asRecord(data.biz_data) : null
+  const holders = [biz, data, top].filter((item): item is Record<string, unknown> => item !== null)
+  const arrayKeys = ['voices', 'voice_list', 'voiceList', 'tts_voices', 'list']
+  let raw: unknown = null
+  for (const holder of holders) {
+    for (const key of arrayKeys) {
+      if (Array.isArray(holder[key])) {
+        raw = holder[key]
+        break
+      }
+    }
+    if (raw) {
+      break
+    }
+  }
+  if (!Array.isArray(raw)) {
+    return null
+  }
+  const voices: OfficialTtsVoice[] = []
+  for (const item of raw) {
+    const record = asRecord(item)
+    if (!record) {
+      continue
+    }
+    const id = pickString(record, ['voice_id', 'voiceId', 'id', 'key'])
+    if (!id) {
+      continue
+    }
+    voices.push({
+      id,
+      name:
+        pickI18n(record['name_i18n']) ||
+        pickI18n(record['display_name_i18n']) ||
+        pickString(record, ['name', 'display_name', 'displayName', 'title', 'label']) ||
+        id,
+      desc:
+        pickI18n(record['description_i18n']) ||
+        pickI18n(record['desc_i18n']) ||
+        pickString(record, ['description', 'desc', 'subtitle', 'sub_title', 'tagline']),
+    })
+  }
+  return voices.length ? voices : null
+}
+
+/** 读缓存（同步，供首屏立即渲染）。 */
+export const loadCachedTtsVoices = (): OfficialTtsVoice[] => {
+  try {
+    const raw = localStorage.getItem(TTS_VOICES_KEY)
+    const parsed = raw ? (JSON.parse(raw) as unknown) : null
+    if (Array.isArray(parsed)) {
+      const voices = parsed.filter(
+        (item): item is OfficialTtsVoice =>
+          !!item && typeof item === 'object' && typeof (item as OfficialTtsVoice).id === 'string'
+      )
+      if (voices.length) {
+        return voices
+      }
+    }
+  } catch {
+    /* 缓存坏了就当没有 */
+  }
+  return BUILTIN_TTS_VOICES
+}
+
+let voicesPromise: Promise<OfficialTtsVoice[]> | null = null
+
+/** 拉官方音色清单；失败时退回缓存/内置，不会抛。 */
+export const fetchTtsVoices = (force = false): Promise<OfficialTtsVoice[]> => {
+  if (!force && voicesPromise) {
+    return voicesPromise
+  }
+  voicesPromise = (async () => {
+    const fallback = loadCachedTtsVoices()
+    if (!officialHasToken()) {
+      return fallback
+    }
+    try {
+      const response = await officialGet('/api/v0/chat/tts/voices')
+      const voices = parseVoices(response.body)
+      if (voices && voices.length) {
+        try {
+          localStorage.setItem(TTS_VOICES_KEY, JSON.stringify(voices))
+        } catch {
+          /* 存不下也不影响本次使用 */
+        }
+        return voices
+      }
+    } catch {
+      /* 网络/桥失败就用缓存 */
+    }
+    return fallback
+  })()
+  return voicesPromise
+}
+
 export type OfficialFacade = {
   supported: boolean
   hasToken: () => boolean
@@ -308,6 +490,8 @@ export type OfficialFacade = {
   sync: () => Promise<boolean>
   passwordLogin: (account: string, password: string) => Promise<boolean>
   profile: () => OfficialProfile
+  /** 官方 TTS 音色清单（从 /api/v0/chat/tts/voices 拉，带缓存）。 */
+  ttsVoices: () => Promise<OfficialTtsVoice[]>
 }
 
 /** 供原生壳里的旧脚本（mobile-history.js）调用。 */
@@ -332,6 +516,7 @@ if (typeof window !== 'undefined') {
       return ok
     },
     profile: loadOfficialProfile,
+    ttsVoices: () => fetchTtsVoices(),
   }
 }
 
