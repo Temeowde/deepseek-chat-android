@@ -390,3 +390,16 @@
     invoke-static {v1, p1, p2, p3}, Lcom/temeowde/dschat/OfficialAccount;->passwordLogin(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
     return-void
 .end method
+
+.method public getFontCatalog()Ljava/lang/String;
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    # 字体选择：设备可用字体 + MIUI/HyperOS 主题字体，详见 FontCatalog.java
+    invoke-static {}, Lcom/temeowde/dschat/FontCatalog;->json()Ljava/lang/String;
+
+    move-result-object v0
+
+    return-object v0
+.end method

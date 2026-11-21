@@ -2,7 +2,7 @@ import path from 'node:path'
 import { rspack, type Compiler } from '@rspack/core'
 
 // The small standalone adapters must run before React initializes the Android preferences.
-const headScripts = ['attachments', 'voice-composer', 'read-aloud', 'drawer-perf', 'mobile-history', 'mobile-settings', 'message-share', 'message-actions']
+const headScripts = ['attachments', 'voice-composer', 'read-aloud', 'drawer-perf', 'mobile-history', 'font-switch', 'mobile-settings', 'message-share', 'message-actions']
 const styles = ['drawer-perf', 'brand', 'attachments', 'voice-composer', 'mobile-history', 'mobile-settings', 'message-actions']
 const bodyScripts = ['search']
 

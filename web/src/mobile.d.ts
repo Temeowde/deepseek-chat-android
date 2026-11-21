@@ -10,6 +10,31 @@ import type { TtsVoice } from './services/api/speech.js'
 import type { showToast } from './components/base/toastState.js'
 
 type Preferences = { locale: LocalePreference; theme: ThemePreference; voice: TtsVoice }
+/** 字体选择机制的选项；kind 用于 UI 分组，stack 是可直接用于 preview 的 CSS font-family。 */
+export type FontOption = {
+  id: string
+  zh: string
+  en: string
+  detailZh?: string
+  detailEn?: string
+  /** 仅 follow：设备没有主题字体时与 system 等价，UI 可隐藏/合并。 */
+  sameAsSystem?: boolean
+  kind: 'follow' | 'system' | 'device'
+  stack: string
+}
+type FontSwitch = {
+  readonly PREF_KEY: string
+  readonly STORAGE_KEY: string
+  readonly DEFAULT_ID: string
+  readonly ready: Promise<FontOption[]>
+  list(): FontOption[]
+  current(): string
+  currentOption(): FontOption | undefined
+  apply(id: string): boolean
+  stack(id: string): string
+  subscribe(listener: (id: string) => void): () => void
+  theme(): { family: string; path: string } | null
+}
 type Fields = Partial<Pick<Session, 'pinned' | 'title'>>
 type Active = { activeId: string | null; importingHistory: boolean }
 type Ticket = { session: string; message: string } | null
@@ -28,6 +53,7 @@ declare global {
     cancelChatDrawerDrag?: () => boolean
     closeHistoryAction?: () => boolean
     bindChatDrawerDrag(config: { isOpen(): boolean; change(open: boolean): void; blocked(): boolean }): () => void
+    dsFonts: FontSwitch
     chatDisplayPrefs: {
       read<K extends keyof Preferences>(key: K, fallback: Preferences[K]): Preferences[K]
       save<K extends keyof Preferences>(key: K, value: Preferences[K]): boolean
