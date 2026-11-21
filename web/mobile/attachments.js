@@ -29,12 +29,14 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
   const mounted = phase !== 'closed';
   const shown = phase === 'open';
   // 复用全局动效变量；prefers-reduced-motion 下 --ds-motion-base 是 0ms。
-  const motionBase = () => {
-    const raw = getComputedStyle(document.documentElement).getPropertyValue('--ds-motion-base').trim();
-    const n = parseFloat(raw);
-    if (!Number.isFinite(n)) return 230;
-    return raw.endsWith('ms') ? n : n * 1000;
-  };
+  /*
+   * 面板动画时长（ms）。必须和 attachments.css 里的 320ms 保持一致：
+   * 这个值只用来算「动画结束前按钮不可点」和「收起后何时卸载 DOM」。
+   * 之前是从 --ds-motion-base(230ms) 推的，后来面板单独调慢到 320ms，
+   * 如果这里不同步，按钮会在动画没结束时就变成可点，收起也会被提前卸载、看到残影。
+   */
+  const OPEN_MS = 320;
+  const CLOSE_MS = 260;
   React.useLayoutEffect(() => { setPhase('closed'); }, [sessionId]);
   React.useLayoutEffect(() => {
     if (phase !== 'opening') return;
@@ -48,7 +50,7 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
   React.useLayoutEffect(() => {
     if (phase !== 'closing') return;
     // 退场过渡跑完再卸载；期间重新点开会清掉计时器并反向过渡。
-    const id = setTimeout(() => setPhase(p => p === 'closing' ? 'closed' : p), motionBase() + 80);
+    const id = setTimeout(() => setPhase(p => p === 'closing' ? 'closed' : p), CLOSE_MS + 80);
     return () => clearTimeout(id);
   }, [phase]);
   /*
@@ -58,7 +60,7 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
    */
   React.useLayoutEffect(() => {
     if (phase !== 'open') { setReady(false); return; }
-    const id = setTimeout(() => setReady(true), motionBase());
+    const id = setTimeout(() => setReady(true), OPEN_MS);
     return () => clearTimeout(id);
   }, [phase]);
   const expanded = phase === 'opening' || phase === 'open';

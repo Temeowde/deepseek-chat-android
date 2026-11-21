@@ -25,10 +25,22 @@
  * 是 dock 的 grid-template-rows 0fr→1fr（输入栏要跟着真实上移，无法用 transform
  * 替代），高度变化量固定约 106px。
  */
+/*
+ * 动效：之前是 230ms + cubic-bezier(.22,1,.36,1)，观感「傻快」。
+ *
+ * 原因：那条曲线起点就是最大速度（强 ease-out），230ms 又偏短，
+ * 所以一触发就「啪」地到位，没有「升起来」的过程。
+ *
+ * 现在换成 320ms + cubic-bezier(.32,.72,0,1)（Material 3 emphasized-decelerate）：
+ *   - 前段速度上来得稍缓，不会一上来就窜出去
+ *   - 尾段留得很长，落位时是慢慢「贴上去」而不是「砸下去」
+ *   - 这正是官方那种优雅感的来源：位移的头尾都不突兀
+ * 展开和收起用同一组参数，保证对称。
+ */
 .ds-attach-slot {
   display:grid;
   grid-template-rows:0fr;
-  transition:grid-template-rows var(--ds-motion-base,230ms) var(--ds-ease-out,cubic-bezier(.22,1,.36,1));
+  transition:grid-template-rows 320ms cubic-bezier(.32,.72,0,1);
 }
 .ds-attach-slot[data-open=true] { grid-template-rows:1fr; }
 
@@ -41,12 +53,22 @@
   opacity:0;
   transform:translate3d(0,100%,0) scale(.96);
   transform-origin:50% 100%;
+  /*
+   * 位移 320ms 同上；透明度错开 60ms 再开始、180ms 结束：
+   * 卡片先「在下面」开始升，升到一半才开始显形，视觉上是「浮上来」而不是「突然出现」。
+   */
   transition:
-    transform var(--ds-motion-base,230ms) var(--ds-ease-out,cubic-bezier(.22,1,.36,1)),
-    opacity var(--ds-motion-quick,140ms) var(--ds-ease-out,cubic-bezier(.22,1,.36,1));
+    transform 320ms cubic-bezier(.32,.72,0,1),
+    opacity 180ms cubic-bezier(.32,.72,0,1) 60ms;
   will-change:transform,opacity;
 }
 .ds-attach-slot[data-open=true] .ds-attach-panel { opacity:1;transform:none; }
+/* 收起时反过来：先淡出再落位，避免半透明卡片悬在半空 */
+.ds-attach-slot[data-open=false] .ds-attach-panel {
+  transition:
+    transform 260ms cubic-bezier(.4,0,.6,1),
+    opacity 140ms cubic-bezier(.4,0,.6,1);
+}
 /* 入场动画结束前按钮不可点，避免连点时误触卡片；退场时同样不可点。 */
 .ds-attach-slot:not([data-ready=true]) .ds-attach-panel { pointer-events:none; }
 .ds-attach-actions {
