@@ -29,6 +29,10 @@
 
 .ds-drawer-drag > .drawer-ac14ac {
   visibility: visible; transition: none; opacity: 1;
+}
+/* 拖动时只动内容层，背景层保持满屏——否则背景右边缘会露出一条硬边 */
+.ds-drawer-drag > .drawer-ac14ac > * {
+  transition: none;
   transform: translate3d(var(--ds-drawer-x), 0, 0);
 }
 .ds-drawer-drag > .drawer-ac14ac::after { transition: none; }

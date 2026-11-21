@@ -206,15 +206,27 @@
   overflow: hidden;
   pointer-events: none;
   /*
-   * 侧栏位移系数必须和卡片左缘的系数一致 = 0.7725W。
-   * 因为卡片 scale 绕 center，左缘 = 0.7475W*p + 0.025W*p = 0.7725W*p，
-   * 那个 0.025W*p 随进度增长，所以侧栏也得按 0.7725 走，gap 才恒定。
-   * 关闭态整块推到屏幕外，打开态回到 0；两态和卡片同一条缓动。
+   * 注意：位移**不能**加在 .drawer 这一层。
+   * .drawer 是「背景层」，必须始终固定铺满全屏；
+   * 如果让它跟着滑，它的右边缘会在拖动过程中露出一条硬边
+   * （卡片上下方的空白带里，左侧是被压暗的侧栏、右侧露出的却是 .frame 的纯白）。
+   * 官方 odrag.mp4 该区域是连续渐变，没有跳变。
+   * 所以位移只加在内容子层上，见下面的 .drawer > *。
    */
+  transition: visibility 0s linear 200ms;
+}
+
+/*
+ * 侧栏内容层：只有它滑动。
+ * 位移系数必须和卡片左缘一致 = 0.7725W：
+ * 卡片 scale 绕 center，左缘 = 0.7475W*p + 0.025W*p = 0.7725W*p，
+ * 那个 0.025W*p 随进度增长，所以这里也按 0.7725 走，gap 才恒定。
+ */
+.drawer > * {
+  height: 100%;
   transform: translate3d(-77.25vw, 0, 0);
-  transition:
-    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
-    visibility 0s linear 200ms;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
 /*
@@ -381,8 +393,11 @@
   /* 不要设 width/height：.drawer 本身已经 inset:0 铺满，设了会切断背景 */
   opacity: 1;
   pointer-events: auto;
-  transform: translate3d(0, 0, 0);
   transition-delay: 0s;
+}
+
+.drawerOpen > * {
+  transform: translate3d(0, 0, 0);
 }
 
 .mobile {
