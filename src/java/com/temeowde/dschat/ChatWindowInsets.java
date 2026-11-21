@@ -16,6 +16,7 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
 
     public static void install(Activity activity, View root) {
         activity.getWindow().setDecorFitsSystemWindows(false);
+        forceTransparentBars(activity);
         ChatWindowInsets controller = new ChatWindowInsets(root);
         root.setWindowInsetsAnimationCallback(controller);
         root.setOnApplyWindowInsetsListener(controller::onApply);
@@ -120,17 +121,31 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
      * 由 CSS 变量控制卡片的 inset。
      */
     private void applyPadding(WindowInsets insets) {
-        // 系统栏安全区由 CSS 的 env(safe-area-inset-*) 负责（需 viewport-fit=cover），
-        // 这里只把 IME 高度推给页面，避免键盘遮挡输入框。
-        int ime = insets.getInsets(WindowInsets.Type.ime()).bottom;
-        if (ime == lastIme) {
+        /*
+         * 同时推两种值：
+         * - 状态栏高度（CSS px，已除 density）给页面让位
+         * - IME 高度，避免键盘遮挡输入框
+         * 注意 getInsets() 返回物理像素，必须除以 density 才能当 CSS px 用。
+         */
+        int imePx = insets.getInsets(WindowInsets.Type.ime()).bottom;
+        int topPx = insets.getInsets(WindowInsets.Type.statusBars()).top;
+        int botPx = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+        if (imePx == lastIme && topPx == lastTop && botPx == lastBottomRaw) {
             return;
         }
-        lastIme = ime;
-        pushInsets(0, ime, 0, 0);
+        lastIme = imePx;
+        lastTop = topPx;
+        lastBottomRaw = botPx;
+        float density = root.getResources().getDisplayMetrics().density;
+        if (density <= 0) {
+            density = 1f;
+        }
+        int topCss = Math.round(topPx / density);
+        int botCss = Math.round(Math.max(botPx, imePx) / density);
+        pushInsets(topCss, botCss, 0, 0);
     }
 
-    private int lastTop = -1, lastBottom = -1, lastIme = -1;
+    private int lastTop = -1, lastBottom = -1, lastIme = -1, lastBottomRaw = -1;
 
     /** 把安全区尺寸送进页面，CSS 变量 --ds-safe-top / --ds-safe-bottom 会跟着更新。 */
     private void pushInsets(int top, int bottom, int left, int right) {
@@ -192,4 +207,28 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
             root.setSystemGestureExclusionRects(zones);
         }
     }
-}
+
+    /**
+     * styles.xml 里的 transparent 在部分 ROM（ColorOS/MIUI）会被系统主题覆盖，
+     * 这里在代码里再设一次，确保状态栏和手势条真正透明、能和页面背景融合。
+     */
+    private static void forceTransparentBars(Activity activity) {
+        android.view.Window window = activity.getWindow();
+        // 官方实测状态栏/导航栏都是纯白（255,255,255）。
+        // transparent 在本机被 ColorOS 顶成 #fafafc，直接用白色更稳。
+        window.setStatusBarColor(0xFFFFFFFF);
+        window.setNavigationBarColor(0xFFFFFFFF);
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            // 关掉系统给导航栏加的对比度蒙层（Android 10+）
+            window.setNavigationBarContrastEnforced(false);
+            window.setStatusBarContrastEnforced(false);
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            window.setDecorFitsSystemWindows(false);
+        }
+        android.view.View decor = window.getDecorView();
+        decor.setSystemUiVisibility(
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+    }}

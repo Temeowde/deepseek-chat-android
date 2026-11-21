@@ -62,8 +62,16 @@
     bottom: auto;
     height: 100dvh;
     box-sizing: border-box;
-    /* 背景与卡片同色（官方就是这样，分离感靠阴影），深色模式也不会露黑边 */
-    background: var(--dsw-alias-bg-base);
+    /*
+     * 背景用系统状态栏的同色 #fafafc：ColorOS/MIUI 会强制给状态栏画这层灰，
+     * 应用侧改不掉，所以让页面背景对齐它，视觉上就不会出现分界线。
+     */
+    /*
+     * ColorOS/MIUI 会在状态栏和手势条后面强制画一层 #fafafc，
+     * 应用侧（styles.xml / setStatusBarColor / SYSTEM_UI_FLAG）全部无效，
+     * 所以这里用同色对齐，让系统栏和页面背景视觉连续。
+     */
+    background: var(--ds-bars-bg, #fafafc);
     overflow: hidden;
   }
 

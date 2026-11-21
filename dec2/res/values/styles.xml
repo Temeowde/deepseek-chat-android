@@ -2,11 +2,11 @@
 <resources>
     <style name="Theme.DeepSeekChat" parent="@android:style/Theme.Material.Light.NoActionBar">
         <!-- 卡片布局：状态栏与手势条透明，让网页背景铺到最下面，视觉上与卡片融合 -->
-        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowBackground">#ffffffff</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#ff365bc5</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">#ffffffff</item>
+        <item name="android:navigationBarColor">#ffffffff</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
