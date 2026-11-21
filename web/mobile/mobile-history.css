@@ -45,7 +45,41 @@
 .ds-history .item-ff6fc9:has([data-match]) { min-height:56px; }
 .ds-history .title-ff6fc9 { flex:1;min-width:0;white-space:nowrap;text-overflow:ellipsis;overflow:hidden; }
 .ds-history .ds-search-status { pointer-events:none;position:absolute;top:0;left:8px;right:8px; }
-.ds-history .ds-history-bottom { align-items:center;padding:3px 12px;border-top:1px solid var(--ds-ui-line);height:58px; }
+.ds-history .ds-history-bottom {
+  position: relative;
+  align-items:center;
+  padding:3px 12px;
+  height:58px;
+  /*
+   * 原来这里是一条 border-top:1px solid var(--ds-ui-line)，
+   * 实测那条线在真机上是 227 vs 255（差 28 级），像一条硬邦邦的分界线。
+   * 官方 odrag.mp4 打开态逐像素测量：头像上方那痕迹只有 253 vs 255（差 2 级），
+   * 淡到几乎看不见，视觉上更像一点点柔和的阴影而不是线。
+   * 所以这里去掉实线，改成一条很淡的渐变虚化：峰值只压暗约 2/255。
+   */
+  border-top: 0;
+}
+.ds-history .ds-history-bottom::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -5px;
+  height: 5px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0),
+    rgb(0 0 0 / 0.008)
+  );
+}
+body[data-ds-dark-theme] .ds-history .ds-history-bottom::before {
+  background: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0),
+    rgb(255 255 255 / 0.028)
+  );
+}
 .ds-history button,.ds-history-scrim button { font:inherit;cursor:pointer;color:inherit;border:0;background:transparent; }
 .ds-history button:disabled,.ds-history-scrim button:disabled { opacity:.4;cursor:default; }
 .ds-history .ds-history-settings { width:100%;display:flex;align-items:center;gap:10px;padding:8px 4px;text-align:start; }
