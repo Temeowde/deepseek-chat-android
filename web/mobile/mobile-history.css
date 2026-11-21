@@ -41,7 +41,7 @@
 .ds-history .section-ac14ac { margin-top:12px;padding-top:0; }
 .ds-history .section-ac14ac:first-child { margin-top:0; }
 .ds-history .sectionHeader-ac14ac { box-sizing:border-box;background:var(--ds-ui-paper);padding:6px 12px 4px;line-height:18px; }
-.ds-history .item-ff6fc9 { box-sizing:border-box;min-height:44px;height:auto;border-radius:9px;padding:9px 12px;font-size:16px;line-height:24px;gap:10px;user-select:none;-webkit-user-select:none;touch-action:pan-y; }
+.ds-history .item-ff6fc9 { box-sizing:border-box;min-height:44px;height:auto;border-radius:14px;padding:9px 12px;font-size:16px;line-height:24px;gap:10px;user-select:none;-webkit-user-select:none;touch-action:pan-y; }
 .ds-history .item-ff6fc9:has([data-match]) { min-height:56px; }
 .ds-history .title-ff6fc9 { flex:1;min-width:0;white-space:nowrap;text-overflow:ellipsis;overflow:hidden; }
 .ds-history .ds-search-status { pointer-events:none;position:absolute;top:0;left:8px;right:8px; }
@@ -95,7 +95,17 @@
 }
 .ds-history .item-ff6fc9 { transition: background-color var(--ds-motion-quick) ease; }
 .ds-history .item-ff6fc9:active { background-color: var(--dsw-alias-interactive-bg-active); }
-.ds-history .item-ff6fc9.active-ff6fc9 { background: var(--dsw-alias-button-ghost-active-fill); }
+.ds-history .item-ff6fc9.active-ff6fc9 {
+  /* 真机实测（官方截图逐像素）：
+   *   底色 = rgb(237,243,254) / #EDF3FE
+   *   文字 = rgb(66,110,254) / #426EFE  —— 纯蓝，不是继承的深色
+   *   圆角 = 43 物理px / 3 = 14.3 css px
+   * 之前只设了 background、没设 color，文字还是继承的 #1c1d21，
+   * 叠在浅蓝底上就变成暗灰蓝，和官方那种清爽的蓝色完全不同。
+   */
+  background: var(--dsw-alias-button-ghost-active-fill, #edf3fe);
+  color: #426efe;
+}
 .ds-history .ds-history-settings { min-height: 44px; border-radius: 10px; }
 .ds-history .ds-search-status { padding: 16px 12px; text-align: center; }
 
