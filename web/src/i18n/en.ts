@@ -127,6 +127,7 @@ export const en = {
   apiKeyStart: 'Enter an API Key to get started',
   apiKeyEdit: 'Edit API Key',
   apiKeyPlaceholder: 'Enter API Key',
+  apiKeyOfficialHint: 'You are signed in to your DeepSeek account — it only syncs official chats. Messages are sent through the DeepSeek open platform, so an API Key is still required.',
   apiKeyVerifying: 'Verifying...',
   confirm: 'Confirm',
   apiKeyInvalid: 'Invalid API Key. Please check it and try again.',

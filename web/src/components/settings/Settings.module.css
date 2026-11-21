@@ -206,6 +206,13 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
+/* 说明性提示（不是错误）：已登录官方账号但还没填 API Key 时的一句话解释 */
+.hint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
 .apiKey {
   display: flex;
   flex-direction: column;

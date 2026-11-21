@@ -5,6 +5,7 @@ import { useIsMobile } from '../../app/viewport.js'
 import { IconButton } from '../base/IconButton.js'
 import { useApiKeyForm } from './useApiKeyForm.js'
 import { useTranslate } from '../../i18n/index.js'
+import { officialHasToken } from '../../services/official/bridge.js'
 import styles from './Settings.module.css'
 
 /** API Key 的编辑状态：输入框与移动端底部的「确定」按钮共用 */
@@ -77,6 +78,15 @@ export const ApiKeyField = ({ editor }: { editor: ApiKeyEditor }) => {
             ) : null}
           </div>
         )}
+        {/*
+         * 用户很容易困惑：明明已经登录官方账号了，为什么还要单独填 API Key。
+         * 这两条链路确实是分开的 —— 官方账号 token 只用于同步会话历史，
+         * 发消息走的是 DeepSeek 开放平台，需要用户自己的 API Key。
+         * 不解释的话，登录过的用户会以为「设置没保存」或者「登录没生效」。
+         */}
+        {showInput && !apiKey && officialHasToken() ? (
+          <div className={styles.hint}>{t('apiKeyOfficialHint')}</div>
+        ) : null}
         {showInput && form.error ? <div className={styles.error}>{form.error}</div> : null}
       </div>
     </div>

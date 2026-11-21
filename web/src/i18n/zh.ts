@@ -122,6 +122,7 @@ export const zh = {
   apiKeyStart: '输入 API Key 开始使用',
   apiKeyEdit: '修改 API Key',
   apiKeyPlaceholder: '请输入 API Key',
+  apiKeyOfficialHint: '已登录官方账号，它只用来同步官方会话；发消息仍然走 DeepSeek 开放平台，所以还需要自备 API Key。',
   apiKeyVerifying: '正在验证...',
   confirm: '确定',
   apiKeyInvalid: 'API Key 无效，请检查后重试',
