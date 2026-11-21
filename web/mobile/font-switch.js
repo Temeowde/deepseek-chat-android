@@ -261,8 +261,12 @@
       el.textContent = '';
       return;
     }
+    // font-synthesis-weight:auto 是必要的：ChatWindowInsets 注入的主题字体规则带
+    // font-synthesis-weight:none（避免主题可变字体被二次加粗），该属性会继承整页；
+    // 用户换成只有单一字重的设备字体（楷体/圆体等）时，必须把它恢复成 auto，
+    // 否则标题/加粗文字不会合成粗体。follow 模式清空本 style，Java 的 none 仍然生效。
     el.textContent =
-      ':root:root,:root:root body{--dsw-font-family:' + stack + ' !important;}';
+      ':root:root,:root:root body{--dsw-font-family:' + stack + ' !important;font-synthesis-weight:auto;}';
   }
 
   function readSavedId() {
