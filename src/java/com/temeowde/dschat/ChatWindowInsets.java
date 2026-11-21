@@ -69,20 +69,35 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
     /**
      * 把「系统当前实际使用的字体」注入到网页里。
      *
-     * 背景：WebView 只认 /system/etc/fonts.xml 里声明的字体族，
-     * 而 MIUI 换主题字体是把自定义字体写到 /data/system/theme/fonts/ 下、
-     * 再把其余字体名软链过去 —— 这份配置 WebView 读不到，
-     * 所以网页永远显示出厂字体，用户在系统里换了字体这里也不会跟着变。
+     * 背景：HyperOS/MIUI 换主题字体时会把字体写到 /data/system/theme/fonts/，
+     * 并把 /system/etc/fonts.xml 软链到 /data/system/fonts/theme_webview/fonts.xml。
+     * 该配置里已经声明了主题字体（MiSansVF_Overlay.ttf），并自带一套
+     * 「CSS 字重 -> wght 轴」映射（实测 400->330、500->380、600/700->450、900->630）。
      *
-     * 真机验证（小米 25102RKBEC + 小米兰亭Pro）：
-     *   /data/system/theme/fonts/Roboto-Regular.ttf
-     *   exists=true canRead=true len=19402616（19.4MB，就是用户选的字体本体）
-     * 所以直接把该文件当 @font-face 源喂给页面。
+     * ⚠️ 关键结论（小米 25102RKBEC + 小米兰亭Pro，逐像素实测）：
+     * WebView 的 system-ui 其实**已经跟随主题字体**，而且用的是系统映射后的字重；
+     * 我们自己注入 @font-face 反而**绕过了这套映射**，把 CSS 字重直接当 wght 轴值。
+     * 这正是「注入主题字体后整体明显变粗」的根因：
+     *   官方 app：正常正文墨迹覆盖率≈31.2%、加粗≈38.6%、首页大标题≈40.0%；
+     *   旧注入（400->wght400、700->wght700）：36.6% / 46.9% / 52.5%，分别粗 17%/21%/31%。
+     *
+     * 那为什么还要注入？因为系统映射把「加粗」压到了 wght 450 左右，而本应用的 CSS
+     * 只写 400/500/600/700：system-ui 下正常文本会掉到 wght 330（比官方细 17%），
+     * 只有加粗恰好接近官方。两种做法各对一半：
+     *   system-ui    ：正常偏细（330）、加粗正确（450）
+     *   注入 150 700 ：正常正确（400）、加粗严重偏粗（700）
+     * 所以这里仍然注入，但把字形覆盖范围限制成 400 470：
+     *   CSS 400   -> wght 400（与官方正常文本一致）
+     *   CSS >=500 -> 钳到 wght 470（与官方加粗一致）
+     * 再配合 font-synthesis-weight:none，禁止浏览器在 470 之上再叠加伪加粗
+     * （实测 Chromium 会因 700 超出 400-470 范围而叠加，那样又多粗 17%）。
+     * 修复后实测：正常正文 30.7%（官方 31.2%）、加粗 37.4%（官方 38.6%）、
+     * 大标题 40.1%（官方 40.0%），与官方 app 基本重合。
      *
      * 注意：
      *  - 读不到就什么都不做，页面继续用系统默认字体；
      *  - 用 file:// 指向原文件，不复制（19MB 每次复制太浪费）；
-     *  - font-weight 声明 100 900，主题字体若是可变字体即可覆盖全部字重；
+     *  - 主题字体必须是可变字体（实测 fvar 只有 wght 轴 150~700，默认 400）；
      *  - font-display:swap 保证字体没加载完时先用后备字体，不会白屏。
      */
     private void injectSystemFont(View view) {
@@ -95,9 +110,10 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
                 + "var st=document.createElement('style');st.id='ds-system-font';"
                 + "st.textContent=\"@font-face{font-family:'DSSystemFont';"
                 + "src:url('file://" + fontPath + "') format('truetype');"
-                + "font-weight:150 700;font-style:normal;font-display:swap;}\""
+                + "font-weight:400 470;font-style:normal;font-display:swap;}\""
                 + "+\":root,body{--dsw-font-family:'DSSystemFont',system-ui,-apple-system,"
-                + "'Segoe UI',Roboto,'Helvetica Neue',sans-serif!important;}\";"
+                + "'Segoe UI',Roboto,'Helvetica Neue',sans-serif!important;"
+                + "font-synthesis-weight:none;}\";"
                 + "document.head.appendChild(st);"
                 + "return 'ok';"
                 + "})()";
