@@ -81,8 +81,11 @@
     object-fit: cover;
   }
 
-  &:hover .remove {
-    opacity: 1;
+  /* 桌面端仍然可以整体悬停时高亮，触屏下叉号本来就常显 */
+  @media (hover: hover) {
+    &:hover .remove {
+      opacity: 1;
+    }
   }
 }
 
@@ -175,7 +178,13 @@
   background-color: var(--dsw-alias-button-contrast-fill);
   filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.2));
   cursor: pointer;
-  opacity: 0;
+  /*
+   * 【修复】默认就可见。
+   *
+   * 原来 opacity:0，只在 .attachment:hover 时变 1 —— 但手机没有 hover，
+   * 所以已选图片右上角的删除叉号永远不出现。官方是常显的。
+   */
+  opacity: 1;
   transition: opacity var(--ds-transition-duration) var(--ds-ease-in-out);
 }
 
@@ -426,13 +435,21 @@
  *   蓝底圆直径 83px = 27.7dp，白色箭头 36px = 12dp 见方。
  * 之前是 36px 圆 + 16px 箭头，整体大了约 30%，是「发送键和官方差别最大」的主因。
  */
+/* 发送键品牌蓝：官方 resources.arsc 里 color/primary = #ff426efe。
+ * 原先用 --dsw-alias-brand-primary，亮色下解析为 --dsw-static-blue-500
+ * = rgb(57,100,254) = #3964fe，比官方更紫更深，这是「颜色不对」的原因。 */
 .sendButton {
   width: 28px;
   height: 28px;
+  background: #426efe;
   transition:
     background-color 180ms var(--ds-ease-in-out),
     color 180ms var(--ds-ease-in-out),
     transform 100ms ease;
+
+  &:not(.disabled):hover {
+    background: #3563e8;
+  }
 
   &:not(.disabled):active {
     transform: scale(0.94);
@@ -442,6 +459,19 @@
     opacity: 1;
     background: var(--dsw-alias-interactive-bg-active);
     color: var(--dsw-alias-label-caption);
+  }
+
+  [data-ds-dark-theme] & {
+    background: #426efe;
+
+    &:not(.disabled):hover {
+      background: #5a80f2;
+    }
+
+    &.disabled {
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.4);
+    }
   }
 }
 

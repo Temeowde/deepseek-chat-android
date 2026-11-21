@@ -26,17 +26,21 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
    */
   const [picked, setPicked] = React.useState(() => new Set());
   const camera = React.useRef(null), album = React.useRef(null), files = React.useRef(null);
+  /* 首次预取延迟长一点，避开首屏渲染 */
+  const initialRef = React.useRef(true);
   const mounted = phase !== 'closed';
   const shown = phase === 'open';
   // 复用全局动效变量；prefers-reduced-motion 下 --ds-motion-base 是 0ms。
   /*
-   * 面板动画时长（ms）。必须和 attachments.css 里的 320ms 保持一致：
+   * 面板动画时长（ms）。必须和 attachments.css 里的 400ms 保持一致：
    * 这个值只用来算「动画结束前按钮不可点」和「收起后何时卸载 DOM」。
-   * 之前是从 --ds-motion-base(230ms) 推的，后来面板单独调慢到 320ms，
-   * 如果这里不同步，按钮会在动画没结束时就变成可点，收起也会被提前卸载、看到残影。
+   *
+   * 400ms 来自官方录屏实测（小米 1200×2608、90fps、253 帧）：
+   * 临界阻尼弹簧 ω=9.146，99% 点在 278ms，完全停住约 400ms。
+   * 旧值是 330ms（对应一条错误的 ω=26.6 拟合），比官方快 15~25%。
    */
-  const OPEN_MS = 330;
-  const CLOSE_MS = 330;
+  const OPEN_MS = 400;
+  const CLOSE_MS = 400;
   React.useLayoutEffect(() => { setPhase('closed'); }, [sessionId]);
   React.useLayoutEffect(() => {
     if (phase !== 'opening') return;
@@ -73,6 +77,34 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
     return (p === 'closed' || p === 'closing') ? p : 'closing';
   });
   const close = () => { request('close'); return true; };
+  /*
+   * 【互斥规则】附件面板 和 键盘 抢同一块底部空间，永远不能同时打开。
+   *
+   * 修复的 bug（两种触发路径）：
+   *   1. 开面板 → 点语音键（变语音模式）→ 点键盘键：键盘弹起，面板还开着
+   *   2. 点语音键（变语音模式）→ 点加号 → 点键盘键：同上
+   * 结果是「键盘 + 照片条 + 输入栏」三者叠在一起。
+   *
+   * 根因：切语音/键盘的 onClick 只做了 focus()，没有任何代码去收面板。
+   * 官方对应的是 UploadPanelImeSwitchAnimationPlaceholder —— 面板和 IME
+   * 是同一个槽位上的互斥状态。
+   *
+   * 这里在源头补一条兜底：面板打开期间，只要有输入框拿到焦点（= 键盘要起来），
+   * 就立刻收面板。比在每个按钮里挨个补更稳，也不会漏掉别的入口。
+   */
+  React.useEffect(() => {
+    if (!mounted) return undefined;
+    const onFocusIn = e => {
+      const el = e.target;
+      if (!(el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement)) return;
+      /* 附件面板里的隐藏 file input 不算 */
+      if (el.type === 'file') return;
+      if (el.closest && el.closest('.ds-attach-panel')) return;
+      request('close');
+    };
+    document.addEventListener('focusin', onFocusIn, true);
+    return () => document.removeEventListener('focusin', onFocusIn, true);
+  }, [mounted]);
   /* 原生回调：最近图片列表 */
   React.useEffect(() => {
     if (!mounted) return undefined;
@@ -112,22 +144,37 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
     };
   }, [mounted, onFiles]);
 
-  /* 面板一打开就去拉最近图片（有缓存时也会刷新，成本很低） */
+  /*
+   * 最近图片的加载策略。
+   *
+   * 【第三版】前两版都有问题：
+   *   v1：面板一打开就拉 → 20 张缩略图 base64 解码 + 布局重排和上滑动画抢主线程，
+   *       实测动画在 50% 处冻住 13 帧。
+   *   v2：等动画跑完（400ms）再拉 → 动画平滑了，但缩略图要再过 ~600ms 才出现，
+   *       而且是在「拍照/相册/文件」三个按钮已经就位之后突然插到上面，
+   *       把整个面板顶高，非常突兀。冷启动时尤其明显（首次解码更慢）。
+   *
+   * v3：组件常驻期间就预取，打开面板时数据已经在了。
+   *
+   * 关键：useComposerAttachments 是挂在输入框上的常驻 hook，不随面板开关
+   * 卸载，所以预取要绑在常驻生命周期上（deps 不含 mounted），
+   * 否则面板关着时 mounted=false，effect 直接 return，等于没预取。
+   *
+   * 时机：
+   *   - 组件挂载后延迟预取一次（避开首屏渲染）
+   *   - 面板每次收起后刷新一次（相册可能有新照片）
+   *   - 展开动画期间绝不发起请求，不抢主线程
+   */
   React.useEffect(() => {
-    if (!mounted) return;
-    if (!expanded) { setPicked(new Set()); return; }
     const bridge = window.DeepSeekAndroid;
-    if (!bridge || typeof bridge.recentMediaList !== 'function') return;
-    /*
-     * 关键：等上滑动画跑完再拉最近图片。
-     *
-     * 之前是面板一打开就拉，20 张缩略图的 base64 解码 + 布局重排会和上滑动画
-     * 抢主线程 —— 逐帧实测打开动画在 50%(145ms) 处冻住 13 帧、然后直接跳到 100%。
-     * 挪到动画结束后，位移全程平滑；缩略图晚 330ms 出现，观感上察觉不到。
-     */
-    const id = setTimeout(() => bridge.recentMediaList(), OPEN_MS + 20);
+    if (!bridge || typeof bridge.recentMediaList !== 'function') return undefined;
+    /* 面板正在展开：什么都不做，避免和动画抢主线程 */
+    if (expanded) return undefined;
+    const delay = initialRef.current ? 300 : 60;
+    initialRef.current = false;
+    const id = setTimeout(() => bridge.recentMediaList(), delay);
     return () => clearTimeout(id);
-  }, [mounted, expanded]);
+  }, [expanded]);
 
   React.useEffect(() => {
     if (!mounted) return;

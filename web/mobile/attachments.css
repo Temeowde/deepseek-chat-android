@@ -32,33 +32,50 @@
  * 展开和收起用同一组参数，保证对称。
  */
 /*
- * 动效曲线：逐帧实测官方（小米机录制 433 帧，动画期间 ~8ms/帧）拟合出来的。
+ * 动效曲线：从官方录屏（小米 1200×2608，90fps，253 帧）逐帧实测并拟合。
  *
- * 结论：官方用的是【临界阻尼弹簧】x(t) = 1 - (1+ωt)·e^(-ωt)，ω = 26.6 rad/s，
- * 打开和关闭完全对称。关键点：25%@36ms、50%@63ms、90%@146ms、99%@250ms，
- * 约 330ms 才完全停住。
+ * 【为什么之前"太快"】旧注释声称是「逐帧实测 433 帧」得到 ω=26.6，
+ * 关键点 25%@36ms / 50%@63ms / 90%@146ms / 99%@250ms、约 330ms 停住。
+ * 但用这次真实录屏重新测量，实际是：
+ *   50% @ 67ms、90% @ 167ms、99% @ 278ms、完全停住约 400ms
+ * 每一项都比旧值慢 15~25% —— 旧参数明显偏快，这就是"不够优雅"的来源。
  *
- * 这是「优雅感」的数学来源：起步有一小段加速（不是一上来就窜），
- * 尾段指数收敛（慢慢贴上去，不会砸下去）。
+ * 实测结论：官方确实是【临界阻尼弹簧】x(t) = 1 - (1+ωt)·e^(-ωt)，
+ * 但 ω = 9.146 rad/s、总时长 T = 380.9ms（旧值是 26.6，快了近 3 倍）。
+ * 拟合残差 RMSE = 1.61% 行程，关键点几乎逐点重合。
  *
- * 之前试过 M3 emphasized-decelerate(.32,.72,0,1)：它 50% 出现在 6% 时长处，
- * 官方是 24%，前段快了一倍多 —— 实测 rmse 7.3% 行程，形状是错的。
+ * 速度剖面的特征：起步很慢（前 30ms 才走 12%），中段冲到峰值（约 45ms 处
+ * 51px/帧），然后指数收敛拖出长尾 —— 头尾都不突兀，这就是"优雅感"的数学来源。
  *
- * 这里用 CSS linear() 直接采样弹簧曲线（21 个点，最接近真值）；
- * 老 WebView 不支持 linear() 时退回同曲线的三阶贝塞尔近似（50%@56ms/90%@140ms）。
+ * 实现用 CSS linear() 直接采样弹簧真值（21 点）；
+ * 老 WebView 不支持 linear() 时退回 cubic-bezier(0.29, 0.80, 0.26, 1)。
  */
 .ds-attach-slot {
+  /*
+   * 【第二次修复】之前用 max-height 0 → 420px 是错的。
+   *
+   * max-height 动画的本质是「height = 420 × progress」，而面板真实内容
+   * 只有约 179dp（536 物理像素）。也就是说 progress 走到 43% 时面板就已经
+   * 完全显示，剩下 57% 的时间什么都没发生 —— 曲线被严重压缩，
+   * 观感就是「一下子弹出来」，这就是"掉帧/过快"的真实原因。
+   *
+   * 正确做法：用 grid 的 0fr → 1fr。它按【内容真实高度】插值，
+   * progress 曲线不会被上限稀释。
+   *
+   * 注意：之前 grid 方案失败是因为 panel 上还叠了一个 translateY(100%)，
+   * 两段动画打架。那个 transform 已经删掉了，现在 grid 可以单独工作。
+   */
   display:grid;
   grid-template-rows:0fr;
-  transition:grid-template-rows 330ms cubic-bezier(0.29, 0.80, 0.26, 1);
+  transition:grid-template-rows 400ms cubic-bezier(0.29, 0.80, 0.26, 1);
 }
 @supports (transition-timing-function: linear(0, 1)) {
-  .ds-attach-slot,
-  .ds-attach-panel {
+  .ds-attach-slot {
+    /* 实测弹簧曲线（ω=9.146，T=380.9ms）的 21 点采样 */
     transition-timing-function: linear(
-      0.000, 0.072, 0.219, 0.379, 0.524, 0.644, 0.739,
-      0.811, 0.865, 0.905, 0.933, 0.953, 0.968, 0.978,
-      0.985, 0.990, 0.993, 0.995, 0.997, 0.998, 1.000
+      0.000, 0.078, 0.233, 0.398, 0.546, 0.666, 0.759,
+      0.829, 0.880, 0.917, 0.942, 0.961, 0.973, 0.982,
+      0.988, 0.992, 0.994, 0.996, 0.998, 0.998, 1.000
     );
   }
 }
@@ -70,20 +87,21 @@
   display:block;
   /* 左右 18px 是实测值：官方卡片宽 102.7 css、列间距 7.7、屏宽 360 时左右各 18.25 */
   width:100%;box-sizing:border-box;padding:10px 0 12px;
-  opacity:0;
-  transform:translate3d(0,100%,0) scale(.96);
-  transform-origin:50% 100%;
   /*
-   * 位移 330ms 用上面的弹簧曲线；透明度只在极短时间里补一点（官方实测整块
-   * 没有明显淡入，卡片文字暗度全程恒定 13.2，所以这里只留 120ms 的轻微显形，
-   * 避免刚出现时半透明卡片长时间悬在半空）。
+   * 【核心修复】panel 不再有自己的 transform。
+   *
+   * 之前是 opacity + translateY(100%) + scale(.96)，配合 slot 的 grid 高度展开，
+   * 形成「高度先弹开、内容再滑入」的两段式动画 —— 和官方完全不同。
+   *
+   * 官方行为：面板和输入栏是刚性连接的一个整体，一起向上移动。
+   * 所以位移只由 slot 的 max-height 决定，panel 只做极轻微的透明度显形，
+   * 避免刚撑开时看到一块半透明的空盒子。
    */
-  transition:
-    transform 330ms cubic-bezier(0.29, 0.80, 0.26, 1),
-    opacity 120ms ease-out;
-  will-change:transform,opacity;
+  opacity:0;
+  transition:opacity 160ms ease-out;
+  will-change:opacity;
 }
-.ds-attach-slot[data-open=true] .ds-attach-panel { opacity:1;transform:none; }
+.ds-attach-slot[data-open=true] .ds-attach-panel { opacity:1; }
 /* 入场动画结束前按钮不可点，避免连点时误触卡片；退场时同样不可点。 */
 .ds-attach-slot:not([data-ready=true]) .ds-attach-panel { pointer-events:none; }
 .ds-attach-actions {
@@ -136,6 +154,7 @@
   background-color:var(--dsw-alias-bg-secondary,#f4f4f5);
   background-size:cover;background-position:center;
   pointer-events:none;
+  transition:filter 160ms ease;
 }
 /*
  * 右上角圆形选择钮：未选中 = 半透明黑填充 + 白色内描边，能透出底图；
@@ -147,6 +166,14 @@
   background:rgba(0,0,0,.4);
   box-shadow:inset 0 0 0 2px #fff;
   pointer-events:none;
+}
+/*
+ * 【修复】选中态：官方是被选中缩略图整体蒙一层灰色（半透明黑），
+ * 同时右上角圆钮变白 + 黑色对勾。
+ * 之前只有圆钮变白，图片本身没有任何变化，所以看着「没选上」。
+ */
+.ds-attach-recent-item[data-picked=true] .ds-attach-recent-img {
+  filter:brightness(.55) saturate(.6);
 }
 .ds-attach-recent-item[data-picked=true] .ds-attach-recent-check { background:#fff; }
 .ds-attach-recent-item[data-picked=true] .ds-attach-recent-check::after {

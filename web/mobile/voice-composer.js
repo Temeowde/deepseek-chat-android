@@ -117,7 +117,28 @@ window.useMobileComposerVoice = function (React, props) {
       const p = {started:false,cancel:false,timer:0}; press.current = p; begin(p);
     }
   },holdLabel);
+  /*
+   * 【修复】切换语音/键盘时，必须先把附件面板收起来。
+   *
+   * 之前的 bug：点语音键 → 切到语音模式 → 再点键盘键，onClick 里只做了
+   * setMode(!mode) + textarea.focus()，键盘弹起来了，但 .ds-attach-panel 还开着。
+   * 结果就是「键盘 + 附件面板 + 输入栏」三者同时展开、叠在一起。
+   *
+   * 官方行为：两者是互斥的 —— 附件面板和键盘占用同一块底部空间，
+   * 切换时面板先收起，键盘再升起（对应官方 UploadPanelImeSwitchAnimationPlaceholder
+   * 那套 IME 切换动画）。
+   */
+  const closeAttach = () => {
+    if (window.closeComposerAttachments) window.closeComposerAttachments();
+  };
   const toggle = h('button',{type:'button',className:'ds-voice-mode','aria-label':modeLabel,title:modeLabel,'aria-pressed':mode,disabled:busy,
-    onClick:()=>{stop(); setMode(!mode); if(mode) textarea.current?.focus({preventScroll:true}); else textarea.current?.blur();}},icon);
+    onClick:()=>{
+      stop();
+      /* 无论如何先收附件面板：它和键盘抢同一块空间 */
+      closeAttach();
+      setMode(!mode);
+      if(mode) textarea.current?.focus({preventScroll:true});
+      else textarea.current?.blur();
+    }},icon);
   return {pad, toggle, showToggle:mobile && blank, onFocus:()=>{setFocused(true);setMode(false);},onBlur:()=>setFocused(false)};
 };
