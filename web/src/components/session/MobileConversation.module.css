@@ -17,7 +17,7 @@
 
 .welcome {
   position: absolute;
-  inset: 0 min(9vw, 52px);
+  inset: 0 min(9vw, 52px) 19px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -45,11 +45,15 @@
 .welcome h1 {
   max-width: 24ch;
   margin: 0;
-  font-size: 21px;
-  line-height: 1.4;
-  font-weight: 500;
+  font-size: 19px;
+  line-height: 27px;
+  font-weight: 700;
+  letter-spacing: -0.45px;
   text-align: center;
   text-wrap: balance;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .dock {
@@ -59,7 +63,7 @@
   box-sizing: border-box;
   width: min(100%, 680px);
   margin-inline: auto;
-  padding: 6px var(--ds-mobile-gutter) max(5px, env(safe-area-inset-bottom));
+  padding: 6px var(--ds-mobile-gutter) calc(env(safe-area-inset-bottom) + 15px);
 }
 
 .caveat {

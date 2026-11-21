@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import clsx from 'clsx'
+import { useEffect, useState } from 'react'
 import { useTranslate } from '../i18n/index.js'
 import { useSettings } from '../services/settings.js'
 import { useIsMobile, useMobileViewport, usePreventPageScroll } from './viewport.js'
@@ -22,7 +23,7 @@ import { onUploadNotice } from '../services/attachments.js'
 import { Button } from '../components/base/Button.js'
 import { autoRead } from '../services/chat/store.js'
 import { CollapsedSider } from '../components/sider/CollapsedSider.js'
-import { closeMobileSider } from '../components/sider/mobileSiderState.js'
+import { closeMobileSider, useMobileSider } from '../components/sider/mobileSiderState.js'
 import { MobileSider, Sider } from '../components/sider/Sider.js'
 import { bindMobileGestures, bindNativeBack } from './mobileGestures.js'
 import { registerOfficialSync, syncOfficialSummaries } from '../services/official/sync.js'
@@ -34,6 +35,8 @@ export const App = () => {
   const locale = useSettings((state) => state.locale)
   // 移动端侧边栏以独立抽屉管理开合状态
   const siderCollapsed = useSettings((state) => state.siderCollapsed) && !isMobile
+  const mobileSiderOpen = useMobileSider((state) => state.open)
+
   const ready = useChatStore((state) => state.ready)
   const initError = useChatStore((state) => state.initError)
   const saveError = useChatStore((state) => Object.values(state.sessionSaveErrors).some(Boolean))
@@ -139,7 +142,7 @@ export const App = () => {
     <>
       <div ref={frameRef} className={styles.frame}>
         {isMobile ? <MobileSider /> : siderCollapsed ? null : <Sider />}
-        <main className={styles.main}>
+        <main className={clsx(styles.main, isMobile && mobileSiderOpen && styles.mainCardOpen)}>
           {saveError ? (
             <div className={styles.saveError} role="alert">
               <span>{t('sessionSaveFailed')}</span>

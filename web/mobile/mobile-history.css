@@ -1,6 +1,16 @@
 .ds-ui-icon { display:inline-block;flex:none;width:21px;height:21px;background:currentColor;mask:var(--ds-icon) center/contain no-repeat;-webkit-mask:var(--ds-icon) center/contain no-repeat; }
 .ds-history,.ds-history-scrim { --ds-ui-paper:var(--chat-paper,#fff);--ds-ui-fill:var(--chat-prompt,#eef0f4);--ds-ui-text:var(--dsw-alias-label-primary,#17181a);--ds-ui-sub:var(--dsw-alias-label-secondary,#666);--ds-ui-line:var(--chat-line,#e0e3e9);--ds-ui-accent:var(--dsw-alias-brand-text);--ds-ui-danger:#d64847;color:var(--ds-ui-text); }
-.ds-history.sider-ac14ac { width:100%;max-width:none;padding:0;border:0;background:var(--ds-ui-paper); }
+.ds-history.sider-ac14ac {
+  /* 背景层铺满全屏（由 .drawer 提供），内容只占左侧 74.1%，和卡片推开后的露出区对齐 */
+  width:74.1vw;
+  max-width:none;
+  padding:0;
+  border:0;
+  background:transparent;
+  padding-top:var(--ds-safe-top,0px);
+  box-sizing:border-box;
+  height:100%;
+}
 .ds-history [hidden] { display:none!important; }
 .ds-history .ds-history-search,.ds-selection-bar { flex:none;box-sizing:border-box;height:68px;padding:12px 14px 8px; }
 .ds-history .ds-history-search {

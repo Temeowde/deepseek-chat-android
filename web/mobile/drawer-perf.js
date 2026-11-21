@@ -1,13 +1,30 @@
 /* Preview a mobile drawer drag without re-rendering the history list on each move. */
 window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
-  const panel = document.querySelector('.drawer-ac14ac'), host = panel?.parentElement;
+  const panel = document.querySelector('.drawer-ac14ac');
+  const host = panel?.parentElement;
   if (!host) return;
+  // 卡片元素：拖动时直接改它的 transform，做到跟手
+  // 卡片的类名是 CSS Module 哈希（main_xxxx），用标签名更稳
+  const card = () => document.querySelector('main');
+  const CARD_SHIFT_RATIO = 741; // 打开态位移，单位 1/1000 vw
+  let cardEl = null;
+  let panelEl = null;
   let drag = null, frame = 0, release = 0;
   const clamp = (v, max) => Math.max(0, Math.min(max, v));
   const clear = () => {
     cancelAnimationFrame(frame); cancelAnimationFrame(release); frame = release = 0;
     host.classList.remove('ds-drawer-drag');
     host.style.removeProperty('--ds-drawer-x'); host.style.removeProperty('--ds-drawer-shade');
+    if (cardEl) {
+      cardEl.style.removeProperty('transition');
+      cardEl.style.removeProperty('transform');
+      cardEl.style.removeProperty('border-radius');
+      cardEl.style.removeProperty('box-shadow');
+    }
+    if (panelEl) {
+      panelEl.style.removeProperty('transition');
+      panelEl.style.removeProperty('transform');
+    }
   };
   const paint = () => {
     frame = 0;
@@ -15,6 +32,32 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
     host.style.setProperty('--ds-drawer-x', (drag.reveal - drag.width) + 'px');
     host.style.setProperty('--ds-drawer-shade', String(drag.reveal / drag.width));
     host.classList.add('ds-drawer-drag');
+    paintCard(drag.reveal / drag.width);
+  };
+  /*
+   * 按拖动进度同步驱动「卡片 + 侧栏」。
+   * 两者必须用同一个 progress，否则会脱节。
+   * 侧栏同步右移，右缘始终贴着卡片左缘，字和图标到卡片的距离才恒定。
+   */
+  const paintCard = progress => {
+    if (!cardEl) cardEl = card();
+    if (!cardEl) return;
+    const p = Math.max(0, Math.min(1, progress));
+    const vw = window.innerWidth / 100;
+    const tx = p * 74.1 * vw;
+    const scale = 1 - p * 0.05;
+    cardEl.style.transition = 'none';
+    cardEl.style.transform = 'translate3d(' + tx + 'px,0,0) scale(' + scale + ')';
+    cardEl.style.borderRadius = (p * 30) + 'px';
+    // 官方拖动时左缘一直有阴影：卡片浮在侧栏之上，靠阴影区分两层
+    if (p > 0.01) {
+      cardEl.style.boxShadow = '-6px 0 22px rgba(16,24,40,0.12), 0 6px 22px rgba(16,24,40,0.10)';
+    } else {
+      cardEl.style.boxShadow = 'none';
+    }
+    cardEl.style.boxShadow =
+      (-6 * p) + 'px 0 ' + (22 * p) + 'px rgba(16,24,40,' + (0.12 * p) + '), 0 ' +
+      (6 * p) + 'px ' + (22 * p) + 'px rgba(16,24,40,' + (0.10 * p) + ')';
   };
   const settle = open => {
     const d = drag; drag = null;
@@ -41,10 +84,12 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
       cancel(); return;
     }
     if (release) clear();
-    const t = e.touches[0], width = panel.offsetWidth;
+    const t = e.touches[0], width = panel.offsetWidth || window.innerWidth;
     if (!width) return;
+    // 新版：侧栏不滑动，进度完全由手指位移决定。initial 是当前进度（0 或 1）
+    const opened = isOpen();
     drag = {id:t.identifier, x:t.clientX, y:t.clientY, when:e.timeStamp, width,
-      initial:clamp(panel.getBoundingClientRect().right, width), open:isOpen(), tracking:false};
+      initial: opened ? width : 0, open:opened, tracking:false};
   };
   const move = e => {
     const d = drag, t = e.touches[0];

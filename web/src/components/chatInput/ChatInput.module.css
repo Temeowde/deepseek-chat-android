@@ -316,19 +316,19 @@
   &.selected {
     background-color: #edf3fe;
     color: #426efe;
-    border-color: #edf3fe;
+    border-color: #d3e2ff;
 
     [data-ds-dark-theme] & {
-      background-color: rgba(66, 110, 254, 0.16);
-      color: #93aaff;
-      border-color: rgba(66, 110, 254, 0.24);
+      background-color: #283142;
+      color: #6799fe;
+      border-color: #33436b;
     }
 
     &:hover {
       background-color: #e5eefd;
 
       [data-ds-dark-theme] & {
-        background-color: rgba(66, 110, 254, 0.22);
+        background-color: #2e3850;
       }
     }
   }
@@ -393,20 +393,31 @@
 
 .toggle {
   border-color: transparent;
-  color: var(--dsw-alias-label-secondary);
+  /* 官方关闭态是纯黑 #0f0f0f，不是次要灰；用 !important 压过 label-primary */
+  color: #0f0f0f !important;
   transition:
     background-color 180ms var(--ds-ease-in-out),
     border-color 180ms var(--ds-ease-in-out),
     color 180ms var(--ds-ease-in-out),
     transform 100ms ease;
 
+  [data-ds-dark-theme] & {
+    color: #f8f8f8;
+  }
+
   &:active:not(:disabled) {
     transform: scale(0.96);
   }
 
+  /* 官方开启态：底 #edf3fe、字 #426efe、边 #d3e2ff（截图实测） */
   &.selected {
-    color: var(--dsw-alias-brand-text);
-    border-color: var(--dsw-alias-button-ghost-active-border);
+    color: #426efe !important;
+    border-color: #d3e2ff;
+
+    [data-ds-dark-theme] & {
+      color: #6799fe;
+      border-color: #33436b;
+    }
   }
 }
 

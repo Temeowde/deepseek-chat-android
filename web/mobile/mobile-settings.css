@@ -1,4 +1,7 @@
 .ds-mobile-settings {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   position: fixed;
   inset: var(--app-viewport-top,0px) 0 auto;
   z-index: 930;

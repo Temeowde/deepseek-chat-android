@@ -1,4 +1,7 @@
 .item {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   position: relative;
   display: flex;
   align-items: center;

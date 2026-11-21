@@ -39,6 +39,7 @@
 
   .scroll .column {
     max-width: calc(100% - 2 * var(--ds-mobile-gutter));
+    margin-inline: auto;
     animation: messagesIn var(--ds-motion-base) var(--ds-ease-out) both;
   }
 }

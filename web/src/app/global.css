@@ -1,6 +1,6 @@
 :root {
   --message-list-max-width: 840px;
-  --ds-mobile-gutter: clamp(12px, 4vw, 22px);
+  --ds-mobile-gutter: clamp(10px, 3.2vw, 17px);
   --ds-motion-quick: 140ms;
   --ds-motion-base: 230ms;
   --ds-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -31,6 +31,9 @@ body {
   background-color: var(--dsw-alias-bg-base);
   -webkit-text-size-adjust: none;
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   font-feature-settings: 'kern';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -62,4 +65,20 @@ body.change-theme *::after {
     overflow: hidden;
     overscroll-behavior-y: none;
   }
+}
+
+
+/* 全局禁选后，这些区域恢复可选中（消息正文、代码、输入框） */
+input,
+textarea,
+[contenteditable='true'],
+.ds-markdown,
+.ds-assistant-message-main-content,
+.bubble-_4cfe7,
+.md-code-block,
+.ds-font-sample,
+.ds-msg-selected,
+.ds-msg-selected * {
+  -webkit-user-select: text;
+  user-select: text;
 }

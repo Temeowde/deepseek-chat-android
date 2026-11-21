@@ -53,13 +53,66 @@
 }
 
 @media not all and (min-width: 768px) {
+  /* 铺满全屏：状态栏和手势条后面也画上背景 */
   .frame {
     position: fixed;
-    top: var(--app-viewport-top, 0px);
+    top: 0;
+    left: 0;
+    right: 0;
     bottom: auto;
-    height: var(--app-viewport-height, 100dvh);
+    height: 100dvh;
+    box-sizing: border-box;
+    /* 背景与卡片同色（官方就是这样，分离感靠阴影），深色模式也不会露黑边 */
+    background: var(--dsw-alias-bg-base);
+    overflow: hidden;
+  }
+
+  /*
+   * 卡片两态，用同一组属性过渡：
+   *   关闭 —— 贴边、直角、无阴影：就是一整张白底，看不出是卡片
+   *   打开 —— 上下留间距、加圆角、加阴影：卡片浮起，露出下面的侧栏层
+   */
+  .main {
+    position: relative;
+    box-sizing: border-box;
+    flex: 1;
+    min-height: 0;
+    background-color: var(--dsw-alias-bg-base);
+    overflow: hidden;
+    z-index: 801;
+
+    border-radius: 0;
+    box-shadow: 0 0 0 rgba(16, 24, 40, 0);
+    padding-top: var(--ds-safe-top, 0px);
+    will-change: transform;
+
+    transition:
+      transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-radius 320ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /*
+   * 打开态：官方实测 translate3d(74.75vw) + scale(0.95)，origin 是 center。
+   * 上下 66px 不是 margin，是绕中心缩放的副产品（1304-1304*0.95=65.8），别写 margin。
+   */
+  .mainCardOpen {
+    border-radius: 30px;
+    box-shadow:
+      -6px 0 22px rgba(16, 24, 40, 0.12),
+      0 6px 22px rgba(16, 24, 40, 0.10);
+    transform: translate3d(74.1vw, 0, 0) scale(0.95);
+    transform-origin: center;
+  }
+
+  [data-ds-dark-theme] & .mainCardOpen,
+  :global([data-ds-dark-theme]) .mainCardOpen {
+    box-shadow:
+      0 -2px 12px rgba(0, 0, 0, 0.35),
+      0 8px 32px rgba(0, 0, 0, 0.5);
   }
 }
+
 
 .delayedLoading {
   animation: loadingIn var(--ds-motion-quick) ease 160ms both;

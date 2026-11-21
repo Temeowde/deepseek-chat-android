@@ -194,10 +194,19 @@
 
 .drawer {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
+  inset: 0;
   z-index: 800;
+  /*
+   * 关键：铺满全屏，跟卡片下面的背景连成一整块。
+   * 侧栏内容自己限制宽度，这样卡片缩小时露出的区域始终是同一个底色，
+   * 不会出现「侧栏到 74% 就断、右边露出另一层」的分界线。
+   */
+  background: var(--ds-ui-paper, var(--dsw-alias-bg-base));
+  visibility: hidden;
+  overflow: hidden;
+  pointer-events: none;
+  /* 侧栏自己不滑动，只有卡片动；收回时保持可见直到动画结束 */
+  transition: visibility 0s linear 320ms;
 }
 
 .drawerMask {
@@ -323,24 +332,10 @@
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
-  background-color: rgba(15, 17, 24, 0.34);
+  /* 只负责点外部关闭，本身不画任何颜色（视觉层完全交给 .drawer） */
+  background-color: transparent;
   transition:
-    opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
-    visibility 0s linear 300ms;
-}
-
-.drawer {
-  width: min(80vw, 360px, calc(100vw - 36px));
-  visibility: hidden;
-  overflow: hidden;
-  pointer-events: none;
-  border-radius: 0 20px 20px 0;
-  transform: translateX(-102%);
-  will-change: transform;
-  transition:
-    transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
-    width var(--ds-motion-base) cubic-bezier(0.4, 0, 0.2, 1),
-    border-radius var(--ds-motion-base) cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
     visibility 0s linear 300ms;
 }
 
@@ -356,11 +351,12 @@
   transition-delay: 0s;
 }
 
+/* 打开后：只负责显示，位置和尺寸固定，不动 */
 .drawerOpen {
   visibility: visible;
+  /* 不要设 width/height：.drawer 本身已经 inset:0 铺满，设了会切断背景 */
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(0);
   transition-delay: 0s;
 }
 

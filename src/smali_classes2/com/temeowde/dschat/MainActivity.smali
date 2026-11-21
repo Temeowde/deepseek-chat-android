@@ -1521,6 +1521,17 @@
     .line 178
     invoke-virtual {v2, v1}, Landroid/webkit/WebSettings;->setMixedContentMode(I)V
 
+    # 钉住文字缩放：默认 textZoom 会随系统字号放大，导致页面整体比官方大
+    const/16 v4, 0x64
+    invoke-virtual {v2, v4}, Landroid/webkit/WebSettings;->setTextZoom(I)V
+
+    const/4 v4, 0x0
+    invoke-virtual {v2, v4}, Landroid/webkit/WebSettings;->setSupportZoom(Z)V
+    invoke-virtual {v2, v4}, Landroid/webkit/WebSettings;->setBuiltInZoomControls(Z)V
+    invoke-virtual {v2, v4}, Landroid/webkit/WebSettings;->setDisplayZoomControls(Z)V
+    invoke-virtual {v2, v4}, Landroid/webkit/WebSettings;->setLoadWithOverviewMode(Z)V
+    invoke-virtual {v2, v4}, Landroid/webkit/WebSettings;->setUseWideViewPort(Z)V
+
     .line 179
     invoke-virtual {p0}, Lcom/temeowde/dschat/MainActivity;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;
 

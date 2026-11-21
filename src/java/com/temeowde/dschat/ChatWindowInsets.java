@@ -19,6 +19,60 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
         ChatWindowInsets controller = new ChatWindowInsets(root);
         root.setWindowInsetsAnimationCallback(controller);
         root.setOnApplyWindowInsetsListener(controller::onApply);
+        // 侧栏要从屏幕左缘往右拖，必须把左边缘从系统返回手势里排除，
+        // 否则每次拖动都会触发"再滑一次退出"。
+        excludeLeftEdgeGesture(root);
+        // WebView 里 env(safe-area-inset-top) 在状态栏透明时为 0，
+        // 这里把真实状态栏高度单独推给页面，供顶栏让位使用。
+        root.postDelayed(() -> controller.pushStatusBar(root), 600);
+        root.postDelayed(() -> controller.pushStatusBar(root), 1800);
+    }
+
+    /**
+     * 只推状态栏高度（不含导航栏、不含 IME）。
+     * 注意：getInsets() 返回的是**物理像素**，而 CSS 的 px 是 CSS px，
+     * 单位换算必须除以 density，否则会被 devicePixelRatio 放大。
+     */
+    private void pushStatusBar(View view) {
+        WindowInsets insets = view.getRootWindowInsets();
+        if (insets == null) {
+            return;
+        }
+        int topPx = insets.getInsets(WindowInsets.Type.statusBars()).top;
+        if (topPx == pushedStatusBar) {
+            return;
+        }
+        pushedStatusBar = topPx;
+        float density = root.getResources().getDisplayMetrics().density;
+        if (density <= 0) {
+            density = 1f;
+        }
+        final int topCss = Math.round(topPx / density);
+        int bottomPx = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+        final int bottomCss = Math.round(bottomPx / density);
+        final String js = "(function(){var r=document.documentElement.style;"
+                + "r.setProperty('--ds-safe-top','" + topCss + "px');"
+                + "r.setProperty('--ds-safe-bottom','" + bottomCss + "px');})();";
+        root.post(() -> {
+            android.webkit.WebView web = findWebView(root);
+            if (web != null) {
+                web.evaluateJavascript(js, null);
+            }
+        });
+    }
+
+    private int pushedStatusBar = -1;
+
+    /** 直接读取当前窗口 inset 并推送，不依赖 onApply 的时机。 */
+    private void pushCurrent(View view) {
+        WindowInsets insets = view.getRootWindowInsets();
+        if (insets == null) {
+            return;
+        }
+        int bars = WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout();
+        Insets safe = insets.getInsets(bars);
+        int bottom = Math.max(safe.bottom, insets.getInsets(WindowInsets.Type.ime()).bottom);
+        pushInsets(safe.top, bottom, safe.left, safe.right);
     }
 
     private ChatWindowInsets(View root) {
@@ -60,13 +114,82 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
         }
     }
 
+    /**
+     * 卡片布局下 WebView 要铺满全屏（连状态栏和手势条后面都画上），
+     * 所以这里不再给 root 加 padding，而是把安全区高度通过 JS 交给页面，
+     * 由 CSS 变量控制卡片的 inset。
+     */
     private void applyPadding(WindowInsets insets) {
-        int bars = WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout();
-        Insets safe = insets.getInsets(bars);
-        int bottom = Math.max(safe.bottom, insets.getInsets(WindowInsets.Type.ime()).bottom);
-        if (root.getPaddingLeft() != safe.left || root.getPaddingTop() != safe.top
-                || root.getPaddingRight() != safe.right || root.getPaddingBottom() != bottom) {
-            root.setPadding(safe.left, safe.top, safe.right, bottom);
+        // 系统栏安全区由 CSS 的 env(safe-area-inset-*) 负责（需 viewport-fit=cover），
+        // 这里只把 IME 高度推给页面，避免键盘遮挡输入框。
+        int ime = insets.getInsets(WindowInsets.Type.ime()).bottom;
+        if (ime == lastIme) {
+            return;
+        }
+        lastIme = ime;
+        pushInsets(0, ime, 0, 0);
+    }
+
+    private int lastTop = -1, lastBottom = -1, lastIme = -1;
+
+    /** 把安全区尺寸送进页面，CSS 变量 --ds-safe-top / --ds-safe-bottom 会跟着更新。 */
+    private void pushInsets(int top, int bottom, int left, int right) {
+        final String js = "(function(){var r=document.documentElement.style;"
+                + "r.setProperty('--ds-safe-top','" + top + "px');"
+                + "r.setProperty('--ds-safe-bottom','" + bottom + "px');"
+                + "r.setProperty('--ds-safe-left','" + left + "px');"
+                + "r.setProperty('--ds-safe-right','" + right + "px');"
+                + "})();";
+        root.post(() -> {
+            android.webkit.WebView web = findWebView(root);
+            if (web != null) {
+                web.evaluateJavascript(js, null);
+            }
+        });
+    }
+
+    /** 递归找 WebView：布局层级不确定，不能假设是第 0 个子节点。 */
+    private static android.webkit.WebView findWebView(View view) {
+        if (view instanceof android.webkit.WebView) {
+            return (android.webkit.WebView) view;
+        }
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                android.webkit.WebView found = findWebView(group.getChildAt(i));
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 把屏幕左缘一条竖带从系统返回手势中排除，让侧栏拖动优先响应。
+     * 必须设在真正铺满全屏的那一层上，否则 dumpsys 里看不到排除区。
+     */
+    private static void excludeLeftEdgeGesture(View root) {
+        applyExclusion(root);
+        root.postDelayed(() -> applyExclusion(root), 300);
+        root.postDelayed(() -> applyExclusion(root), 1200);
+    }
+
+    private static void applyExclusion(View root) {
+        android.webkit.WebView web = findWebView(root);
+        android.view.View target = web != null ? web : root;
+        int w = target.getWidth();
+        int h = target.getHeight();
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        // 实测 120px 时 x=50 仍会被系统手势抢走，加宽到 200px 留余量
+        int edge = Math.min(200, w / 4);
+        java.util.List<android.graphics.Rect> zones = new java.util.ArrayList<>();
+        zones.add(new android.graphics.Rect(0, 0, edge, h));
+        target.setSystemGestureExclusionRects(zones);
+        if (target != root) {
+            root.setSystemGestureExclusionRects(zones);
         }
     }
 }

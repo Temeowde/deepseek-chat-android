@@ -4,7 +4,8 @@
   flex: none;
   box-sizing: border-box;
   min-height: 52px;
-  padding-inline: max(6px, calc(var(--ds-mobile-gutter) - 6px));
+  /* 状态栏让位已经由 .frame 的 padding-top 处理，这里不要再加，否则双重偏移 */
+  padding-inline: max(0px, calc(var(--ds-mobile-gutter) - 6px));
   gap: 2px;
   color: var(--dsw-alias-label-primary);
   background: var(--chat-canvas);

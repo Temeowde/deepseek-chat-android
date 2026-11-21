@@ -98,7 +98,7 @@ export const useSettings = create<Settings>(() => ({
   themePreference: window.chatDisplayPrefs.read('theme', 'system'),
   ttsVoice: window.chatDisplayPrefs.read('voice', 'stella'),
   thinking: read(KEYS.thinking) === 'true',
-  search: read(KEYS.search) === 'true',
+  search: read(KEYS.search) !== 'false',
   safetyCheck: read(KEYS.safetyCheck) !== 'false',
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
 }))
