@@ -11,7 +11,6 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
   const [phase, setPhase] = React.useState('closed');
   const [ready, setReady] = React.useState(false);
   const camera = React.useRef(null), album = React.useRef(null), files = React.useRef(null);
-  const scrim = React.useRef(null);
   const mounted = phase !== 'closed';
   const shown = phase === 'open';
   // 复用全局动效变量；prefers-reduced-motion 下 --ds-motion-base 是 0ms。
@@ -47,33 +46,6 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
     const id = setTimeout(() => setReady(true), motionBase());
     return () => clearTimeout(id);
   }, [phase]);
-  /*
-   * 遮罩只盖对话区：不盖顶部标题栏，也不盖输入栏和面板本身。
-   * 面板展开时 dock 长高、对话区（stage）逐帧变矮，用 ResizeObserver 跟随，
-   * 避免遮罩盖到输入栏/面板或在动画中途错位。
-   */
-  React.useLayoutEffect(() => {
-    if (!mounted) return;
-    const el = scrim.current;
-    if (!el) return;
-    const composer = document.querySelector('[data-chat-composer]');
-    const dock = composer && composer.parentElement;
-    const stage = dock && dock.previousElementSibling;
-    if (!stage) { el.style.display = 'none'; return; }
-    const sync = () => {
-      const rect = stage.getBoundingClientRect();
-      el.style.top = Math.max(0, rect.top) + 'px';
-      el.style.height = Math.max(0, rect.height) + 'px';
-    };
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(stage);
-    window.addEventListener('resize', sync);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', sync);
-    };
-  }, [mounted]);
   const expanded = phase === 'opening' || phase === 'open';
   const request = next => setPhase(p => {
     if (next === 'open') {
@@ -109,11 +81,15 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
   return {
     toggle: h('button', {className:'ds-attach-toggle',type:'button', disabled,'aria-expanded':expanded ? 'true' : 'false','aria-label':expanded ? (zh?'收起附件':'Close attachments') : (zh?'添加附件':'Add attachments'), onClick:()=>{if (!expanded && document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur(); request(expanded ? 'close' : 'open');}}, icon('M12 8.6v6.8 M8.6 12h6.8',true)),
     inputs: rows.map(([ref], i) => h('input', {key:(sessionId ?? 'new') + ':' + i,ref,hidden:true,type:'file',capture:i===0?'environment':undefined,multiple:i!==0,accept:i===2?accept:'image/*',onChange:e=>{const f=Array.from(e.target.files || []);e.target.value='';if(f.length)onFiles(f);}})),
-    panel: !mounted ? null : h(React.Fragment, null,
-      h('div', {ref:scrim, className:'ds-attach-scrim','data-open':shown ? 'true' : 'false','aria-hidden':'true'}),
-      h('div', {className:'ds-attach-slot','data-open':shown ? 'true' : 'false','data-ready':ready ? 'true' : 'false'},
+    /*
+     * 没有遮罩层：官方点 + 时对话区背景像素完全不变（对比官方点 + 前后截图，
+     * 除欢迎语/输入框上移和卡片出现外没有任何像素变化）。
+     * 之前这里盖了一层 rgb(0 0 0 / 21%)，而且因为 .dock 有 z-index:1 自成层叠
+     * 上下文，遮罩连同聊天内容一起被压灰，是明显的 bug。
+     */
+    panel: !mounted ? null : h('div', {className:'ds-attach-slot','data-open':shown ? 'true' : 'false','data-ready':ready ? 'true' : 'false'},
         h('div', {className:'ds-attach-clip'},
           h('div', {className:'ds-attach-panel',role:'group','aria-label':zh?'附件':'Attachments'},
-            rows.map(([ref,label,d])=>h('button',{key:label,type:'button',disabled,onClick:()=>{request('close');if(ensureKey())ref.current?.click();}},icon(d),label))))))
+            rows.map(([ref,label,d])=>h('button',{key:label,type:'button',disabled,onClick:()=>{request('close');if(ensureKey())ref.current?.click();}},icon(d),label)))))
   };
 };

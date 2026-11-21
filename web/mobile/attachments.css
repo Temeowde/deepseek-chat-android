@@ -4,10 +4,10 @@
 
 /*
  * 附件面板（拍照 / 相册 / 文件）：打开时面板从底部滑入（translateY 100% → 0）
- * 并轻微缩放淡入，对话区遮罩渐显；关闭时全部反向，跑完再卸载 DOM。
+ * 并轻微缩放淡入；关闭时全部反向，跑完再卸载 DOM。
  *
  * 时长/缓动全部沿用全站动效变量（global.css）：
- *   --ds-motion-base 230ms + --ds-ease-out  —— 面板位移/缩放、遮罩、布局高度。
+ *   --ds-motion-base 230ms + --ds-ease-out  —— 面板位移/缩放、布局高度。
  *     和 mobile-settings 的底部 sheet、消息入场是同一套节奏（快速起步、缓慢收尾），
  *     230ms 比 --ds-motion-quick 更有「升起来」的空间感，又不至于拖沓。
  *   --ds-motion-quick 140ms —— 面板内容透明度。先让面板显形、位置随后到位，
@@ -45,20 +45,8 @@
 .ds-attach-panel button { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;background:var(--dsw-alias-bg-secondary,#f4f4f5);color:var(--dsw-alias-label-primary);border:0;border-radius:14px;font:500 14px/20px system-ui,sans-serif;cursor:pointer; }
 .ds-attach-panel button:active { opacity:.72; }
 
-/* 遮罩只覆盖对话区；位置和高度由 attachments.js 按对话区实时矩形同步。 */
-.ds-attach-scrim {
-  position:fixed;left:0;right:0;top:0;height:0;
-  z-index:-1;
-  background:rgb(0 0 0 / 21%);
-  opacity:0;
-  transition:opacity var(--ds-motion-base,230ms) var(--ds-ease-out,cubic-bezier(.22,1,.36,1));
-}
-.ds-attach-scrim[data-open=true] { opacity:1; }
-
-/* 宽度 >=768px 是桌面布局，没有「底部面板」语境，遮罩会盖错区域，直接不显示。 */
-@media (min-width:768px) { .ds-attach-scrim { display:none; } }
 
 @media (prefers-reduced-motion:reduce) {
   .ds-attach-toggle svg path { transition:none; }
-  .ds-attach-slot, .ds-attach-panel, .ds-attach-scrim { transition:none; }
+  .ds-attach-slot, .ds-attach-panel,
 }
