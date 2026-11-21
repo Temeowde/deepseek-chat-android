@@ -167,9 +167,15 @@
 /* 图标 20px：官方图标框虽然也是 21dp，但 Material Symbols 图形在字框里留白更大，
    20px 下的墨迹大小和线宽才和官方实测（4~5 物理px）对得上 */
 .ds-pref-row > .ds-ui-icon:first-child {
-  /* 图标来自官方 APK 的矢量资源（res/*.xml -> aapt2 dump xmltree -> SVG），
-     图形在 24 视口里有留白，所以盒子保持官方设计值 21dp 就能对上墨迹大小。 */
-  width: 21px;height: 21px;color: var(--ds-set-text);
+  /*
+   * 图标来自官方 APK 的矢量资源（aapt2 dump xmltree -> SVG），
+   * 图形在 24 视口里有留白，所以盒子保持官方设计值 21dp 才能对上墨迹大小。
+   *
+   * 这里用 em 而不是 px：行字号是 14.5px，1.45em = 21.03px，正好等于官方 21dp；
+   * 好处是以后调行字号时图标会**自动跟着缩放**，图标与文字的视觉比例保持不变
+   * （1.45 这个比例是从官方实测反推的：图标框 21dp / 正文 14.67px ≈ 1.43）。
+   */
+  width: 1.45em;height: 1.45em;color: var(--ds-set-text);
 }
 .ds-pref-row>span:not(.ds-ui-icon) { flex:1;min-width:0; }
 .ds-pref-row>small { flex:none;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ds-set-sub);font-size:14px; }
