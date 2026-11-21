@@ -16,6 +16,8 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
     host.classList.remove('ds-drawer-drag');
     host.style.removeProperty('--ds-drawer-x'); host.style.removeProperty('--ds-drawer-shade');
     host.style.removeProperty('--ds-drawer-scrim');
+    host.style.removeProperty('--ds-card-x'); host.style.removeProperty('--ds-card-s');
+    host.style.removeProperty('--ds-card-shadow-a'); host.style.removeProperty('--ds-shadow-dur');
     if (cardEl) {
       cardEl.style.removeProperty('transition');
       cardEl.style.removeProperty('transform');
@@ -78,12 +80,12 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
     cardEl.style.transform = 'translate3d(' + tx + 'px,0,0) scale(' + scale + ')';
     // 圆角是恒定值，由 CSS 控制，不能按进度动画。
     // 官方 odrag.mp4 逐帧拟合：p=0.20~0.93 全程约 75 物理px（≈25 css px），无变化趋势。
-    // 阴影随进度出现，拖动中就能看到卡片浮起
-    // 必须和 App.module.css 的 .mainCardOpen 用同一条**单层**阴影，
-    // 否则拖动结束时会看到阴影形状突变（多层叠加会有阶梯状色带）。
-    cardEl.style.boxShadow = p > 0.01
-      ? '0 0 30px rgba(16,24,40,0.146)'
-      : 'none';
+    // 阴影由 App.module.css 的 .frame::after 合成层绘制：
+    // 这里只驱动它的位移/缩放/透明度，避免拖动和动画期间每帧重绘整屏高斯模糊。
+    host.style.setProperty('--ds-shadow-dur', '0s');
+    host.style.setProperty('--ds-card-x', tx + 'px');
+    host.style.setProperty('--ds-card-s', String(scale));
+    host.style.setProperty('--ds-card-shadow-a', p > 0.01 ? '1' : '0');
 
     // 侧栏只由 --ds-drawer-x + .ds-drawer-drag 驱动，不写内联 transform。
     // 这样松手后移除 class 时，浏览器能从「拖动中的值」平滑过渡到静止态，

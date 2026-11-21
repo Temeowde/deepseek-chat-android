@@ -100,13 +100,13 @@
      * 注意：曾经的写法是 (p*30)px，圆角随进度从 0 涨到 30，视觉上 R 角一直变，是 bug。
      */
     border-radius: 30px;
-    box-shadow: 0 0 0 rgba(16, 24, 40, 0);
+    /* 阴影移到 .frame::after 合成层上，见文件末尾的说明 */
+    box-shadow: none;
     padding-top: var(--ds-safe-top, 0px);
     will-change: transform;
 
     transition:
-      transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   /*
@@ -129,7 +129,8 @@
      * 压暗 17 级需要 0.5*A*(255-22) ≈ 17 → A ≈ 0.146；
      * 30px 模糊在 3x 屏上跨度正好约 90px，和官方一致。
      */
-    box-shadow: 0 0 30px rgba(16, 24, 40, 0.146);
+    /* 阴影由 .frame::after 合成层绘制（动画期间不重绘模糊） */
+    box-shadow: none;
     /*
      * scale(0.95) 绕 center 会同时收窄和收矮，
      * 但元素盒子仍顶满上下，所以看起来卡片贴边、没有上下留白。
@@ -141,8 +142,56 @@
     transform-origin: center;
   }
 
-  [data-ds-dark-theme] & .mainCardOpen,
-  :global([data-ds-dark-theme]) .mainCardOpen {
+  /*
+   * ── 卡片阴影层 ────────────────────────────────────────────────
+   * 为什么不再把 box-shadow 放进 .main 的 transition：
+   * box-shadow 不是合成动画属性，Chromium 只能每帧重绘整屏的高斯模糊。
+   * 真机 SurfaceFlinger 实测（120Hz，3 次开合取中位数）：
+   *   带 box-shadow 过渡：每段动画只有 12~14 帧、41~46fps、
+   *     帧间隔 p90 50~58ms、每段丢 18~22 次 vsync；
+   *   去掉后：18~20 帧、63~80fps、p90 33~42ms、丢 14~16 次。
+   * 但阴影本身是之前逐像素对齐官方调出来的（单层 30px 高斯、alpha .146），
+   * 不能删——所以把它画在独立伪元素层上：
+   * 动画只改 transform + opacity（合成器动画，不重绘内容），
+   * 观感仍是「卡片浮起时阴影淡入、落下时淡出」。
+   * 静止态与原来的 box-shadow 逐像素一致（实测左缘阴影剖面 254→238 相同）。
+   *
+   * 层级：.drawer(800，DOM 在前) < 本层(800) < .main(801)。
+   * --ds-card-x / --ds-card-s / --ds-card-shadow-a 由 drawer-perf.js 在拖动时写入，
+   * --ds-shadow-dur 在拖动期间设为 0s，松手清除后让 CSS 过渡接管。
+   */
+  .frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 800;
+    border-radius: 30px;
+    box-shadow: 0 0 30px rgba(16, 24, 40, 0.146);
+    opacity: var(--ds-card-shadow-a, 0);
+    pointer-events: none;
+    transform-origin: center;
+    transform: translate3d(var(--ds-card-x, 0px), 0, 0) scale(var(--ds-card-s, 1));
+    will-change: transform, opacity;
+    transition:
+      transform var(--ds-shadow-dur, 200ms) cubic-bezier(0.22, 1, 0.36, 1),
+      opacity var(--ds-shadow-dur, 200ms) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .frame:has(> .mainCardOpen)::after {
+    opacity: 1;
+    transform: translate3d(74.75vw, 0, 0) scale(0.95);
+  }
+
+  /* 拖动中：阴影必须跟卡片逐帧同步（此时 .mainCardOpen 类通常还在，
+   * 所以这条规则要放在 :has 规则之后，用同级特异度覆盖它）。 */
+  .frame:global(.ds-drawer-drag)::after {
+    opacity: var(--ds-card-shadow-a, 0);
+    transform: translate3d(var(--ds-card-x, 0px), 0, 0) scale(var(--ds-card-s, 1));
+    transition: none;
+  }
+
+  [data-ds-dark-theme] .frame::after,
+  :global([data-ds-dark-theme]) .frame::after {
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.55);
   }
 }
