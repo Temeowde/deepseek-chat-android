@@ -206,16 +206,35 @@ export const loadOfficialSession = async (id: string): Promise<Session | undefin
 
 const PROFILE_KEY = 'chat-demo:official-profile'
 
-export type OfficialProfile = { name: string; avatar: string }
+export type OfficialProfile = { name: string; avatar: string; account?: string; accountKind?: 'phone' | 'email' }
 
 export const loadOfficialProfile = (): OfficialProfile => {
   try {
     const raw = localStorage.getItem(PROFILE_KEY)
     const parsed = raw ? (JSON.parse(raw) as Partial<OfficialProfile>) : null
-    return { name: String(parsed?.name ?? ''), avatar: String(parsed?.avatar ?? '') }
+    return {
+      name: String(parsed?.name ?? ''),
+      avatar: String(parsed?.avatar ?? ''),
+      account: String(parsed?.account ?? ''),
+      accountKind: parsed?.accountKind === 'phone' || parsed?.accountKind === 'email' ? parsed.accountKind : undefined,
+    }
   } catch {
     return { name: '', avatar: '' }
   }
+}
+
+const maskEmail = (value: string): string => {
+  const at = value.indexOf('@')
+  if (at <= 0) return value
+  const local = value.slice(0, at)
+  const shown = local.length <= 3 ? local.slice(0, 1) : local.slice(0, 3)
+  return shown + '*****' + local.slice(-2) + value.slice(at)
+}
+
+const maskPhone = (value: string): string => {
+  const digits = value.replace(/[^0-9+]/g, '')
+  if (digits.length < 7) return value
+  return digits.slice(0, 3) + '******' + digits.slice(-2)
 }
 
 const pickProfile = (value: unknown, out: OfficialProfile, depth: number) => {
@@ -232,8 +251,17 @@ const pickProfile = (value: unknown, out: OfficialProfile, depth: number) => {
       if (!out.avatar && /avatar|picture|portrait|icon_url/.test(name) && /^https?:/.test(child)) {
         out.avatar = child
       }
-      if (!out.name && /^(name|nickname|display_name|given_name)$/.test(name) && child.length < 60) {
+      if (!out.name && /^(name|nickname|display_name|given_name)$/.test(name) && child.length < 60 && child.indexOf('@') < 0) {
         out.name = child
+      }
+      if (!out.account && /^(email|mail)$/.test(name) && child.indexOf('@') > 0) {
+        out.account = maskEmail(child)
+        out.accountKind = 'email'
+      }
+      if (!out.account && /^(mobile|mobile_number|phone|phone_number|telephone|tel)$/.test(name)
+          && child.replace(/[^0-9]/g, '').length >= 7) {
+        out.account = maskPhone(child)
+        out.accountKind = 'phone'
       }
     } else if (typeof child === 'string' && !out.name && name === 'email') {
       out.name = child.split('@')[0]
@@ -258,8 +286,10 @@ export const syncOfficialProfile = async (): Promise<OfficialProfile> => {
       const next = {
         name: found.name || current.name,
         avatar: found.avatar || current.avatar,
+        account: found.account || current.account,
+        accountKind: found.accountKind || current.accountKind,
       }
-      if (next.name || next.avatar) {
+      if (next.name || next.avatar || next.account) {
         localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
         return next
       }

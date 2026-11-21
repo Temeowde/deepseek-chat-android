@@ -30,13 +30,11 @@ window.createMobileHistory = function (React, portal, api) {
     const [menu,setMenu] = React.useState(null), [dialog,setDialog] = React.useState(null);
     const [selected,select] = React.useState(null), [value,setValue] = React.useState('');
     const [busy,setBusy] = React.useState(false), [today,setToday] = React.useState(Date.now);
-    const [officialOpen,setOfficialOpen] = React.useState(false), [official,setOfficial] = React.useState(false);
+    const [official,setOfficial] = React.useState(false);
     const [officialProfile,setOfficialProfile] = React.useState({name:'',avatar:''});
+    const [avatarBroken,setAvatarBroken] = React.useState(false);
     const [pull,setPull] = React.useState(0);
     const pullRef = React.useRef({y:0,active:false,value:0});
-    const [officialMode,setOfficialMode] = React.useState('menu'), [officialAccount,setOfficialAccount] = React.useState('');
-    const [officialPassword,setOfficialPassword] = React.useState(''), [officialError,setOfficialError] = React.useState('');
-    const [officialBusy,setOfficialBusy] = React.useState(false);
     const pending = React.useRef(false), touch = React.useRef(null), suppress = React.useRef(null);
     const field = React.useRef(null), search = React.useRef(null), backRef = React.useRef(null);
     const list = React.useRef(null), historyScroll = React.useRef(null);
@@ -44,7 +42,7 @@ window.createMobileHistory = function (React, portal, api) {
       const refresh = () => {
         const api = window.__official, has = !!(api && api.hasToken());
         setOfficial(has);
-        setOfficialProfile(api && api.profile ? api.profile() : {name:'',avatar:''});
+        setOfficialProfile(has && api && api.profile ? api.profile() : {name:'',avatar:''});
       };
       refresh();
       const onVisible = () => { if (document.visibilityState !== 'hidden') refresh(); };
@@ -250,49 +248,6 @@ window.createMobileHistory = function (React, portal, api) {
         setPull(0);
       }
     };
-    const submitPassword = async () => {
-      if (officialBusy || !officialAccount.trim() || !officialPassword) return;
-      setOfficialBusy(true); setOfficialError('');
-      try {
-        const ok = await window.__official.passwordLogin(officialAccount.trim(), officialPassword);
-        if (ok) {
-          setOfficial(true); setOfficialOpen(false); setOfficialPassword('');
-          void window.__official.sync();
-        } else {
-          setOfficialError(tr('账号或密码不正确','Wrong account or password'));
-        }
-      } catch (error) {
-        setOfficialError(String((error && error.message) || error));
-      } finally {
-        setOfficialBusy(false);
-      }
-    };
-    const officialSheet = officialOpen && portal(h('div',{className:'ds-history-scrim ds-history-dim',onPointerDown:e=>{if(e.target===e.currentTarget)setOfficialOpen(false);}},
-      h('div',{className:'ds-history-dialog',role:'dialog','aria-modal':true,'aria-label':tr('官方账号','Official account')},
-        h('h2',null,tr('官方账号','Official account')),
-        official
-          ? h(React.Fragment,null,
-              h('p',null,tr('已连接。官方 App 里的对话会自动同步到这里；官方额度用完时，直接在这里接着聊，走你自己的 API。','Connected. Chats from the official app are synced here. When the quota runs out, continue here on your own API.')),
-              officialError && h('p',{className:'ds-official-error'},officialError))
-          : officialMode==='password'
-            ? h(React.Fragment,null,
-                h('input',{value:officialAccount,placeholder:tr('手机号','Phone number'),inputMode:'tel',onChange:e=>setOfficialAccount(e.target.value)}),
-                h('input',{value:officialPassword,type:'password',placeholder:tr('密码','Password'),onChange:e=>setOfficialPassword(e.target.value),onKeyDown:e=>{if(e.key==='Enter'){e.preventDefault();void submitPassword();}}}),
-                officialError && h('p',{className:'ds-official-error'},officialError))
-            : h('p',null,tr('登录后，官方 App 里的对话会自动出现在这个列表里，额度用完时可以在这里接着聊。','Sign in and chats from the official app appear in this list, so you can continue on your own API when the quota runs out.')),
-        h('div',{className:'ds-history-actions'},
-          official
-            ? h(React.Fragment,null,
-                h('button',{type:'button',className:'ds-confirm',disabled:busy,onClick:async()=>{setBusy(true);setOfficialError('');try{const ok=await window.__official.sync();if(ok)setOfficialOpen(false);else setOfficialError(tr('同步失败，请检查网络或重新登录','Sync failed — check the network or sign in again'));}finally{setBusy(false);}}},tr('立即同步','Sync now')),
-                h('button',{type:'button',className:'ds-danger',onClick:()=>{window.__official.logout();setOfficial(false);setOfficialMode('menu');setOfficialOpen(false);}},tr('退出登录','Sign out')))
-            : officialMode==='password'
-              ? h(React.Fragment,null,
-                  h('button',{type:'button',className:'ds-confirm',disabled:officialBusy||!officialAccount.trim()||!officialPassword,onClick:submitPassword},officialBusy?tr('登录中…','Signing in…'):tr('登录','Sign in')),
-                  h('button',{type:'button',onClick:()=>{setOfficialMode('menu');setOfficialError('');}},tr('返回','Back')))
-              : h(React.Fragment,null,
-                  h('button',{type:'button',className:'ds-confirm',onClick:()=>{setOfficialMode('password');setOfficialError('');}},tr('密码登录','Password')),
-                  h('button',{type:'button',onClick:()=>{setOfficialOpen(false);window.__official.login();}},tr('验证码登录','SMS'))),
-          h('button',{type:'button',onClick:()=>setOfficialOpen(false)},t('cancel'))))),document.body);
     return h('div',{className:'sider-ac14ac mobile-ac14ac ds-history','data-selecting':!!selected,'data-searching':searching},
       h('div',{className:'top-ac14ac ds-history-search',hidden:!!selected},
         h('button',{type:'button',className:'ds-history-search-back',tabIndex:searching ? 0 : -1,
@@ -322,8 +277,8 @@ window.createMobileHistory = function (React, portal, api) {
           h('button',{className:'ds-danger',disabled:busy||!selectedRows.length,onClick:()=>confirmDelete(selectedRows.map(r=>r.id))},icon('trash-2'),t('delete'))):
         h('div',{className:'ds-history-account-row'},
           h('button',{type:'button',className:'ds-history-account','aria-label':tr('设置','Settings'),onClick:api.settings},
-            h('span',{className:'ds-account-avatar'},officialProfile.avatar?h('img',{src:officialProfile.avatar,alt:''}):officialProfile.name?h('span',{className:'ds-account-initial'},officialProfile.name.slice(0,1)):icon('user-round')),
+            h('span',{className:'ds-account-avatar'},officialProfile.avatar&&!avatarBroken?h('img',{src:officialProfile.avatar,alt:'',onError:()=>setAvatarBroken(true)}):officialProfile.name?h('span',{className:'ds-account-initial'},officialProfile.name.slice(0,1)):icon('user-round')),
             h('span',{className:'ds-account-name'},officialProfile.name||(official?tr('官方账号','Official account'):tr('未登录','Not signed in')))),
-          h('button',{type:'button',className:'ds-history-gear','aria-label':tr('官方账号','Official account'),onClick:()=>{setOfficial(!!window.__official?.hasToken());setOfficialOpen(true);}},icon('ellipsis')))),floatingMenu,officialSheet,modal);
+          h('button',{type:'button',className:'ds-history-gear','aria-label':tr('设置','Settings'),onClick:api.settings},icon('ellipsis')))),floatingMenu,modal);
   };
 };

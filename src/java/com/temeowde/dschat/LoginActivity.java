@@ -3,10 +3,13 @@ package com.temeowde.dschat;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.ConsoleMessage;
@@ -16,6 +19,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -75,18 +79,45 @@ public final class LoginActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        getWindow().setStatusBarColor(Color.WHITE);
+        getWindow().setNavigationBarColor(Color.WHITE);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.WHITE);
 
+        // 顶栏对齐设置页：居中标题 + 左侧圆形关闭按钮。
+        FrameLayout header = new FrameLayout(this);
+        header.setBackgroundColor(Color.WHITE);
+
+        TextView title = new TextView(this);
+        title.setText("登录 DeepSeek");
+        title.setTextSize(17);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(0xff17181a);
+        header.addView(title, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER));
+
         TextView close = new TextView(this);
-        close.setText("关闭");
-        close.setTextSize(16);
-        close.setPadding(dp(16), dp(14), dp(16), dp(14));
-        close.setTextColor(0xff365bc5);
+        close.setText("✕");
+        close.setTextSize(15);
+        close.setGravity(Gravity.CENTER);
+        close.setTextColor(0xff17181a);
+        GradientDrawable closeBackground = new GradientDrawable();
+        closeBackground.setShape(GradientDrawable.OVAL);
+        closeBackground.setColor(0xffeeeeee);
+        close.setBackground(closeBackground);
         close.setOnClickListener(v -> finish());
-        root.addView(close, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0f));
+        FrameLayout.LayoutParams closeParams = new FrameLayout.LayoutParams(
+                dp(32), dp(32), Gravity.START | Gravity.CENTER_VERTICAL);
+        closeParams.leftMargin = dp(14);
+        header.addView(close, closeParams);
+
+        root.addView(header, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
 
         webView = new WebView(this);
         WebSettings settings = webView.getSettings();

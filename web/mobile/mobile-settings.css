@@ -17,9 +17,8 @@
   padding-top: var(--ds-safe-top, 0px);
   overflow: hidden;
   /*
-   * 设置页配色统一走这几个局部变量。
-   * 之前全是硬编码浅色（#f8f8f8 / #fff / #0f0f0f ...），
-   * 暗色主题下整页仍然发白，而状态栏图标已被切成白色 → 图标压在浅底上不可读。
+   * 设置页配色统一走这几个局部变量（对齐官方 2.8.0 实测值）。
+   * 指标：页面底 #f8f8f8、白卡、灰色分组标题、浅灰 chevron、红色危险项。
    */
   --ds-set-bg: #f8f8f8;
   --ds-set-card: #fff;
@@ -28,6 +27,12 @@
   --ds-set-chevron: #b9babb;
   --ds-set-icon-btn: #ededed;
   --ds-set-icon-btn-active: #e0e0e0;
+  --ds-set-line: #ececee;
+  --ds-set-danger: #e0483f;
+  --ds-set-switch-off: #e5e5e7;
+  --ds-set-switch-on: #34c759;
+  --ds-set-bubble: #e8f0ff;
+  --ds-set-field: #f4f5f7;
   background: var(--ds-set-bg);
   color: var(--ds-set-text);
   font-family: var(--dsw-font-family,system-ui);
@@ -48,7 +53,7 @@
   background: var(--ds-set-bg);
   text-align: center;
 }
-.ds-mobile-settings h1,.ds-mobile-settings h2,.ds-mobile-settings p { margin:0; }
+.ds-mobile-settings :where(h1,h2,p) { margin:0; }
 .ds-mobile-settings h1 { font-size:16px;line-height:24px;font-weight:600; }
 .ds-mobile-settings button { font-family:inherit;cursor:pointer; }
 .ds-mobile-settings > header > button {
@@ -111,9 +116,12 @@
 }
 .ds-pref-content {
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   width: min(100%, 620px);
+  min-height: 100%;
   margin-inline: auto;
-  padding: 16px 0 max(24px, env(safe-area-inset-bottom));
+  padding: 14px 0 max(28px, env(safe-area-inset-bottom));
 }
 .ds-pref-content > * { margin-inline: 14px; }
 .ds-mobile-settings h1[data-direction=forward] {
@@ -124,19 +132,20 @@
   --ds-settings-offset: -12px;
   animation: ds-pref-step var(--ds-motion-base) var(--ds-ease-out) both;
 }
-.ds-pref-block { margin-bottom: 16px; }
+/* ── 分组卡片（对齐官方：22px 组间距 / 9px 标题下间距 / 12px 圆角） ── */
+.ds-pref-block { margin-bottom: 22px; }
 .ds-pref-group {
   border: 0;
-  border-radius: 11px;
+  border-radius: 12px;
   background: var(--ds-set-card);
   overflow: hidden;
 }
-.ds-pref-group h2,
 .ds-pref-caption {
-  padding: 4px 16px 10px;
+  padding: 0 8px 9px;
   color: var(--ds-set-sub);
-  font: 500 12px/18px var(--dsw-font-family,system-ui);
+  font: 400 13px/18px var(--dsw-font-family,system-ui);
 }
+.ds-pref-caption-alone { margin: 0 14px 9px; padding: 0 8px; }
 .ds-pref-row,.ds-pref-link {
   display: flex;
   align-items: center;
@@ -146,7 +155,7 @@
   box-sizing: border-box;
   padding: 9px 17px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 0;
   background: none;
   color: var(--ds-set-text);
   text-align: start;
@@ -155,52 +164,419 @@
   text-decoration: none;
   transition: background var(--ds-motion-quick) ease;
 }
+.ds-pref-row > .ds-ui-icon:first-child { width: 21px;height: 21px;color: var(--ds-set-text); }
 .ds-pref-row>span:not(.ds-ui-icon) { flex:1;min-width:0; }
-.ds-pref-row>small { color:var(--ds-set-sub);font-size:13px; }
+.ds-pref-row>small { flex:none;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ds-set-sub);font-size:14px; }
 .ds-pref-row>.ds-ui-icon:last-child,.ds-pref-link>.ds-ui-icon { width:17px;height:17px;color:var(--ds-set-chevron); }
-.ds-pref-row:active,.ds-pref-link:active {
-  background: var(--dsw-alias-interactive-bg-active);
+.ds-pref-row:active,.ds-pref-link:active { background: var(--dsw-alias-interactive-bg-active,rgb(0 0 0 / 4%)); }
+.ds-pref-row:disabled { opacity:.5; }
+.ds-mobile-settings > header > button:active::before { background: var(--ds-set-icon-btn-active); }
+.ds-pref-static { cursor: default; }
+.ds-pref-static:active { background: none; }
+.ds-pref-danger-row { color: var(--ds-set-danger); }
+.ds-pref-danger-row > .ds-ui-icon:first-child { color: var(--ds-set-danger); }
+.ds-pref-danger-row > span { color: var(--ds-set-danger); }
+.ds-pref-legal {
+  margin: 34px 20px 4px;
+  text-align: center;
+  color: var(--ds-set-sub);
+  font: 400 13px/21px var(--dsw-font-family,system-ui);
 }
-.ds-mobile-settings > header > button:active::before {
-  background: var(--ds-set-icon-btn-active);
-}
-.ds-pref-body[data-view=data] .ds-pref-content>div,.ds-pref-body[data-view=account] .ds-pref-content>div,
-.ds-pref-body[data-view=personal] .ds-pref-content>div { margin:0 14px 16px; }
-.ds-pref-body[data-view=account] input[type=password] { max-width:100%; }
-.ds-pref-scrim {
-  position:absolute; inset:0; display:flex; align-items:flex-end; justify-content:center; z-index:2;
-  background:rgb(0 0 0 / 30%); animation:ds-pref-fade var(--ds-motion-quick) ease both;
-}
-.ds-pref-sheet {
+.ds-pref-legal p { margin: 0; }
+/* ── 账号卡 ── */
+.ds-account-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   box-sizing: border-box;
-  width: min(100%,520px);
-  max-height: 100%;
-  overflow: auto;
-  padding: 18px 16px max(14px,env(safe-area-inset-bottom));
-  border-radius: 20px 20px 0 0;
-  background: var(--chat-paper);
-  animation: ds-sheet-in var(--ds-motion-base) var(--ds-ease-out) both;
+  padding: 18px 17px;
+  border-radius: 12px;
+  background: var(--ds-set-card);
 }
-.ds-pref-scrim[data-leaving=true] { animation: ds-pref-fade-out var(--ds-motion-base) ease-out both; }
-.ds-pref-scrim[data-leaving=true] .ds-pref-sheet { animation: ds-pref-sheet-out var(--ds-motion-base) var(--ds-ease-out) both; }
-.ds-pref-sheet h2 { text-align:center;font:600 17px/24px var(--dsw-font-family,system-ui);margin:0 0 12px; }
-.ds-pref-sheet [role=radio] { display:flex;align-items:center;justify-content:space-between;min-height:46px;width:100%;border:0;background:transparent;color:inherit;font-size:15px;padding:8px 10px; }
-.ds-pref-sheet [role=radio][aria-checked=true] { color:var(--dsw-alias-brand-text); }
-.ds-pref-apply { margin-top:12px;height:44px;width:100%;border:0;border-radius:12px;background:var(--dsw-alias-button-primary-fill);color:white;font-size:16px; }
-.ds-font-sample { padding:20px 12px;border-radius:14px;background:var(--dsw-alias-interactive-bg-hover);font-size:var(--ds-chat-font,16px);line-height:1.65; }
-.ds-font-sample p { margin-top:8px; }
-.ds-font-slider { display:flex;align-items:center;gap:12px;margin:24px 14px; }
-.ds-font-slider input { width:100%;min-width:60px;accent-color:var(--dsw-alias-button-primary-fill); }
-.ds-font-slider strong { font-size:23px; }
-.ds-pref-fold { justify-content:space-between;padding-inline:17px;background:var(--ds-set-card);border-radius:11px; }
-.ds-pref-fold i { flex:none;box-sizing:border-box;width:44px;height:26px;border-radius:16px;padding:3px;background:var(--dsw-alias-border-l2,#a9adb3); }
-.ds-pref-fold i:after { content:'';display:block;width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 2px #0002;transition:transform var(--ds-motion-quick) var(--ds-ease-out); }
-.ds-pref-fold[aria-checked=true] i { background:var(--dsw-alias-button-primary-fill); }
-.ds-pref-fold[aria-checked=true] i:after { transform:translateX(18px); }
-.ds-mobile-settings .ds-pref-note { margin:2px 0 20px;padding:0 17px;color:var(--ds-set-sub);font-size:14px;line-height:21px; }
-.ds-pref-detail { padding:12px 16px; }
-.ds-pref-detail p { padding:10px 0 16px; }
-.ds-pref-link { justify-content:space-between;padding-inline:0; }
+.ds-account-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--ds-set-field);
+  color: var(--ds-set-sub);
+}
+.ds-account-avatar img { width:100%;height:100%;object-fit:cover; }
+.ds-account-avatar .ds-ui-icon { width:24px;height:24px; }
+.ds-account-initial { font:600 21px/1 var(--dsw-font-family,system-ui);color:var(--ds-set-text); }
+.ds-account-card-text { display:flex;flex-direction:column;gap:3px;min-width:0; }
+.ds-account-card-text strong { font-size:17px;line-height:24px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.ds-account-card-text small { color:var(--ds-set-sub);font-size:13px;line-height:18px; }
+/* ── 个性化开关（官方是绿色开关） ── */
+.ds-pref-toggle { justify-content: space-between; }
+.ds-pref-toggle > span { flex: 1; }
+.ds-pref-switch {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 47px;
+  height: 28px;
+  padding: 2px;
+  border-radius: 16px;
+  background: var(--ds-set-switch-off);
+  transition: background var(--ds-motion-quick) var(--ds-ease-out);
+}
+.ds-pref-switch:after {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 18%);
+  transition: transform var(--ds-motion-quick) var(--ds-ease-out);
+}
+.ds-pref-toggle[aria-checked=true] .ds-pref-switch { background: var(--ds-set-switch-on); }
+.ds-pref-toggle[aria-checked=true] .ds-pref-switch:after { transform: translateX(19px); }
+/* ── 说明文字（官方放在卡片下方、左缩进对齐卡内文字） ── */
+.ds-pref-note {
+  margin: 9px 22px 0;
+  padding: 0;
+  color: var(--ds-set-sub);
+  font: 400 14px/21px var(--dsw-font-family,system-ui);
+}
+.ds-pref-block + .ds-pref-note { margin-top: -13px; margin-bottom: 22px; }
+/* ── React 旧面板（数据管理/高级设置）统一装进白卡 ── */
+.ds-pref-legacy { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+.ds-pref-legacy > * {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 17px !important;
+  border-radius: 12px;
+  background: var(--ds-set-card);
+}
+.ds-pref-legacy > * > div:first-child { flex: 1; min-width: 0; }
+.ds-pref-legacy > * > div:first-child > div:first-child { color: var(--ds-set-text); font-size: 15px; line-height: 22px; }
+.ds-pref-legacy > * > div:first-child > div:not(:first-child) { margin-top: 3px; color: var(--ds-set-sub); font-size: 12.5px; line-height: 18px; }
+.ds-pref-legacy > * > button {
+  flex: none;
+  min-height: 36px;
+  padding: 0 16px !important;
+  border: 1px solid var(--ds-set-line) !important;
+  border-radius: 100px !important;
+  background: var(--ds-set-card) !important;
+  color: var(--ds-set-text) !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+}
+.ds-pref-legacy > * > button:active { background: var(--ds-set-icon-btn-active) !important; }
+.ds-pref-legacy > * > button[class*="danger"],.ds-pref-legacy > * > button[class*="Danger"] {
+  border-color: color-mix(in srgb, var(--ds-set-danger) 45%, transparent) !important;
+  color: var(--ds-set-danger) !important;
+  background: transparent !important;
+}
+.ds-pref-legacy .apiKey,.ds-pref-legacy > * > div:first-child > div:last-child { min-width: 0; }
+.ds-pref-legacy > .ds-pref-key-cell { display: block; }
+.ds-pref-legacy > * input[type=password],.ds-pref-legacy > * input[type=text] { flex:1;min-width:0; }
+.ds-pref-legacy [class*="locationCell"] { flex-wrap: wrap; }
+.ds-pref-legacy [class*="locationSelectors"] { width: 100%; }
+.ds-pref-legacy [class*="Select"] { min-width: 0; }
+/* ── 登录页 ── */
+.ds-login-hero { display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px 12px 22px;text-align:center; }
+.ds-login-logo { display:grid;place-items:center;width:76px;height:76px; }
+.ds-login-logo img { width:76px;height:76px;display:block; }
+.ds-login-hero h2 { font-size:20px;line-height:28px;font-weight:600; }
+.ds-login-hero p { max-width:280px;color:var(--ds-set-sub);font-size:14px;line-height:21px; }
+.ds-login-card {
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  box-sizing:border-box;
+  padding:16px;
+  border-radius:14px;
+  background:var(--ds-set-card);
+}
+.ds-login-field { display:flex;flex-direction:column;gap:7px; }
+.ds-login-field > span { color:var(--ds-set-sub);font-size:13px;line-height:18px;padding-inline-start:4px; }
+.ds-login-field input {
+  box-sizing:border-box;
+  width:100%;
+  height:48px;
+  padding:0 14px;
+  border:1px solid var(--ds-set-line);
+  border-radius:12px;
+  background:var(--ds-set-field);
+  color:var(--ds-set-text);
+  font:inherit;
+  font-size:16px;
+  caret-color:var(--dsw-alias-brand-text,#426efe);
+  outline:none;
+  -webkit-user-select:text;
+  user-select:text;
+}
+.ds-login-field input::placeholder { color:var(--ds-set-chevron); }
+.ds-login-field input:focus { border-color:var(--dsw-alias-brand-text,#426efe); background:var(--ds-set-card); }
+.ds-login-secret { position:relative;display:flex;align-items:center; }
+.ds-login-secret input { padding-inline-end:48px; }
+.ds-login-eye {
+  position:absolute;
+  inset-inline-end:4px;
+  top:50%;
+  transform:translateY(-50%);
+  display:grid;
+  place-items:center;
+  width:40px;
+  height:40px;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  color:var(--ds-set-sub);
+}
+.ds-login-eye .ds-ui-icon { width:20px;height:20px; }
+.ds-login-error { margin:2px 22px 0;color:var(--ds-set-danger);font-size:14px;line-height:20px; }
+.ds-login-submit {
+  height:52px;
+  margin-top:4px;
+  border:0;
+  border-radius:100px;
+  background:var(--dsw-alias-button-primary-fill,#426efe);
+  color:#fff;
+  font-size:17px;
+  font-weight:500;
+  box-shadow:0 6px 18px rgb(66 110 254 / 22%);
+}
+.ds-login-submit:disabled { opacity:.5;box-shadow:none; }
+.ds-login-alt {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  height:50px;
+  border:1px solid var(--ds-set-line);
+  border-radius:100px;
+  background:var(--ds-set-card);
+  color:var(--ds-set-text);
+  font-size:16px;
+}
+.ds-login-alt .ds-ui-icon { width:19px;height:19px;color:var(--ds-set-sub); }
+.ds-login-alt:disabled { opacity:.5; }
+.ds-login-hint { text-align:center;color:var(--ds-set-sub);font-size:13px;line-height:19px; }
+.ds-login-terms { margin-top:6px !important;text-align:center;color:var(--ds-set-chevron);font-size:12px;line-height:18px;padding:0 12px; }
+.ds-login-terms a { color:var(--dsw-alias-brand-text,#426efe);text-decoration:none; }
+/* ── 字体大小页（官方：顶部气泡预览 + 说明 + 底部面板滑块） ── */
+.ds-pref-body[data-view=font] .ds-pref-content { padding-bottom:0; }
+.ds-pref-body[data-view=font] .ds-pref-content > * { margin-inline:14px; }
+.ds-font-bubble-wrap { display:flex;justify-content:flex-end;padding-top:18px; }
+.ds-font-bubble {
+  max-width:80%;
+  box-sizing:border-box;
+  padding:11px 17px;
+  border-radius:20px 20px 6px 20px;
+  background:var(--ds-set-bubble);
+  color:var(--ds-set-text);
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.ds-font-desc { margin:22px 22px 0 !important;color:var(--ds-set-text);font-size:16px;line-height:25px; }
+.ds-font-desc + .ds-font-desc { margin-top:16px !important; }
+.ds-font-panel {
+  margin-top:auto !important;
+  margin-inline:0 !important;
+  box-sizing:border-box;
+  width:100%;
+  padding:8px 18px max(14px, env(safe-area-inset-bottom));
+  border-radius:22px 22px 0 0;
+  background:var(--ds-set-card);
+  box-shadow:0 -1px 0 rgb(0 0 0 / 4%);
+}
+.ds-font-slider { display:flex;align-items:flex-end;gap:14px;padding:6px 2px 2px; }
+.ds-font-a { flex:none;color:var(--ds-set-text);font-weight:500;line-height:1;padding-bottom:6px; }
+.ds-font-a-sm { font-size:15px; }
+.ds-font-a-lg { font-size:26px; }
+.ds-font-range { position:relative;flex:1;min-width:0;padding-top:26px; }
+.ds-font-value {
+  position:absolute;
+  top:0;
+  left:var(--ds-font-pos,50%);
+  transform:translateX(-50%);
+  color:var(--ds-set-text);
+  font-size:13px;
+  line-height:18px;
+  white-space:nowrap;
+  transition:left var(--ds-motion-quick) var(--ds-ease-out);
+}
+.ds-font-range input[type=range] {
+  position:relative;
+  z-index:1;
+  display:block;
+  width:100%;
+  height:28px;
+  margin:0;
+  background:transparent;
+  -webkit-appearance:none;
+  appearance:none;
+}
+.ds-font-range input[type=range]::-webkit-slider-runnable-track {
+  height:4px;
+  border-radius:2px;
+  background:#d3d4d7;
+}
+.ds-font-range input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none;
+  appearance:none;
+  width:26px;
+  height:26px;
+  margin-top:-11px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 2px 6px rgb(0 0 0 / 22%), 0 0 0 0.5px rgb(0 0 0 / 6%);
+}
+.ds-font-ticks { position:absolute;left:0;right:0;bottom:2px;display:flex;justify-content:space-between;height:8px;pointer-events:none; }
+.ds-font-ticks i { width:1px;height:8px;background:#cfd0d3; }
+/* ── 字体选择页 ── */
+.ds-type-preview { box-sizing:border-box;padding:22px 18px;border-radius:12px;background:var(--ds-set-card); }
+.ds-type-preview strong { display:block;font-size:22px;line-height:32px;font-weight:600; }
+.ds-type-preview-sample { display:block;margin-top:10px;color:var(--ds-set-sub);font-size:16px;line-height:24px;overflow-wrap:anywhere; }
+.ds-type-preview p { margin-top:8px !important;color:var(--ds-set-sub);font-size:13px;line-height:19px; }
+.ds-pref-font-row {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  box-sizing:border-box;
+  min-height:56px;
+  padding:9px 17px;
+  border:0;
+  border-radius:0;
+  background:none;
+  color:var(--ds-set-text);
+  text-align:start;
+  font-size:15px;
+  line-height:22px;
+  transition:background var(--ds-motion-quick) ease;
+}
+.ds-pref-font-row:active { background:var(--dsw-alias-interactive-bg-active,rgb(0 0 0 / 4%)); }
+.ds-pref-font-row:not(:first-child) { box-shadow:inset 0 0 0 0 transparent; }
+.ds-pref-font-info { display:flex;flex:1;flex-direction:column;gap:2px;min-width:0; }
+.ds-pref-font-name { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.ds-pref-font-info small { color:var(--ds-set-sub);font-size:12.5px;line-height:18px; }
+.ds-pref-font-row > .ds-ui-icon { width:19px;height:19px;color:var(--dsw-alias-brand-text,#426efe); }
+/* ── 居中弹窗（语言/外观，照官方 2.8.0 的语言选择） ── */
+.ds-pref-scrim {
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  z-index:2;
+  background:rgb(0 0 0 / 32%);
+  animation:ds-pref-fade var(--ds-motion-quick) ease both;
+}
+.ds-pref-scrim-centered { align-items:center;padding:24px;background:rgb(0 0 0 / 40%); }
+.ds-pref-scrim[data-leaving=true] { animation:ds-pref-fade-out var(--ds-motion-base) ease-out both; }
+.ds-pref-dialog {
+  display:flex;
+  flex-direction:column;
+  width:min(100%, 270px);
+  max-height:calc(var(--app-viewport-height, 100dvh) - 190px);
+  overflow:hidden;
+  border-radius:18px;
+  background:var(--ds-set-card);
+  animation:ds-pref-dialog-in var(--ds-motion-base) var(--ds-ease-out) both;
+}
+.ds-pref-scrim[data-leaving=true] .ds-pref-dialog { animation:ds-pref-dialog-out var(--ds-motion-quick) ease-in both; }
+.ds-pref-dialog-head { padding:22px 20px 16px;text-align:center;color:var(--ds-set-text); }
+.ds-pref-dialog-head .ds-ui-icon { width:27px;height:27px; }
+.ds-pref-dialog-head h2 { margin-top:10px !important;font-size:17px;line-height:24px;font-weight:600; }
+.ds-pref-dialog-head .ds-ui-icon { width:26px;height:26px; }
+.ds-pref-dialog-list { min-height:0;overflow:auto;border-top:1px solid var(--ds-set-line); }
+.ds-pref-radio {
+  display:flex;
+  align-items:center;
+  gap:13px;
+  width:100%;
+  box-sizing:border-box;
+  min-height:50px;
+  padding:9px 20px;
+  border:0;
+  background:none;
+  color:var(--ds-set-text);
+  text-align:start;
+  font-size:16px;
+  line-height:22px;
+}
+.ds-pref-radio:active { background:var(--dsw-alias-interactive-bg-active,rgb(0 0 0 / 4%)); }
+.ds-radio-dot { position:relative;flex:none;box-sizing:border-box;width:20px;height:20px;border:2px solid #c6c7c9;border-radius:50%; }
+.ds-pref-radio[aria-checked=true] .ds-radio-dot { border-color:var(--ds-set-text); }
+.ds-pref-radio[aria-checked=true] .ds-radio-dot:after { content:'';position:absolute;inset:3px;border-radius:50%;background:var(--ds-set-text); }
+.ds-pref-dialog-actions { display:flex;border-top:1px solid var(--ds-set-line); }
+.ds-pref-dialog-actions > button {
+  flex:1;
+  min-height:50px;
+  border:0;
+  background:none;
+  color:var(--ds-set-text);
+  font-size:17px;
+  line-height:24px;
+}
+.ds-pref-dialog-actions > button + button { border-left:1px solid var(--ds-set-line); }
+.ds-pref-dialog-actions > button:active { background:var(--dsw-alias-interactive-bg-active,rgb(0 0 0 / 4%)); }
+.ds-pref-dialog-confirm { color:var(--dsw-alias-brand-text,#426efe) !important;font-weight:500; }
+.ds-pref-danger-text { color:var(--ds-set-danger) !important; }
+.ds-pref-confirm { width:min(100%,306px);border-radius:18px;background:var(--ds-set-card);overflow:hidden;animation:ds-pref-dialog-in var(--ds-motion-base) var(--ds-ease-out) both; }
+.ds-pref-confirm-body { padding:22px 20px 18px;text-align:center; }
+.ds-pref-confirm-body strong { display:block;font-size:17px;line-height:24px;font-weight:600; }
+.ds-pref-confirm-body p { margin-top:8px !important;color:var(--ds-set-sub);font-size:14px;line-height:21px; }
+/* ── 底部面板（朗读音色，照官方：标题+X / 大预览 / 圆点 / 蓝色确认 ── */
+.ds-pref-sheet {
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  box-sizing:border-box;
+  width:min(100%,620px);
+  max-height:calc(var(--app-viewport-height, 100dvh) - 120px);
+  margin-inline:auto;
+  overflow:auto;
+  padding:0 20px max(16px,env(safe-area-inset-bottom));
+  border-radius:24px 24px 0 0;
+  background:var(--ds-set-card);
+  animation:ds-sheet-in var(--ds-motion-base) var(--ds-ease-out) both;
+}
+.ds-pref-scrim[data-leaving=true] .ds-pref-sheet { animation:ds-pref-sheet-out var(--ds-motion-base) var(--ds-ease-out) both; }
+.ds-pref-sheet-head { position:relative;display:grid;place-items:center;min-height:60px; }
+.ds-pref-sheet-head h2 { font-size:17px;line-height:24px;font-weight:600; }
+.ds-pref-sheet-close { position:absolute;right:-4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:50%;background:var(--ds-set-icon-btn);color:var(--ds-set-text); }
+.ds-pref-sheet-close .ds-ui-icon { width:17px;height:17px; }
+.ds-voice-preview { display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px 0 4px; }
+.ds-voice-blob {
+  width:204px;
+  height:120px;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:60px;
+  -webkit-appearance:none;
+  appearance:none;
+  background:
+    radial-gradient(120% 120% at 30% 20%, #fff6de 0%, transparent 55%),
+    linear-gradient(135deg, #ffdf9e 0%, #ffd076 48%, #fff0c9 100%);
+  transition:filter var(--ds-motion-quick) ease, transform var(--ds-motion-quick) var(--ds-ease-out);
+}
+.ds-voice-blob:active { transform:scale(.98); }
+.ds-voice-blob[data-voice=tide] {
+  background:
+    radial-gradient(120% 120% at 30% 20%, #eef4ff 0%, transparent 55%),
+    linear-gradient(135deg, #b8cbff 0%, #7f9dfb 50%, #dfe8ff 100%);
+}
+.ds-voice-name { font-size:20px;line-height:28px;font-weight:600; }
+.ds-voice-desc { color:var(--ds-set-sub);font-size:14px;line-height:20px; }
+.ds-voice-dots { display:flex;gap:9px;padding:14px 0 6px; }
+.ds-voice-dot { width:8px;height:8px;padding:0;border:0;border-radius:50%;background:#dcdcde;transition:background var(--ds-motion-quick) ease; }
+.ds-voice-dot.on { background:var(--dsw-alias-brand-text,#426efe); }
+.ds-pref-sheet-confirm { width:100%;height:52px;margin-top:6px;border:0;border-radius:100px;background:var(--dsw-alias-button-primary-fill,#426efe);color:#fff;font-size:17px;font-weight:500;box-shadow:0 6px 18px rgb(66 110 254 / 22%); }
+.ds-pref-action { margin:0 14px;height:48px;border:0;border-radius:100px;background:var(--ds-set-card);color:var(--dsw-alias-brand-text,#426efe);font-size:16px;font-weight:500; }
 @keyframes ds-settings-in { from { transform:translateX(20px);opacity:.25; } to { transform:none;opacity:1; } }
 @keyframes ds-settings-out { to { transform:translateX(14px);opacity:0; } }
 @keyframes ds-pref-step { from { transform:translateX(var(--ds-settings-offset));opacity:.65; } to { transform:none;opacity:1; } }
@@ -212,19 +588,9 @@
 @keyframes ds-pref-fade-out { to { opacity:0; } }
 @keyframes ds-sheet-in { from { transform:translateY(100%); } to { transform:none; } }
 @keyframes ds-pref-sheet-out { to { transform:translateY(100%); } }
-@media (max-width:767px) {
-  html[data-chat-font]:not([data-chat-font="1"]) .bubble-_4cfe7,
-  html[data-chat-font]:not([data-chat-font="1"]) .textarea-ed6f47,
-  html[data-chat-font]:not([data-chat-font="1"]) .mirror-ed6f47 { font-size:var(--ds-chat-font);line-height:1.55; }
-  html[data-chat-font]:not([data-chat-font="1"]) .ds-markdown { --dsw-font-markdown-base:var(--ds-chat-font)/1.7 var(--dsw-font-family,system-ui);--dsw-font-markdown-base-strong:600 var(--ds-chat-font)/1.7 var(--dsw-font-family,system-ui);font-size:var(--ds-chat-font);line-height:1.7; }
-}
-
-
-/*
- * 暗色主题覆盖。
- * body 上的 data-ds-dark-theme 由 theme.ts 设置，设置页是 body 下的覆盖层，能继承到。
- * 取值对齐 theme.css 里 --dsw-alias-bg-base / bg-layer-2 / label-* 的暗色值。
- */
+@keyframes ds-pref-dialog-in { from { transform:scale(.92);opacity:0; } to { transform:none;opacity:1; } }
+@keyframes ds-pref-dialog-out { to { transform:scale(.95);opacity:0; } }
+/* ── 暗色主题（对齐 theme.css 的暗色别名） ── */
 body[data-ds-dark-theme] .ds-mobile-settings {
   --ds-set-bg: rgb(18, 19, 22);
   --ds-set-card: rgb(27, 28, 32);
@@ -233,4 +599,9 @@ body[data-ds-dark-theme] .ds-mobile-settings {
   --ds-set-chevron: rgb(133, 138, 151);
   --ds-set-icon-btn: rgb(44, 46, 52);
   --ds-set-icon-btn-active: rgb(56, 58, 64);
+  --ds-set-line: rgb(43, 45, 50);
+  --ds-set-danger: rgb(255, 116, 108);
+  --ds-set-switch-off: rgb(58, 60, 66);
+  --ds-set-bubble: rgb(35, 47, 74);
+  --ds-set-field: rgb(34, 35, 40);
 }
