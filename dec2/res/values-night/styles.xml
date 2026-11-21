@@ -4,8 +4,12 @@
         <item name="android:windowBackground">#ff121316</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#ff8d97e8</item>
-        <item name="android:statusBarColor">#ff121316</item>
-        <item name="android:navigationBarColor">#ff121316</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <!-- 暗色主题之前漏了这两条，对比度蒙层会在手势条区域压一层半透明黑 -->
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
     </style>
 </resources>

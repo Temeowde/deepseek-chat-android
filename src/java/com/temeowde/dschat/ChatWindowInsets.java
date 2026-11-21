@@ -209,26 +209,28 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
     }
 
     /**
-     * styles.xml 里的 transparent 在部分 ROM（ColorOS/MIUI）会被系统主题覆盖，
-     * 这里在代码里再设一次，确保状态栏和手势条真正透明、能和页面背景融合。
+     * 让状态栏和手势条真正透明，页面背景直接铺到屏幕上下边缘。
+     *
+     * 注意：这里必须传 0（透明），不能传白色。
+     * 曾经的写法是 0xFFFFFFFF，理由是「transparent 被 ColorOS 顶成 #fafafc」，
+     * 但那是个误判——真机实测 ColorOS 并不强制着色，反而是这里设的白色
+     * 让冷启动阶段（网页 JS 还没回调 applyTheme 之前）出现一条不透明白条。
      */
     private static void forceTransparentBars(Activity activity) {
         android.view.Window window = activity.getWindow();
-        // 官方实测状态栏/导航栏都是纯白（255,255,255）。
-        // transparent 在本机被 ColorOS 顶成 #fafafc，直接用白色更稳。
-        window.setStatusBarColor(0xFFFFFFFF);
-        window.setNavigationBarColor(0xFFFFFFFF);
+        window.setStatusBarColor(0);
+        window.setNavigationBarColor(0);
         if (android.os.Build.VERSION.SDK_INT >= 29) {
-            // 关掉系统给导航栏加的对比度蒙层（Android 10+）
+            // 关掉系统给系统栏加的对比度蒙层（Android 10+）
             window.setNavigationBarContrastEnforced(false);
             window.setStatusBarContrastEnforced(false);
         }
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             window.setDecorFitsSystemWindows(false);
         }
-        android.view.View decor = window.getDecorView();
-        decor.setSystemUiVisibility(
-                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+        // 不再改 setSystemUiVisibility：
+        // API30+ 的 setDecorFitsSystemWindows(false) 已经足够；
+        // 设 legacy flag 会清掉 LIGHT_STATUS_BAR / LIGHT_NAVIGATION_BAR，
+        // 和 SystemUi.applyTheme 的 setSystemBarsAppearance 两套 API 打架，
+        // 导致浅色下状态栏图标变成白色、压在浅色背景上不可读。
     }}

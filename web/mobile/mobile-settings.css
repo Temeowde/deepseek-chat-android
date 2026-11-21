@@ -16,8 +16,20 @@
   height: var(--app-viewport-height,100dvh);
   padding-top: var(--ds-safe-top, 0px);
   overflow: hidden;
-  background: #f8f8f8;
-  color: var(--dsw-alias-label-primary);
+  /*
+   * 设置页配色统一走这几个局部变量。
+   * 之前全是硬编码浅色（#f8f8f8 / #fff / #0f0f0f ...），
+   * 暗色主题下整页仍然发白，而状态栏图标已被切成白色 → 图标压在浅底上不可读。
+   */
+  --ds-set-bg: #f8f8f8;
+  --ds-set-card: #fff;
+  --ds-set-text: #0f0f0f;
+  --ds-set-sub: #8e9094;
+  --ds-set-chevron: #b9babb;
+  --ds-set-icon-btn: #ededed;
+  --ds-set-icon-btn-active: #e0e0e0;
+  background: var(--ds-set-bg);
+  color: var(--ds-set-text);
   font-family: var(--dsw-font-family,system-ui);
   animation: ds-settings-in var(--ds-motion-base) var(--ds-ease-out) both;
 }
@@ -33,7 +45,7 @@
   place-items: center;
   padding: 0 56px;
   border-bottom: 0;
-  background: #f8f8f8;
+  background: var(--ds-set-bg);
   text-align: center;
 }
 .ds-mobile-settings h1,.ds-mobile-settings h2,.ds-mobile-settings p { margin:0; }
@@ -59,7 +71,7 @@
   width: 29px;
   height: 29px;
   border-radius: 50%;
-  background: #ededed;
+  background: var(--ds-set-icon-btn);
   z-index: 0;
 }
 .ds-mobile-settings > header > button > .ds-ui-icon {
@@ -80,7 +92,7 @@
   overscroll-behavior: contain;
   overflow-anchor: none;
   scrollbar-gutter: stable;
-  background: #f8f8f8;
+  background: var(--ds-set-bg);
 }
 .ds-pref-body[data-transition=outgoing] { pointer-events: none; }
 .ds-pref-pages[data-direction=forward] .ds-pref-body[data-transition=incoming] {
@@ -116,13 +128,13 @@
 .ds-pref-group {
   border: 0;
   border-radius: 11px;
-  background: #fff;
+  background: var(--ds-set-card);
   overflow: hidden;
 }
 .ds-pref-group h2,
 .ds-pref-caption {
   padding: 4px 16px 10px;
-  color: #8e9094;
+  color: var(--ds-set-sub);
   font: 500 12px/18px var(--dsw-font-family,system-ui);
 }
 .ds-pref-row,.ds-pref-link {
@@ -136,7 +148,7 @@
   border: 0;
   border-radius: 9px;
   background: none;
-  color: #0f0f0f;
+  color: var(--ds-set-text);
   text-align: start;
   font-size: 15px;
   line-height: 22px;
@@ -144,13 +156,13 @@
   transition: background var(--ds-motion-quick) ease;
 }
 .ds-pref-row>span:not(.ds-ui-icon) { flex:1;min-width:0; }
-.ds-pref-row>small { color:#8e9094;font-size:13px; }
-.ds-pref-row>.ds-ui-icon:last-child,.ds-pref-link>.ds-ui-icon { width:17px;height:17px;color:#b9babb; }
+.ds-pref-row>small { color:var(--ds-set-sub);font-size:13px; }
+.ds-pref-row>.ds-ui-icon:last-child,.ds-pref-link>.ds-ui-icon { width:17px;height:17px;color:var(--ds-set-chevron); }
 .ds-pref-row:active,.ds-pref-link:active {
   background: var(--dsw-alias-interactive-bg-active);
 }
 .ds-mobile-settings > header > button:active::before {
-  background: #e0e0e0;
+  background: var(--ds-set-icon-btn-active);
 }
 .ds-pref-body[data-view=data] .ds-pref-content>div,.ds-pref-body[data-view=account] .ds-pref-content>div,
 .ds-pref-body[data-view=personal] .ds-pref-content>div { margin:0 14px 16px; }
@@ -180,12 +192,12 @@
 .ds-font-slider { display:flex;align-items:center;gap:12px;margin:24px 14px; }
 .ds-font-slider input { width:100%;min-width:60px;accent-color:var(--dsw-alias-button-primary-fill); }
 .ds-font-slider strong { font-size:23px; }
-.ds-pref-fold { justify-content:space-between;padding-inline:17px;background:#fff;border-radius:11px; }
+.ds-pref-fold { justify-content:space-between;padding-inline:17px;background:var(--ds-set-card);border-radius:11px; }
 .ds-pref-fold i { flex:none;box-sizing:border-box;width:44px;height:26px;border-radius:16px;padding:3px;background:var(--dsw-alias-border-l2,#a9adb3); }
 .ds-pref-fold i:after { content:'';display:block;width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 2px #0002;transition:transform var(--ds-motion-quick) var(--ds-ease-out); }
 .ds-pref-fold[aria-checked=true] i { background:var(--dsw-alias-button-primary-fill); }
 .ds-pref-fold[aria-checked=true] i:after { transform:translateX(18px); }
-.ds-mobile-settings .ds-pref-note { margin:2px 0 20px;padding:0 17px;color:#8e9094;font-size:14px;line-height:21px; }
+.ds-mobile-settings .ds-pref-note { margin:2px 0 20px;padding:0 17px;color:var(--ds-set-sub);font-size:14px;line-height:21px; }
 .ds-pref-detail { padding:12px 16px; }
 .ds-pref-detail p { padding:10px 0 16px; }
 .ds-pref-link { justify-content:space-between;padding-inline:0; }
@@ -205,4 +217,20 @@
   html[data-chat-font]:not([data-chat-font="1"]) .textarea-ed6f47,
   html[data-chat-font]:not([data-chat-font="1"]) .mirror-ed6f47 { font-size:var(--ds-chat-font);line-height:1.55; }
   html[data-chat-font]:not([data-chat-font="1"]) .ds-markdown { --dsw-font-markdown-base:var(--ds-chat-font)/1.7 var(--dsw-font-family,system-ui);--dsw-font-markdown-base-strong:600 var(--ds-chat-font)/1.7 var(--dsw-font-family,system-ui);font-size:var(--ds-chat-font);line-height:1.7; }
+}
+
+
+/*
+ * 暗色主题覆盖。
+ * body 上的 data-ds-dark-theme 由 theme.ts 设置，设置页是 body 下的覆盖层，能继承到。
+ * 取值对齐 theme.css 里 --dsw-alias-bg-base / bg-layer-2 / label-* 的暗色值。
+ */
+body[data-ds-dark-theme] .ds-mobile-settings {
+  --ds-set-bg: rgb(18, 19, 22);
+  --ds-set-card: rgb(27, 28, 32);
+  --ds-set-text: rgb(243, 245, 242);
+  --ds-set-sub: rgb(170, 179, 167);
+  --ds-set-chevron: rgb(133, 138, 151);
+  --ds-set-icon-btn: rgb(44, 46, 52);
+  --ds-set-icon-btn-active: rgb(56, 58, 64);
 }

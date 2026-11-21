@@ -1,12 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.DeepSeekChat" parent="@android:style/Theme.Material.Light.NoActionBar">
-        <!-- 卡片布局：状态栏与手势条透明，让网页背景铺到最下面，视觉上与卡片融合 -->
+        <!--
+            系统栏透明：网页背景直接铺到屏幕上下边缘。
+            这里必须是 transparent，不能是白色——白色会在冷启动阶段
+            （网页 JS 还没跑起来、applyTheme 还没回调之前）露出一条实心白条。
+            windowBackground 保留白色，那只是 WebView 首帧前的占位，不显示在系统栏上。
+        -->
         <item name="android:windowBackground">#ffffffff</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#ff365bc5</item>
-        <item name="android:statusBarColor">#ffffffff</item>
-        <item name="android:navigationBarColor">#ffffffff</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>

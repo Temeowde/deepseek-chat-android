@@ -36,6 +36,13 @@ export const useTheme = (): Theme => {
 const syncPageBackground = () => {
   const backgroundColor = getComputedStyle(document.body).backgroundColor
   document.documentElement.style.backgroundColor = backgroundColor
+  /*
+   * 把当前页面底色也写进 --ds-bars-bg。
+   * .frame 用它作为状态栏/手势条区域的预留层底色：
+   * 系统栏虽然已透明，但视觉视口 offsetTop>0（键盘弹出等）时仍可能露出这一层，
+   * 如果它一直是白色，暗色模式下就会闪白条。
+   */
+  document.documentElement.style.setProperty('--ds-bars-bg', backgroundColor)
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', backgroundColor)
 }
 

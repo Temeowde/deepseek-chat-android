@@ -71,7 +71,7 @@
      * 应用侧（styles.xml / setStatusBarColor / SYSTEM_UI_FLAG）全部无效，
      * 所以这里用同色对齐，让系统栏和页面背景视觉连续。
      */
-    background: var(--ds-bars-bg, #ffffff);
+    background: var(--ds-bars-bg, var(--dsw-alias-bg-base));
     overflow: hidden;
   }
 
