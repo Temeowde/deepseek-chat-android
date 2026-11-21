@@ -1,7 +1,16 @@
 :root {
+  /*
+   * 字体跟随系统：只写 system-ui / sans-serif，不写死任何厂商字体名。
+   *
+   * 之前的写法是 'OPPO Sans','OSans','OPlus Sans',... —— 那些是 ColorOS 专属字体，
+   * 别的品牌（小米 MiSans、华为 HarmonyOS Sans 等）根本没有，
+   * 于是回退到 Noto Sans CJK，用户看起来就和系统字体不一样，很别扭。
+   * 现在改成通用字体族，由 WebView 按当前系统的默认字体渲染，
+   * 无论换什么手机都会和系统保持一致。
+   */
   --dsw-font-family:
-    'OPPO Sans', 'OSans', 'OPlus Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Noto Sans CJK SC', system-ui, sans-serif;
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    sans-serif;
   font-variant-ligatures: no-contextual;
 }
 
@@ -254,9 +263,10 @@ body {
 
 
 body {
+  /* 同上：不写死厂商字体，跟随系统默认字体 */
   --dsw-font-family:
-    'OPPO Sans', 'OSans', 'OPlus Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    sans-serif;
   --dsw-alias-bg-base: #ffffff;
   --dsw-alias-bg-layer-2: rgb(255, 255, 255);
   --dsw-alias-bg-layer-3: rgb(255, 255, 255);
