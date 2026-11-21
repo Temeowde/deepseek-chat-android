@@ -1,9 +1,19 @@
 .ds-ui-icon { display:inline-block;flex:none;width:21px;height:21px;background:currentColor;mask:var(--ds-icon) center/contain no-repeat;-webkit-mask:var(--ds-icon) center/contain no-repeat; }
 .ds-history,.ds-history-scrim { --ds-ui-paper:var(--chat-paper,#fff);--ds-ui-fill:var(--chat-prompt,#eef0f4);--ds-ui-text:var(--dsw-alias-label-primary,#17181a);--ds-ui-sub:var(--dsw-alias-label-secondary,#666);--ds-ui-line:var(--chat-line,#e0e3e9);--ds-ui-accent:var(--dsw-alias-brand-text);--ds-ui-danger:#d64847;color:var(--ds-ui-text); }
 .ds-history.sider-ac14ac {
-  /* 背景层铺满全屏（由 .drawer 提供），内容只占左侧 74.1%，和卡片推开后的露出区对齐 */
-  /* 官方实测：侧栏内容右缘在 0.696W，卡片左缘 0.7725W，两者间距恒为 0.0767W */
-  width:69.6vw;
+  /*
+   * 侧栏内容宽度。官方是「宽屏按比例、窄屏有下限」：
+   *   width = max(69.6% 屏宽, 268dp)
+   *
+   * 双机对照实测（两台官方 app 版本 2.8.0 / 密度均 480dpi / 只差屏宽）：
+   *   400dp 屏(1200px): 分隔线右缘 835px = 278.4dp = 0.696W
+   *   360dp 屏(1080px): 分隔线右缘 863px = 287.7dp ≠ 0.696W(250dp)
+   * 若纯按百分比，360dp 屏应只有 752px，实测 863px —— 差 111px，排除百分比方案。
+   * 用 max(69.6vw, 268px) 可同时吻合两台设备（CSS px == dp，因为 WebView 密度为 3）：
+   *   400dp: max(278.4, 268) = 278.4dp → 835px  ✓
+   *   360dp: max(250.6, 268) = 268dp   → 804px  ✓
+   */
+  width:max(69.6vw, 268px);
   max-width:none;
   padding:0;
   border:0;

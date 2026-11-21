@@ -26,6 +26,9 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
         // WebView 里 env(safe-area-inset-top) 在状态栏透明时为 0，
         // 这里把真实状态栏高度单独推给页面，供顶栏让位使用。
         root.postDelayed(() -> controller.pushStatusBar(root), 600);
+        // 把系统主题字体注入页面（详见 injectSystemFont 注释）
+        root.postDelayed(() -> controller.injectSystemFont(root), 2600);
+        root.postDelayed(() -> controller.injectSystemFont(root), 5000);
         root.postDelayed(() -> controller.pushStatusBar(root), 1800);
     }
 
@@ -62,6 +65,68 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
         });
     }
 
+
+    /**
+     * 把「系统当前实际使用的字体」注入到网页里。
+     *
+     * 背景：WebView 只认 /system/etc/fonts.xml 里声明的字体族，
+     * 而 MIUI 换主题字体是把自定义字体写到 /data/system/theme/fonts/ 下、
+     * 再把其余字体名软链过去 —— 这份配置 WebView 读不到，
+     * 所以网页永远显示出厂字体，用户在系统里换了字体这里也不会跟着变。
+     *
+     * 真机验证（小米 25102RKBEC + 小米兰亭Pro）：
+     *   /data/system/theme/fonts/Roboto-Regular.ttf
+     *   exists=true canRead=true len=19402616（19.4MB，就是用户选的字体本体）
+     * 所以直接把该文件当 @font-face 源喂给页面。
+     *
+     * 注意：
+     *  - 读不到就什么都不做，页面继续用系统默认字体；
+     *  - 用 file:// 指向原文件，不复制（19MB 每次复制太浪费）；
+     *  - font-weight 声明 100 900，主题字体若是可变字体即可覆盖全部字重；
+     *  - font-display:swap 保证字体没加载完时先用后备字体，不会白屏。
+     */
+    private void injectSystemFont(View view) {
+        final String fontPath = findThemeFont();
+        if (fontPath == null) {
+            return;
+        }
+        final String js = "(function(){"
+                + "if(document.getElementById('ds-system-font'))return 'already';"
+                + "var st=document.createElement('style');st.id='ds-system-font';"
+                + "st.textContent=\"@font-face{font-family:'DSSystemFont';"
+                + "src:url('file://" + fontPath + "') format('truetype');"
+                + "font-weight:150 700;font-style:normal;font-display:swap;}\""
+                + "+\":root,body{--dsw-font-family:'DSSystemFont',system-ui,-apple-system,"
+                + "'Segoe UI',Roboto,'Helvetica Neue',sans-serif!important;}\";"
+                + "document.head.appendChild(st);"
+                + "return 'ok';"
+                + "})()";
+        root.post(() -> {
+            android.webkit.WebView web = findWebView(root);
+            if (web != null) {
+                web.evaluateJavascript(js, null);
+            }
+        });
+    }
+
+    /**
+     * 找当前系统主题字体文件。找到返回绝对路径，否则返回 null。
+     * 只处理 MIUI/HyperOS 的路径；其它 ROM 没有这套机制时返回 null，
+     * 页面退回 system-ui（等同于跟随系统默认字体）。
+     */
+    private static String findThemeFont() {
+        String[] candidates = {
+                "/data/system/theme/fonts/Roboto-Regular.ttf",
+                "/data/system/theme/fonts/Miui-Regular.ttf",
+        };
+        for (String path : candidates) {
+            java.io.File f = new java.io.File(path);
+            if (f.exists() && f.canRead() && f.length() > 1024L) {
+                return path;
+            }
+        }
+        return null;
+    }
 
     private int pushedStatusBar = -1;
 
