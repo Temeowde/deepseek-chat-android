@@ -54,7 +54,7 @@
   text-align: center;
 }
 .ds-mobile-settings :where(h1,h2,p) { margin:0; }
-.ds-mobile-settings h1 { font-size:16px;line-height:24px;font-weight:600; }
+.ds-mobile-settings h1 { font-size:15px;line-height:24px;font-weight:600; }
 .ds-mobile-settings button { font-family:inherit;cursor:pointer; }
 .ds-mobile-settings > header > button {
   display: grid;
@@ -143,7 +143,7 @@
 .ds-pref-caption {
   padding: 0 8px 9px;
   color: var(--ds-set-sub);
-  font: 400 13px/18px var(--dsw-font-family,system-ui);
+  font: 400 12px/18px var(--dsw-font-family,system-ui);
 }
 .ds-pref-caption-alone { margin: 0 14px 9px; padding: 0 8px; }
 .ds-pref-row,.ds-pref-link {
@@ -159,12 +159,14 @@
   background: none;
   color: var(--ds-set-text);
   text-align: start;
-  font-size: 15px;
+  font-size: 14.5px;
   line-height: 22px;
   text-decoration: none;
   transition: background var(--ds-motion-quick) ease;
 }
-.ds-pref-row > .ds-ui-icon:first-child { width: 21px;height: 21px;color: var(--ds-set-text); }
+/* 图标 20px：官方图标框虽然也是 21dp，但 Material Symbols 图形在字框里留白更大，
+   20px 下的墨迹大小和线宽才和官方实测（4~5 物理px）对得上 */
+.ds-pref-row > .ds-ui-icon:first-child { width: 20px;height: 20px;color: var(--ds-set-text); }
 .ds-pref-row>span:not(.ds-ui-icon) { flex:1;min-width:0; }
 .ds-pref-row>small { flex:none;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ds-set-sub);font-size:14px; }
 .ds-pref-row>.ds-ui-icon:last-child,.ds-pref-link>.ds-ui-icon { width:17px;height:17px;color:var(--ds-set-chevron); }
@@ -461,7 +463,7 @@
 .ds-pref-font-info { display:flex;flex:1;flex-direction:column;gap:2px;min-width:0; }
 .ds-pref-font-name { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .ds-pref-font-info small { color:var(--ds-set-sub);font-size:12.5px;line-height:18px; }
-.ds-pref-font-row > .ds-ui-icon { width:19px;height:19px;color:var(--dsw-alias-brand-text,#426efe); }
+.ds-pref-font-row > .ds-ui-icon { width:18px;height:18px;color:var(--dsw-alias-brand-text,#426efe); }
 /* ── 居中弹窗（语言/外观，照官方 2.8.0 的语言选择） ── */
 .ds-pref-scrim {
   position:absolute;
