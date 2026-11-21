@@ -10,6 +10,21 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
    */
   const [phase, setPhase] = React.useState('closed');
   const [ready, setReady] = React.useState(false);
+  /*
+   * 相册最近图片。
+   * recent = null 表示还没请求/不可用（这一行不渲染）；
+   * recent = {granted:false} 表示没权限，显示「允许访问相册」；
+   * recent = {granted:true, items:[...]} 正常。
+   *
+   * 数据是原生异步回调过来的：window.dsRecentMediaList(json) / window.dsRecentMediaData(id, dataUrl)。
+   * 之所以不直接同步取：20 张缩略图解码要几百毫秒，同步会把 JS 线程卡住，点 + 后面板会顿。
+   */
+  const [recent, setRecent] = React.useState(null);
+  /*
+   * 已经点过、图已进输入框 chip 的缩略图 id。
+   * 官方点图后**面板不关闭**，可以连续点好几张，所以保留选中态用来画对勾。
+   */
+  const [picked, setPicked] = React.useState(() => new Set());
   const camera = React.useRef(null), album = React.useRef(null), files = React.useRef(null);
   const mounted = phase !== 'closed';
   const shown = phase === 'open';
@@ -56,6 +71,55 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
     return (p === 'closed' || p === 'closing') ? p : 'closing';
   });
   const close = () => { request('close'); return true; };
+  /* 原生回调：最近图片列表 */
+  React.useEffect(() => {
+    if (!mounted) return undefined;
+    window.dsRecentMediaList = json => {
+      try {
+        const data = JSON.parse(json);
+        setRecent({ granted: !!data.granted, items: Array.isArray(data.items) ? data.items : [] });
+      } catch (e) {
+        setRecent({ granted: false, items: [] });
+      }
+    };
+    window.dsRecentMediaGranted = ok => {
+      setRecent(prev => (ok ? null : { granted: false, items: [] }));
+      if (ok) window.DeepSeekAndroid?.recentMediaList?.();
+    };
+    /* 原生回调：选中某张的 data URL，转成 File 交给现有上传链路 */
+    window.dsRecentMediaData = (id, dataUrl) => {
+      if (!dataUrl) {
+        setPicked(prev => { const next = new Set(prev); next.delete(id); return next; });
+        return;
+      }
+      try {
+        const comma = dataUrl.indexOf(',');
+        const bin = atob(dataUrl.slice(comma + 1));
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        /* 文件名要以白名单扩展名结尾（上传侧按扩展名判类型）；用 id 保证唯一 */
+        onFiles([new File([bytes], 'photo-' + id + '.jpg', { type: 'image/jpeg' })]);
+      } catch (e) {
+        setPicked(prev => { const next = new Set(prev); next.delete(id); return next; });
+      }
+    };
+    return () => {
+      delete window.dsRecentMediaList;
+      delete window.dsRecentMediaGranted;
+      delete window.dsRecentMediaData;
+    };
+  }, [mounted, onFiles]);
+
+  /* 面板一打开就去拉最近图片（有缓存时也会刷新，成本很低） */
+  React.useEffect(() => {
+    if (!mounted) return;
+    if (!expanded) { setPicked(new Set()); return; }
+    const bridge = window.DeepSeekAndroid;
+    if (!bridge || typeof bridge.recentMediaList !== 'function') return;
+    /* 每次打开都刷新：应用开着期间新截的图也能出现（原生侧是异步的，不卡动画） */
+    bridge.recentMediaList();
+  }, [mounted, expanded]);
+
   React.useEffect(() => {
     if (!mounted) return;
     const outside = e => {
@@ -100,6 +164,33 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
     panel: !mounted ? null : h('div', {className:'ds-attach-slot','data-open':shown ? 'true' : 'false','data-ready':ready ? 'true' : 'false'},
         h('div', {className:'ds-attach-clip'},
           h('div', {className:'ds-attach-panel',role:'group','aria-label':zh?'附件':'Attachments'},
-            rows.map(([ref,label,k])=>h('button',{key:label,type:'button',disabled,onClick:()=>{request('close');if(ensureKey())ref.current?.click();}},rowIcon(k),label)))))
+            h('div', {className:'ds-attach-recent','data-show':recent && (recent.items.length > 0 || !recent.granted) ? 'true' : 'false'},
+              recent && recent.granted
+                ? recent.items.map(item => h('button', {
+                    key: String(item.id), type: 'button', disabled,
+                    className: 'ds-attach-recent-item',
+                    'aria-label': zh ? '发送这张照片' : 'Send this photo',
+
+                    'data-picked': picked.has(item.id) ? 'true' : 'false',
+                    onClick: () => {
+                      if (!ensureKey() || picked.has(item.id)) return;
+                      setPicked(prev => { const next = new Set(prev); next.add(item.id); return next; });
+                      /* 注意不 request('close')：官方点图后面板保持打开，支持连选 */
+                      window.DeepSeekAndroid?.recentMediaData?.(item.id);
+                    },
+                  },
+                    h('span', {className:'ds-attach-recent-img','aria-hidden':true,
+                      style:{backgroundImage:'url("' + item.thumb + '")'}}),
+                    h('span', {className:'ds-attach-recent-check','aria-hidden':true})))
+                : recent && !recent.granted
+                  /* 没权限时给一个入口，点了走系统权限弹窗；授权后 dsRecentMediaGranted 会重新拉列表 */
+                  ? h('button', {
+                      type: 'button', disabled,
+                      className: 'ds-attach-recent-perm',
+                      onClick: () => { window.DeepSeekAndroid?.recentMediaRequest?.(); },
+                    }, rowIcon('ds-album'), h('span', {}, zh ? '允许访问相册' : 'Allow photo access'))
+                  : null),
+            h('div', {className:'ds-attach-actions'},
+              rows.map(([ref,label,k])=>h('button',{key:label,type:'button',disabled,onClick:()=>{request('close');if(ensureKey())ref.current?.click();}},rowIcon(k),label))))))
   };
 };

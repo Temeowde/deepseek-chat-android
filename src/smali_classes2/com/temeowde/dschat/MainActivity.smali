@@ -2394,6 +2394,14 @@
     .line 292
     invoke-super {p0, p1, p2, p3}, Landroid/app/Activity;->onRequestPermissionsResult(I[Ljava/lang/String;[I)V
 
+    # 相册「最近图片」的读图权限回调（请求码 2001，见 RecentMedia.java）
+    invoke-static {p1}, Lcom/temeowde/dschat/RecentMedia;->isRequestCode(I)Z
+    move-result v3
+    if-eqz v3, :cond_recent_media_skip
+    invoke-static {p0}, Lcom/temeowde/dschat/RecentMedia;->handleResult(Landroid/app/Activity;)V
+    return-void
+    :cond_recent_media_skip
+
     .line 293
     const/16 v0, 0x3ea
 

@@ -4,6 +4,11 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- 相册「最近图片」：Android 13 起用 READ_MEDIA_IMAGES；
+         14 起用户可能只授权「部分照片」，READ_MEDIA_VISUAL_USER_SELECTED 让那种情况也能用。 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <queries><intent><action android:name="android.provider.action.PICK_IMAGES"/><data android:mimeType="image/*"/></intent></queries>
     <application android:allowBackup="false" android:debuggable="false" android:extractNativeLibs="false" android:fullBackupContent="@xml/backup_rules" android:icon="@drawable/ic_launcher" android:label="@string/app_name" android:supportsRtl="true" android:theme="@style/Theme.DeepSeekChat" android:usesCleartextTraffic="false">
         <provider android:name=".AttachmentPicker" android:authorities="com.temeowde.dschat.capture" android:exported="false" android:grantUriPermissions="true"/>

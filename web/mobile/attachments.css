@@ -29,9 +29,9 @@
 .ds-attach-clip { min-height:0;overflow:hidden; }
 
 .ds-attach-panel {
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+  display:block;
   /* 左右 18px 是实测值：官方卡片宽 102.7 css、列间距 7.7、屏宽 360 时左右各 18.25 */
-  width:100%;box-sizing:border-box;padding:18px 18px 12px;
+  width:100%;box-sizing:border-box;padding:10px 0 12px;
   opacity:0;
   transform:translate3d(0,100%,0) scale(.96);
   transform-origin:50% 100%;
@@ -43,16 +43,81 @@
 .ds-attach-slot[data-open=true] .ds-attach-panel { opacity:1;transform:none; }
 /* 入场动画结束前按钮不可点，避免连点时误触卡片；退场时同样不可点。 */
 .ds-attach-slot:not([data-ready=true]) .ds-attach-panel { pointer-events:none; }
-.ds-attach-panel button { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;background:var(--dsw-alias-bg-secondary,#f4f4f5);color:var(--dsw-alias-label-primary);border:0;border-radius:14px;font:500 14px/20px system-ui,sans-serif;cursor:pointer; }
+.ds-attach-actions {
+  /* 左右 18px 是实测值：官方卡片宽 102.7 css、列间距 7.7、屏宽 360 时左右各 18.25 */
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:0 18px;
+}
+.ds-attach-actions button { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;background:var(--dsw-alias-bg-secondary,#f4f4f5);color:var(--dsw-alias-label-primary);border:0;border-radius:14px;font:500 14px/20px system-ui,sans-serif;cursor:pointer; }
 /*
  * 图标盒 20dp：官方这三个图标本身就是按 20dp 设计的（资源名就是 _20），
  * 实测官方面板里相机墨迹宽 18.3 css px，在 20dp 盒子里正好对上。
  */
 .ds-attach-icon { width:20px;height:20px; }
-.ds-attach-panel button:active { opacity:.72; }
+.ds-attach-actions button:active { opacity:.72; }
 
 
 @media (prefers-reduced-motion:reduce) {
   .ds-attach-toggle svg path { transition:none; }
   .ds-attach-slot, .ds-attach-panel,
+}
+
+/*
+ * 相册「最近图片」横向条。
+ * 尺寸来自官方实测（1080 屏、密度 3）：缩略图 73x77 css、间距 10、圆角 14，
+ * 一屏正好露出 4 个，第 5 个从右边缘切进来，提示可横滑。
+ */
+.ds-attach-recent {
+  display:flex;gap:7px;padding:0 18px 18px;
+  overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+}
+.ds-attach-recent::-webkit-scrollbar { display:none; }
+.ds-attach-recent[data-show=false] { display:none; }
+/*
+ * 官方缩略图是「白卡片 + 内嵌圆角图」：卡片 73x77、圆角 13、带很淡的投影，
+ * 图片四周留 2px 白边。之前做成平铺方块，和官方有明显视觉差。
+ */
+.ds-attach-recent-item {
+  position:relative;flex:none;
+  width:73px;height:77px;min-height:0;
+  padding:2px;box-sizing:border-box;
+  border:0;border-radius:13px;
+  background:var(--chat-paper,#fff);
+  box-shadow:0 1px 5px rgba(16,24,40,.12);
+  cursor:pointer;overflow:hidden;
+}
+.ds-attach-recent-item:active { opacity:.86; }
+.ds-attach-recent-img {
+  display:block;width:100%;height:100%;
+  border-radius:11px;
+  background-color:var(--dsw-alias-bg-secondary,#f4f4f5);
+  background-size:cover;background-position:center;
+  pointer-events:none;
+}
+/*
+ * 右上角圆形选择钮：未选中 = 半透明黑填充 + 白色内描边，能透出底图；
+ * 选中 = 纯白填充 + 黑色对勾。（尺寸/位置照官方：Ø18.3、距边 5.3）
+ */
+.ds-attach-recent-check {
+  position:absolute;top:5px;right:5px;
+  width:18px;height:18px;border-radius:50%;
+  background:rgba(0,0,0,.4);
+  box-shadow:inset 0 0 0 2px #fff;
+  pointer-events:none;
+}
+.ds-attach-recent-item[data-picked=true] .ds-attach-recent-check { background:#fff; }
+.ds-attach-recent-item[data-picked=true] .ds-attach-recent-check::after {
+  content:'';position:absolute;left:6px;top:3px;
+  width:4px;height:8px;
+  border:solid #111;border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
+/* 没授权时的入口 */
+.ds-attach-recent-perm {
+  flex:none;display:flex;align-items:center;gap:8px;
+  height:44px;padding:0 16px;
+  border:0;border-radius:13px;
+  background:var(--dsw-alias-bg-secondary,#f4f4f5);color:var(--dsw-alias-label-primary);
+  font:500 14px/20px system-ui,sans-serif;cursor:pointer;
 }
