@@ -71,11 +71,21 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
       document.removeEventListener('keydown', key);
     };
   }, [mounted]);
+  /*
+   * 三个图标全部来自官方 APK 的原始矢量资源（aapt2 dump xmltree 提取后转 SVG）：
+   *   ds-camera.svg  <- drawable/ic_camera_outline_20
+   *   ds-album.svg   <- drawable/ic_photo_outline_20
+   *   ds-files.svg   <- drawable/ic_paperclip_outline_20
+   * 之前这里是手写的近似 path，形状和官方对不上（尤其「文件」官方是曲别针，
+   * 不是文件夹）。
+   */
   const rows = [
-    [camera, zh ? '拍照' : 'Camera', 'M4 6.5h3l1.7-2.2h6.6L17 6.5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z M16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0z'],
-    [album, zh ? '相册' : 'Photos', 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M3 15l5-4 11 10 M17 8a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z'],
-    [files, zh ? '文件' : 'Files', 'M8.5 13.5l6-6a2 2 0 0 1 3 3l-7 7a4 4 0 0 1-6-6l8-8a5.5 5.5 0 0 1 8 8l-8 8']
+    [camera, zh ? '拍照' : 'Camera', 'ds-camera'],
+    [album, zh ? '相册' : 'Photos', 'ds-album'],
+    [files, zh ? '文件' : 'Files', 'ds-files']
   ];
+  const rowIcon = k => h('span', {className:'ds-ui-icon ds-attach-icon','aria-hidden':true,
+    style:{'--ds-icon':'url("ui-icons/'+k+'.svg")'}});
   const icon = (d, plus) => h('svg', {width: plus ? 24 : 21, height: plus ? 24 : 21, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round', 'aria-hidden':true},
     plus && h('circle', {cx:12, cy:12, r:9.25}), h('path', {d}));
   return {
@@ -90,6 +100,6 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
     panel: !mounted ? null : h('div', {className:'ds-attach-slot','data-open':shown ? 'true' : 'false','data-ready':ready ? 'true' : 'false'},
         h('div', {className:'ds-attach-clip'},
           h('div', {className:'ds-attach-panel',role:'group','aria-label':zh?'附件':'Attachments'},
-            rows.map(([ref,label,d])=>h('button',{key:label,type:'button',disabled,onClick:()=>{request('close');if(ensureKey())ref.current?.click();}},icon(d),label)))))
+            rows.map(([ref,label,k])=>h('button',{key:label,type:'button',disabled,onClick:()=>{request('close');if(ensureKey())ref.current?.click();}},rowIcon(k),label)))))
   };
 };

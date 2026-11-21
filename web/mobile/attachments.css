@@ -30,7 +30,8 @@
 
 .ds-attach-panel {
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
-  width:100%;box-sizing:border-box;padding:18px 6px 12px;
+  /* 左右 18px 是实测值：官方卡片宽 102.7 css、列间距 7.7、屏宽 360 时左右各 18.25 */
+  width:100%;box-sizing:border-box;padding:18px 18px 12px;
   opacity:0;
   transform:translate3d(0,100%,0) scale(.96);
   transform-origin:50% 100%;
@@ -43,6 +44,11 @@
 /* 入场动画结束前按钮不可点，避免连点时误触卡片；退场时同样不可点。 */
 .ds-attach-slot:not([data-ready=true]) .ds-attach-panel { pointer-events:none; }
 .ds-attach-panel button { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;background:var(--dsw-alias-bg-secondary,#f4f4f5);color:var(--dsw-alias-label-primary);border:0;border-radius:14px;font:500 14px/20px system-ui,sans-serif;cursor:pointer; }
+/*
+ * 图标盒 20dp：官方这三个图标本身就是按 20dp 设计的（资源名就是 _20），
+ * 实测官方面板里相机墨迹宽 18.3 css px，在 20dp 盒子里正好对上。
+ */
+.ds-attach-icon { width:20px;height:20px; }
 .ds-attach-panel button:active { opacity:.72; }
 
 
