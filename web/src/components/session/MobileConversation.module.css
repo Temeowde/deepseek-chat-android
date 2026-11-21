@@ -63,9 +63,26 @@
   box-sizing: border-box;
   width: min(100%, 680px);
   margin-inline: auto;
-  padding: 6px var(--ds-mobile-gutter) calc(env(safe-area-inset-bottom) + 15px);
+  /*
+   * 底部要让位「键盘」，不是让位「导航栏」。
+   *
+   * 为什么不能用 env(safe-area-inset-bottom)：这个 WebView 里它恒为 0。
+   * 为什么不能用 --ds-safe-bottom：它取的是 max(导航栏, 键盘)，
+   *   键盘收起时等于导航栏高度，会把输入栏无谓抬高 16px，间距就错了。
+   * 所以用 Java 单独推的 --ds-ime-bottom：键盘收起 = 0，弹起 = 键盘高度。
+   *
+   * 曾经这里写 env(...)，导致键盘弹起时只有键盘画上来、输入栏不动，被完全遮住。
+   */
+  padding: 6px var(--ds-mobile-gutter) calc(var(--ds-ime-bottom, 0px) + 15px);
 }
 
+/*
+ * 免责声明始终占位，不管当前是不是新对话。
+ * 官方实测：新对话和已有对话里，输入栏到手势条的距离完全一样，
+ * 差的就是「回答由 AI 生成，仅供参考」这一行的高度。
+ * 之前只在 activeId 存在时才渲染这个节点，新对话就没有这一行，
+ * 输入栏于是往下掉了 20px，几乎贴住手势条。
+ */
 .caveat {
   padding-top: 4px;
   color: var(--dsw-alias-label-secondary);
@@ -73,6 +90,10 @@
   line-height: 16px;
   text-align: center;
   user-select: none;
+  visibility: hidden;
+}
+.dock[data-has-session="true"] .caveat {
+  visibility: visible;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -60,7 +60,7 @@ export const MobileConversation = ({
           />
         )}
       </div>
-      <div className={styles.dock}>
+      <div className={styles.dock} data-has-session={activeId ? 'true' : 'false'}>
         <ChatInput
           sessionId={activeId}
           unavailable={!available}
@@ -72,7 +72,8 @@ export const MobileConversation = ({
             onClose: closeEdit,
           } : null}
         />
-        {activeId ? <div className={styles.caveat}>{t('contentCaveat')}</div> : null}
+        {/* 始终渲染，只为占住那一行高度；新对话时用 visibility 隐藏 */}
+        <div className={styles.caveat}>{t('contentCaveat')}</div>
       </div>
     </div>
   )

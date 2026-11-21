@@ -62,6 +62,7 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
         });
     }
 
+
     private int pushedStatusBar = -1;
 
     /** 直接读取当前窗口 inset 并推送，不依赖 onApply 的时机。 */
@@ -86,8 +87,18 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
         if (imeAnimation == null) {
             applyPadding(insets);
         }
-        // This view has laid out the WebView around these insets.
-        return WindowInsets.CONSUMED;
+        /*
+         * 必须 return insets，不能 return WindowInsets.CONSUMED。
+         *
+         * 返回 CONSUMED 表示「insets 已被处理完、不要再往下传」，
+         * 但副作用是系统之后不会再给这个视图派发新的 insets——
+         * 结果就是键盘弹起时 onApply 根本不再触发（实测 logcat 里只有启动时那两次），
+         * IME 高度永远送不到页面，输入栏被键盘完全遮住。
+         *
+         * 这里本来就不给 root 加 padding（安全区是通过 JS 推给页面的），
+         * 所以完全可以原样返回，让系统继续正常派发。
+         */
+        return insets;
     }
 
     @Override
@@ -142,18 +153,31 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
         }
         int topCss = Math.round(topPx / density);
         int botCss = Math.round(Math.max(botPx, imePx) / density);
+        // IME 高度单独记一份：键盘收起时为 0，弹起时为键盘高度（已含导航栏区域）
+        imeBottomCss = Math.round(imePx / density);
         pushInsets(topCss, botCss, 0, 0);
     }
 
     private int lastTop = -1, lastBottom = -1, lastIme = -1, lastBottomRaw = -1;
+    private int imeBottomCss = 0;
 
-    /** 把安全区尺寸送进页面，CSS 变量 --ds-safe-top / --ds-safe-bottom 会跟着更新。 */
+
+    /**
+     * 把安全区尺寸送进页面。
+     *
+     * 除 --ds-safe-* 外，还单独推一个 --ds-ime-bottom（只含键盘高度、不含导航栏）。
+     * 为什么必须分开：--ds-safe-bottom 取的是 max(导航栏, 键盘)，
+     * 键盘收起时它等于导航栏高度（约 16px）。如果输入栏直接拿它做 padding-bottom，
+     * 那么键盘没弹时输入栏也会被抬高 16px，间距就错了。
+     * 输入栏只应该在键盘弹起时让位，所以要用只含 IME 的变量。
+     */
     private void pushInsets(int top, int bottom, int left, int right) {
         final String js = "(function(){var r=document.documentElement.style;"
                 + "r.setProperty('--ds-safe-top','" + top + "px');"
                 + "r.setProperty('--ds-safe-bottom','" + bottom + "px');"
                 + "r.setProperty('--ds-safe-left','" + left + "px');"
                 + "r.setProperty('--ds-safe-right','" + right + "px');"
+                + "r.setProperty('--ds-ime-bottom','" + imeBottomCss + "px');"
                 + "})();";
         root.post(() -> {
             android.webkit.WebView web = findWebView(root);
