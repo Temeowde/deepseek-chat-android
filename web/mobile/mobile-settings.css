@@ -3,14 +3,18 @@
   user-select: none;
   -webkit-touch-callout: none;
   position: fixed;
-  /* 设置页是 fixed 全屏覆盖层，拿不到 .main 的 padding-top，
-     必须自己让出状态栏，否则页头标题会被状态栏压住 */
-  inset: calc(var(--app-viewport-top,0px) + var(--ds-safe-top,0px)) 0 auto;
+  /*
+   * 设置页是全屏覆盖层。注意这里必须从 y=0 开始（不能写 top: safe-top），
+   * 否则状态栏那 96px 露出的是下层 .frame 的白色，和设置页的 #f8f8f8 有色差。
+   * 安全区改成内部 padding-top 让给页头，背景色就能真正铺满整屏。
+   */
+  inset: var(--app-viewport-top,0px) 0 auto;
   z-index: 930;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   height: var(--app-viewport-height,100dvh);
+  padding-top: var(--ds-safe-top, 0px);
   overflow: hidden;
   background: #f8f8f8;
   color: var(--dsw-alias-label-primary);

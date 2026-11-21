@@ -79,7 +79,7 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
     cardEl.style.borderRadius = (p * 30) + 'px';
     // 阴影随进度出现，拖动中就能看到卡片浮起
     cardEl.style.boxShadow = p > 0.01
-      ? '-6px 0 22px rgba(16,24,40,0.07), 0 6px 22px rgba(16,24,40,0.06)'
+      ? '0 0 20px rgba(16,24,40,0.055), 0 14px 34px rgba(16,24,40,0.075), -10px 0 26px rgba(16,24,40,0.05)'
       : 'none';
 
     // 侧栏只由 --ds-drawer-x + .ds-drawer-drag 驱动，不写内联 transform。

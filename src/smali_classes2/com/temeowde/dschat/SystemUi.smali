@@ -62,18 +62,22 @@
 
     .line 62
     .local v0, "background":I
+    # 系统栏透明：卡片顶部/底部的缩进和阴影要能画进状态栏和手势条区域，
+    # 否则那 96px 会被 statusBarBackground 这层不透明 View 挡住（官方是透明的）
+    const/4 v5, 0x0
+
     invoke-virtual {p0}, Landroid/app/Activity;->getWindow()Landroid/view/Window;
 
     move-result-object v1
 
-    invoke-virtual {v1, v0}, Landroid/view/Window;->setStatusBarColor(I)V
+    invoke-virtual {v1, v5}, Landroid/view/Window;->setStatusBarColor(I)V
 
     .line 63
     invoke-virtual {p0}, Landroid/app/Activity;->getWindow()Landroid/view/Window;
 
     move-result-object v1
 
-    invoke-virtual {v1, v0}, Landroid/view/Window;->setNavigationBarColor(I)V
+    invoke-virtual {v1, v5}, Landroid/view/Window;->setNavigationBarColor(I)V
 
     .line 64
     const v1, 0x1020002
