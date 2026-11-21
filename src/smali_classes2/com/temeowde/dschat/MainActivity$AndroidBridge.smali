@@ -403,3 +403,40 @@
 
     return-object v0
 .end method
+
+.method public recentMediaList()V
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0}, Lcom/temeowde/dschat/RecentMedia;->listAsync(Landroid/app/Activity;)V
+    return-void
+.end method
+
+.method public recentMediaData(J)V
+    .locals 3
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0, p1, p2}, Lcom/temeowde/dschat/RecentMedia;->imageDataAsync(Landroid/app/Activity;J)V
+    return-void
+.end method
+
+.method public recentMediaRequest()V
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0}, Lcom/temeowde/dschat/RecentMedia;->requestAccess(Landroid/app/Activity;)V
+    return-void
+.end method
+
+.method public recentMediaGranted()Z
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-static {v0}, Lcom/temeowde/dschat/RecentMedia;->granted(Landroid/content/Context;)Z
+    move-result v0
+    return v0
+.end method
