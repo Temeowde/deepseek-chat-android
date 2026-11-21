@@ -32,13 +32,17 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
    *   侧栏里「设置」图标的 x 对卡片左缘拟合出 iconX = 0.9873*cardLeft - 129，
    *   斜率≈1 → 侧栏和卡片左缘同步平移，两者间距恒定（约 0.08W）。
    *
-   * 关键：卡片左缘 = 0.7475*W*p + 0.025*W
-   *   前半是 translateX，后半是 scale(0.95) 绕中心缩放让出的固定半宽。
-   * 那个 0.025W 是**几何偏移**，不是位移，所以侧栏不能用 0.7725：
-   *   - 用 0.7725 → 侧栏比卡片多走 0.025W，gap 从 0.1015W 缩到 0.0765W（越拖越贴）
-   *   - 用 0.7475 → gap 恒定 0.0765W，和官方一致
+   * 关键推导（transform-origin: center 下）：
+   *   x_final = (x - W/2)*s + W/2 + tx
+   *   左缘 x=0，s = 1-0.05p，tx = 0.7475W*p：
+   *     x_final = W/2*0.05p + 0.7475W*p
+   *             = 0.025W*p + 0.7475W*p
+   *             = 0.7725W*p
+   * 注意 W/2*(1-s) = 0.025W*p 是**随 p 线性增长**的项，不是固定半宽。
+   * 所以侧栏位移系数必须是 0.7725，才能让 gap 全程恒定。
+   * （曾经误当成常数改成 0.7475，实测导致 28px 漂移，已由独立验收发现并回退）
    */
-  const SIDER_SHIFT_RATIO = 0.7475;
+  const SIDER_SHIFT_RATIO = 0.7725;
   const drawerX = p => -SIDER_SHIFT_RATIO * window.innerWidth * (1 - p);
   /* 官方遮罩实测线性：alpha = 0.21 * (1-p)（odrag.mp4 逐帧量侧栏底色 204/213/222/234） */
   const scrim = p => 0.21 * Math.max(0, 1 - p);

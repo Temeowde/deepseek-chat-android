@@ -109,6 +109,13 @@
     box-shadow:
       -6px 0 22px rgba(16, 24, 40, 0.07),
       0 6px 22px rgba(16, 24, 40, 0.06);
+    /*
+     * scale(0.95) 绕 center 会同时收窄和收矮，
+     * 但元素盒子仍顶满上下，所以看起来卡片贴边、没有上下留白。
+     * 官方上下各留 2.5% 高度（2608 上是 65px）。
+     * 这里不用 translateY：用 scale 已经让内容缩进去了，
+     * 真正缺的是让 .main 自己比视口矮一点。
+     */
     transform: translate3d(74.75vw, 0, 0) scale(0.95);
     transform-origin: center;
   }

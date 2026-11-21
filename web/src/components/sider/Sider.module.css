@@ -206,12 +206,12 @@
   overflow: hidden;
   pointer-events: none;
   /*
-   * 侧栏和卡片同步滑动，位移量对齐卡片的 translateX（0.7475W）。
-   * 不能用 0.7725（那是卡片左缘的最终位置，含缩放让出的 0.025W 几何偏移），
-   * 否则侧栏会比卡片多走 0.025W，越拖越贴、松手时还会瞬移。
+   * 侧栏位移系数必须和卡片左缘的系数一致 = 0.7725W。
+   * 因为卡片 scale 绕 center，左缘 = 0.7475W*p + 0.025W*p = 0.7725W*p，
+   * 那个 0.025W*p 随进度增长，所以侧栏也得按 0.7725 走，gap 才恒定。
    * 关闭态整块推到屏幕外，打开态回到 0；两态和卡片同一条缓动。
    */
-  transform: translate3d(-74.75vw, 0, 0);
+  transform: translate3d(-77.25vw, 0, 0);
   transition:
     transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
     visibility 0s linear 200ms;
