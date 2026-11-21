@@ -166,7 +166,11 @@
 }
 /* 图标 20px：官方图标框虽然也是 21dp，但 Material Symbols 图形在字框里留白更大，
    20px 下的墨迹大小和线宽才和官方实测（4~5 物理px）对得上 */
-.ds-pref-row > .ds-ui-icon:first-child { width: 20px;height: 20px;color: var(--ds-set-text); }
+.ds-pref-row > .ds-ui-icon:first-child {
+  /* 图标来自官方 APK 的矢量资源（res/*.xml -> aapt2 dump xmltree -> SVG），
+     图形在 24 视口里有留白，所以盒子保持官方设计值 21dp 就能对上墨迹大小。 */
+  width: 21px;height: 21px;color: var(--ds-set-text);
+}
 .ds-pref-row>span:not(.ds-ui-icon) { flex:1;min-width:0; }
 .ds-pref-row>small { flex:none;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ds-set-sub);font-size:14px; }
 .ds-pref-row>.ds-ui-icon:last-child,.ds-pref-link>.ds-ui-icon { width:17px;height:17px;color:var(--ds-set-chevron); }
