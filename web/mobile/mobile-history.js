@@ -160,8 +160,27 @@ window.createMobileHistory = function (React, portal, api) {
       }
     };
     // Opening and closing the drawer reuses the rows and their search decorations.
-    const historyRows = React.useMemo(() => groups.map(group => h('div', {className:'section-ac14ac', key:group.key},
-      h('div', {className:'sectionHeader-ac14ac'}, group.label),
+    const historyRows = React.useMemo(() => groups.map((group, index) => h('div', {className:'section-ac14ac', key:group.key},
+      /*
+       * 官方在「置顶」标题行右端放了一个多选入口（灰色双圈图标）。
+       * 我们的多选能力本来就有（长按 -> 菜单 -> 多选），这里只是补一个显式入口。
+       * 没有置顶会话时落在第一个分组行，保证入口一直可达。
+       */
+      h('div', {className:'sectionHeader-ac14ac'},
+        h('span', {className:'ds-section-label'}, group.label),
+        (group.key === 'pinned' || (index === 0 && !groups.some(g => g.key === 'pinned'))) &&
+          h('button', {
+            type: 'button',
+            className: 'ds-section-action',
+            'aria-label': tr('多选对话','Select chats'),
+            'aria-pressed': selected ? 'true' : 'false',
+            onClick: () => {
+              stopPress();
+              if (selected) { select(null); return; }
+              setMenu(null);
+              select(new Set());
+            },
+          }, icon('list-select'))),
       group.sessions.map(row => {
         const label = row.title || t('untitledChat');
         const checked = selected?.has(row.id) || false;

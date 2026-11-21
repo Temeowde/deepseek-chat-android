@@ -50,7 +50,24 @@
 .ds-history .list-ac14ac { margin:0;padding:0 8px; }
 .ds-history .section-ac14ac { margin-top:12px;padding-top:0; }
 .ds-history .section-ac14ac:first-child { margin-top:0; }
-.ds-history .sectionHeader-ac14ac { box-sizing:border-box;background:var(--ds-ui-paper);padding:6px 12px 4px;line-height:18px; }
+.ds-history .sectionHeader-ac14ac { box-sizing:border-box;background:var(--ds-ui-paper);padding:6px 12px 4px;line-height:18px;display:flex;align-items:center;gap:8px; }
+/* 分组标题文字：占满剩余宽度，过长省略 */
+.ds-history .ds-section-label { flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+/*
+ * 置顶标题行右侧的「多选」入口。官方 2.8.0 同位置实测：
+ *   图标 13.3x12.7dp、颜色 #A1A3A5、右缘距抽屉右边约 22dp、与标题文字垂直居中。
+ * 负 margin 用来吃掉 header 的 padding，不把 28px 的标题行撑高。
+ */
+.ds-history .ds-section-action {
+  flex:none;display:grid;place-items:center;
+  width:28px;height:28px;
+  margin:-6px -4px -4px 0;
+  padding:0;border:0;border-radius:8px;background:none;
+  color:var(--dsw-static-neutral-bluish-400,#adb2b8);
+  -webkit-tap-highlight-color:transparent;
+}
+.ds-history .ds-section-action .ds-ui-icon { width:16px;height:16px; }
+.ds-history .ds-section-action:active { background:var(--ds-ui-fill); }
 /*
  * 字号 14.5px，不是 16px。
  * 真机逐像素量（Realme 1080x2412 / density 3，官方 2.8.0 同设备）：
@@ -138,9 +155,16 @@
 .ds-official-error { color:var(--ds-ui-danger); font:400 14px/20px system-ui; margin:10px 0 0; text-align:center; }
 .ds-history-dialog .ds-history-actions button { font-size:15px; white-space:nowrap; }
 .ds-history-account { flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:6px 4px;text-align:start; }
-.ds-account-avatar { flex:none;width:32px;height:32px;border-radius:50%;background:var(--ds-ui-fill);display:grid;place-items:center; }
-.ds-account-avatar .ds-ui-icon { width:18px;height:18px; }
+/*
+ * 注意这 4 条都带 .ds-history 前缀，不能省略。
+ * 设置页（mobile-settings.css）也定义了同名的 .ds-account-avatar（账号卡用，52px），
+ * 而 mobileAssets 里 mobile-settings 的样式排在 mobile-history 之后，
+ * 同为单类选择器时后写的赢 —— 结果侧栏头像被撑成 52px（156 物理px，官方是 88px）。
+ * 加一层 .ds-history（0,2,0）就与加载顺序无关，设置页的 52px 不受影响。
+ */
+.ds-history .ds-account-avatar { flex:none;width:32px;height:32px;border-radius:50%;background:var(--ds-ui-fill);display:grid;place-items:center; }
+.ds-history .ds-account-avatar .ds-ui-icon { width:18px;height:18px; }
 .ds-account-name { flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px;color:var(--ds-ui-text); }
-.ds-account-avatar img { width:100%;height:100%;border-radius:50%;object-fit:cover; }
-.ds-account-initial { font:600 15px/1 system-ui;color:var(--ds-ui-text); }
+.ds-history .ds-account-avatar img { width:100%;height:100%;border-radius:50%;object-fit:cover; }
+.ds-history .ds-account-initial { font:600 15px/1 system-ui;color:var(--ds-ui-text); }
 .ds-pull { display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--ds-ui-sub);font:400 13px/1 system-ui;transition:height .18s ease; }
