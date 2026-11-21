@@ -79,8 +79,10 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
     // 圆角是恒定值，由 CSS 控制，不能按进度动画。
     // 官方 odrag.mp4 逐帧拟合：p=0.20~0.93 全程约 75 物理px（≈25 css px），无变化趋势。
     // 阴影随进度出现，拖动中就能看到卡片浮起
+    // 必须和 App.module.css 的 .mainCardOpen 用同一条**单层**阴影，
+    // 否则拖动结束时会看到阴影形状突变（多层叠加会有阶梯状色带）。
     cardEl.style.boxShadow = p > 0.01
-      ? '0 0 20px rgba(16,24,40,0.055), 0 14px 34px rgba(16,24,40,0.075), -10px 0 26px rgba(16,24,40,0.05)'
+      ? '0 0 30px rgba(16,24,40,0.146)'
       : 'none';
 
     // 侧栏只由 --ds-drawer-x + .ds-drawer-drag 驱动，不写内联 transform。
