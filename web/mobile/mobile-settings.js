@@ -105,7 +105,7 @@ window.createChatMobileSettings=function(React,portal,api) {
       navigatePage(k, 'forward');
     };
     const row=(k,pic,value,action)=>h('button',{type:'button',className:'ds-pref-row',key:k,'aria-label':titles[k],onClick:action||(()=>navigate(k))},icon(pic),h('span',null,titles[k]),value&&h('small',null,value),icon('chevron-right'));
-    const section=(title,...children)=>h('section',{className:'ds-pref-group'},h('h2',null,title),children);
+    const section=(title,...children)=>h('div',{className:'ds-pref-block'},h('h2',{className:'ds-pref-caption'},title),h('section',{className:'ds-pref-group'},children));
     const anchor=(url,text)=>h('a',{href:url,target:'_blank',rel:'noreferrer noopener',className:'ds-pref-link'},text,icon('chevron-right'));
     const checkRelease=async()=>{
       request.current?.abort();const c=new AbortController();request.current=c;setCheck({kind:'loading'});
@@ -124,7 +124,7 @@ window.createChatMobileSettings=function(React,portal,api) {
       section(tr('应用','App'),row('locale','languages',label('locale')),row('theme','palette',label('theme')),row('font','type'),row('personal','sliders-horizontal')),
       section(tr('语音','Voice'),row('voice','audio-lines',label('voice'))),
       section(tr('关于','About'),row('update','info',version,openUpdate),row('terms','shield-check')),
-      h('section',{className:'ds-pref-group'},row('help','circle-help')));
+      h('div',{className:'ds-pref-block'},h('section',{className:'ds-pref-group'},row('help','circle-help'))));
     const panels={root,account:h(React.Fragment,null,p.keyPanel,p.keySubmit),data:p.dataPanel,
       font:h(React.Fragment,null,h('div',{className:'ds-font-sample'},h('strong',null,tr('预览文字大小','Text size preview')),h('p',null,tr('你可以拖动滑块来调整字体大小。','Drag the slider to adjust text size.'))),
         h('div',{className:'ds-font-slider'},h('span',{'aria-hidden':true},'A'),h('input',{type:'range',min:0,max:4,step:1,value:level,'aria-label':titles.font,'aria-valuetext':pref.sizes[level]+' px',onChange:e=>pref.setFont(Number(e.target.value))}),h('strong',{'aria-hidden':true},'A'))),

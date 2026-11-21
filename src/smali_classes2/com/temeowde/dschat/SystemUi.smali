@@ -14,9 +14,9 @@
     .locals 3
 
     .line 12
-    const/16 v0, 0xfa
+    const/16 v0, 0xff
 
-    const/16 v1, 0xfc
+    const/16 v1, 0xff
 
     invoke-static {v0, v0, v1}, Landroid/graphics/Color;->rgb(III)I
 

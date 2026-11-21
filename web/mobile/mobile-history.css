@@ -2,12 +2,14 @@
 .ds-history,.ds-history-scrim { --ds-ui-paper:var(--chat-paper,#fff);--ds-ui-fill:var(--chat-prompt,#eef0f4);--ds-ui-text:var(--dsw-alias-label-primary,#17181a);--ds-ui-sub:var(--dsw-alias-label-secondary,#666);--ds-ui-line:var(--chat-line,#e0e3e9);--ds-ui-accent:var(--dsw-alias-brand-text);--ds-ui-danger:#d64847;color:var(--ds-ui-text); }
 .ds-history.sider-ac14ac {
   /* 背景层铺满全屏（由 .drawer 提供），内容只占左侧 74.1%，和卡片推开后的露出区对齐 */
-  width:74.1vw;
+  /* 官方实测：侧栏内容右缘在 0.696W，卡片左缘 0.7725W，两者间距恒为 0.0767W */
+  width:69.6vw;
   max-width:none;
   padding:0;
   border:0;
   background:transparent;
   padding-top:var(--ds-safe-top,0px);
+  padding-bottom:var(--ds-safe-bottom,0px);
   box-sizing:border-box;
   height:100%;
 }

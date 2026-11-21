@@ -31,8 +31,9 @@
   visibility: visible; transition: none; opacity: 1;
   transform: translate3d(var(--ds-drawer-x), 0, 0);
 }
+.ds-drawer-drag > .drawer-ac14ac::after { transition: none; }
 .ds-drawer-drag > .drawerMask-ac14ac {
-  visibility: visible; transition: none; opacity: var(--ds-drawer-shade);
+  visibility: visible; transition: none; opacity: var(--ds-drawer-scrim);
 }
 @media (prefers-reduced-motion: reduce) {
   .drawer-ac14ac, .drawerMask-ac14ac { transition-duration: 0s; transition-delay: 0s; }

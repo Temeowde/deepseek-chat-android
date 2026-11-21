@@ -205,13 +205,36 @@
   visibility: hidden;
   overflow: hidden;
   pointer-events: none;
-  /* 侧栏自己不滑动，只有卡片动；收回时保持可见直到动画结束 */
-  transition: visibility 0s linear 320ms;
+  /*
+   * 侧栏和卡片同步滑动，位移量对齐卡片的 translateX（0.7475W）。
+   * 不能用 0.7725（那是卡片左缘的最终位置，含缩放让出的 0.025W 几何偏移），
+   * 否则侧栏会比卡片多走 0.025W，越拖越贴、松手时还会瞬移。
+   * 关闭态整块推到屏幕外，打开态回到 0；两态和卡片同一条缓动。
+   */
+  transform: translate3d(-74.75vw, 0, 0);
+  transition:
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 200ms;
+}
+
+/*
+ * 拖动过程中压暗侧栏（官方实测 alpha = 0.21*(1-p)，线性）。
+ * 只能画在 .drawer 自己身上：卡片(801)在它之上不透明，所以不会误伤卡片。
+ */
+.drawer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(0, 0, 0, var(--ds-drawer-scrim, 0));
+  /* 松手后压暗随侧栏一起淡出，和卡片同一条缓动 */
+  transition: background-color 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .drawerMask {
   position: absolute;
   inset: 0;
+  /* 只在侧栏下面接点击，不画颜色：压暗交给 .drawer::after，否则会盖住侧栏 */
   z-index: 799;
 }
 
@@ -332,7 +355,7 @@
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
-  /* 只负责点外部关闭，本身不画任何颜色（视觉层完全交给 .drawer） */
+  /* 本身不画颜色，压暗由 .drawer::after 负责 */
   background-color: transparent;
   transition:
     opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -346,7 +369,8 @@
 
 .drawerMaskOpen {
   visibility: visible;
-  opacity: 1;
+  /* 官方完全打开时侧栏是纯白、不压暗，这里只保留点击关闭的能力 */
+  opacity: 0;
   pointer-events: auto;
   transition-delay: 0s;
 }
@@ -357,6 +381,7 @@
   /* 不要设 width/height：.drawer 本身已经 inset:0 铺满，设了会切断背景 */
   opacity: 1;
   pointer-events: auto;
+  transform: translate3d(0, 0, 0);
   transition-delay: 0s;
 }
 

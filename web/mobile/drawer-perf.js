@@ -15,6 +15,7 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
     cancelAnimationFrame(frame); cancelAnimationFrame(release); frame = release = 0;
     host.classList.remove('ds-drawer-drag');
     host.style.removeProperty('--ds-drawer-x'); host.style.removeProperty('--ds-drawer-shade');
+    host.style.removeProperty('--ds-drawer-scrim');
     if (cardEl) {
       cardEl.style.removeProperty('transition');
       cardEl.style.removeProperty('transform');
@@ -26,11 +27,27 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
       panelEl.style.removeProperty('transform');
     }
   };
+  /*
+   * 官方实测（odrag.mp4 逐帧，223 帧归一化模板匹配）：
+   *   侧栏里「设置」图标的 x 对卡片左缘拟合出 iconX = 0.9873*cardLeft - 129，
+   *   斜率≈1 → 侧栏和卡片左缘同步平移，两者间距恒定（约 0.08W）。
+   *
+   * 关键：卡片左缘 = 0.7475*W*p + 0.025*W
+   *   前半是 translateX，后半是 scale(0.95) 绕中心缩放让出的固定半宽。
+   * 那个 0.025W 是**几何偏移**，不是位移，所以侧栏不能用 0.7725：
+   *   - 用 0.7725 → 侧栏比卡片多走 0.025W，gap 从 0.1015W 缩到 0.0765W（越拖越贴）
+   *   - 用 0.7475 → gap 恒定 0.0765W，和官方一致
+   */
+  const SIDER_SHIFT_RATIO = 0.7475;
+  const drawerX = p => -SIDER_SHIFT_RATIO * window.innerWidth * (1 - p);
+  /* 官方遮罩实测线性：alpha = 0.21 * (1-p)（odrag.mp4 逐帧量侧栏底色 204/213/222/234） */
+  const scrim = p => 0.21 * Math.max(0, 1 - p);
   const paint = () => {
     frame = 0;
     if (!drag?.tracking) return;
-    host.style.setProperty('--ds-drawer-x', (drag.reveal - drag.width) + 'px');
+    host.style.setProperty('--ds-drawer-x', drawerX(drag.reveal / drag.width) + 'px');
     host.style.setProperty('--ds-drawer-shade', String(drag.reveal / drag.width));
+    host.style.setProperty('--ds-drawer-scrim', String(scrim(drag.reveal / drag.width)));
     host.classList.add('ds-drawer-drag');
     paintCard(drag.reveal / drag.width);
   };
@@ -39,33 +56,40 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
    * 两者必须用同一个 progress，否则会脱节。
    * 侧栏同步右移，右缘始终贴着卡片左缘，字和图标到卡片的距离才恒定。
    */
+  /*
+   * 实测官方拖动（odrag.mp4 逐帧）：
+   *   卡片左缘和侧栏文字的位移量完全一致，都是每帧 +21~22px，
+   *   gap 恒定在 ~830px。也就是说两者同步平移，侧栏不缩放。
+   * 所以这里让卡片和侧栏用同一个 tx，侧栏不加 scale。
+   */
   const paintCard = progress => {
     if (!cardEl) cardEl = card();
     if (!cardEl) return;
     const p = Math.max(0, Math.min(1, progress));
     const vw = window.innerWidth / 100;
-    const tx = p * 74.1 * vw;
+    const tx = p * 74.75 * vw;
     const scale = 1 - p * 0.05;
+
     cardEl.style.transition = 'none';
     cardEl.style.transform = 'translate3d(' + tx + 'px,0,0) scale(' + scale + ')';
     cardEl.style.borderRadius = (p * 30) + 'px';
-    // 官方拖动时左缘一直有阴影：卡片浮在侧栏之上，靠阴影区分两层
-    if (p > 0.01) {
-      cardEl.style.boxShadow = '-6px 0 22px rgba(16,24,40,0.12), 0 6px 22px rgba(16,24,40,0.10)';
-    } else {
-      cardEl.style.boxShadow = 'none';
-    }
-    cardEl.style.boxShadow =
-      (-6 * p) + 'px 0 ' + (22 * p) + 'px rgba(16,24,40,' + (0.12 * p) + '), 0 ' +
-      (6 * p) + 'px ' + (22 * p) + 'px rgba(16,24,40,' + (0.10 * p) + ')';
+    // 阴影随进度出现，拖动中就能看到卡片浮起
+    cardEl.style.boxShadow = p > 0.01
+      ? '-6px 0 22px rgba(16,24,40,0.07), 0 6px 22px rgba(16,24,40,0.06)'
+      : 'none';
+
+    // 侧栏只由 --ds-drawer-x + .ds-drawer-drag 驱动，不写内联 transform。
+    // 这样松手后移除 class 时，浏览器能从「拖动中的值」平滑过渡到静止态，
+    // 不会出现侧栏瞬移、卡片却还在动画的脱节。
   };
   const settle = open => {
     const d = drag; drag = null;
     if (!d?.tracking) return;
     // Commit the last touch coordinates before restoring the CSS transition.
     cancelAnimationFrame(frame); frame = 0;
-    host.style.setProperty('--ds-drawer-x', (d.reveal - d.width) + 'px');
+    host.style.setProperty('--ds-drawer-x', drawerX(d.reveal / d.width) + 'px');
     host.style.setProperty('--ds-drawer-shade', String(d.reveal / d.width));
+    host.style.setProperty('--ds-drawer-scrim', String(scrim(d.reveal / d.width)));
     host.classList.add('ds-drawer-drag');
     void panel.getBoundingClientRect();
     if (open !== isOpen()) change(open);
