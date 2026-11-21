@@ -107,6 +107,10 @@ window.createChatMobileSettings=function(React,portal,api) {
     const voiceName=id=>options.voice.find(option=>option[0]===id)?.[1]||id;
     const voiceDesc=id=>options.voice.find(option=>option[0]===id)?.[2]||'';
     const values={locale:language,theme,voice}, label=k=>options[k].find(o=>o[0]===values[k])?.[1];
+    /* 语言选「系统」时补上实际生效的语言，避免只显示「系统」看不出当前语言。 */
+    const localeValue=language==='system'
+      ? (locale.startsWith('en')?'System (English)':'系统（中文）')
+      : label('locale');
     const fontNames=[tr('小','Small'),tr('标准','Standard'),tr('大','Large'),tr('特大','Extra large'),tr('超大','Huge')];
     const policyBase='https://cdn.deepseek.com/policies/'+(locale.startsWith('en')?'en-US':'zh-CN')+'/';
     const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -237,7 +241,7 @@ window.createChatMobileSettings=function(React,portal,api) {
     /* ── 一级页 ─────────────────────────────────── */
     const rootPage=h(React.Fragment,null,
       section(tr('账户','Account'),row('account','user-round',tr('账号管理','Account')),row('data','database',tr('数据管理','Data management'))),
-      section(tr('应用','App'),row('locale','languages',tr('语言','Language'),label('locale')),
+      section(tr('应用','App'),row('locale','languages',tr('语言','Language'),localeValue),
         row('theme','sun-medium',tr('外观','Appearance'),label('theme')),
         row('font','a-large-small',tr('字体大小','Text size')),
         fonts.available?row('typeface','type',tr('字体','Typeface'),fonts.name):null,
