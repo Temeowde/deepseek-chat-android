@@ -37,20 +37,42 @@
   var STORAGE_KEY = 'ds.chat-typeface.v1';
   var CATALOG_KEY = 'ds.chat-font-catalog.v1';
   /** 清单缓存版本：原生清单结构或筛选规则变化时 +1，旧缓存自动失效重新枚举。 */
-  var CATALOG_VERSION = 2;
+  var CATALOG_VERSION = 3;
   var DEFAULT_ID = 'follow';
   var SYSTEM_STACK = 'sans-serif';
   var FALLBACK_STACK =
     "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif";
   var ID_PATTERN = /^[a-z][a-z0-9-]{0,39}$/;
-  /** 这些家族本身就是系统默认字体或主题字体，交给 follow/system 两个内置项表达，不重复列出。 */
-  var SKIP_DEVICE = /^(mi\s?sans|misans|roboto|sysfont|oplusosui|hyzhonghei|noto|source sans|emoji)/i;
-  /** 设备字体的中文名（能认出来的按用途起名，认不出来的用字体家族名）。 */
-  var DEVICE_LABELS = [
-    [/(care ?font|kaiti|kai ti|在乎体|可乐)/i, '楷体', 'KaiTi'],
-    [/(yuan|round|圆)/i, '圆体', 'Rounded'],
-    [/(serif|宋体|宋)/i, '宋体', 'Serif']
+  /*
+   * ── 设备字体筛选 ──────────────────────────────────────────────
+   * 不能靠「字够不够多」来判断一个字体能不能当正文用：
+   * 小米 /product/fonts 里自带的 DelaGothicOne.otf 家族名就叫
+   * 「标小智无界黑 / LogoSC Unbounded Sans」——它是 Logo 展示体、单字重，
+   * 汉字覆盖率却很全，于是漏进了列表，正文字形糊成一团。
+   * 同理 Realme 的「OPlus Sans SC/TC」就是它自己的系统黑体，重复且无意义。
+   *
+   * 所以这里改成**分类白名单**：只放行能认出来的「楷/宋/圆/手写」，
+   * 认不出来的厂商主题字体一律不显示（宁可少，也不要怪）。
+   */
+  var DEVICE_KINDS = [
+    { kind: 'kai', zh: '楷体', en: 'KaiTi', re: /(kaiti|kai\s?ti|楷|care ?font|在乎体|可乐)/i },
+    { kind: 'song', zh: '宋体', en: 'Serif', re: /(song|宋|serif|ming|明朝|myeongjo|batang|仿宋)/i },
+    { kind: 'yuan', zh: '圆体', en: 'Rounded', re: /(yuan|圆|round|丸|maru)/i },
+    { kind: 'hand', zh: '手写体', en: 'Handwriting', re: /(hand|手写|行书|script|brush|callig)/i }
   ];
+  /** 系统默认字体/主题字体/各厂商品牌黑体：交给 follow/system 两个内置项表达。 */
+  var SKIP_DEVICE = /^(mi\s?sans|misans|roboto|sysfont|syssans|oplus|o\s?sans|hyzhonghei|noto|source\s?sans|emoji|harmonyos|samsung|vivo\s?sans|one\s?sans|osans)/i;
+  /** 自报「Logo/展示/海报/标题」的字体，即使覆盖率高也不是正文字体。 */
+  var DISPLAY_ONLY = /(logo\s?sc|unbounded|logo|display|poster|banner|标题|海报|招牌|标小智|无界|bebas|neumatic|chamberi|gulfs|interscaled|michroma)/i;
+  /** 按名字给字体分到 DEVICE_KINDS 的某一类；认不出返回 null。 */
+  function classifyDevice(probe) {
+    for (var i = 0; i < DEVICE_KINDS.length; i++) {
+      if (DEVICE_KINDS[i].re.test(probe)) {
+        return DEVICE_KINDS[i];
+      }
+    }
+    return null;
+  }
 
   var bridge = window.DeepSeekAndroid;
   var base = [
@@ -181,6 +203,7 @@
     catalog = data && typeof data === 'object' ? data : null;
     var next = base.slice();
     var used = {};
+    var usedKind = {};
     var themeFamily = catalog && catalog.theme && catalog.theme.family ? catalog.theme.family : '';
     var fonts = catalog && Array.isArray(catalog.fonts) ? catalog.fonts : [];
     for (var i = 0; i < fonts.length; i++) {
@@ -188,22 +211,39 @@
       if (!font || !font.family || !font.path) {
         continue;
       }
+      var probe = font.family + ' ' + (font.full || '');
       if (SKIP_DEVICE.test(font.family) || (themeFamily && font.family === themeFamily)) {
         continue;
       }
+      // Logo/展示/海报字体：即使汉字覆盖全也不是正文字体（例如标小智无界黑）。
+      if (DISPLAY_ONLY.test(probe)) {
+        continue;
+      }
+      // 分类白名单：认不出风格的一律不显示，避免把厂商主题字体当成可用字体。
+      var info = classifyDevice(probe);
+      if (!info) {
+        continue;
+      }
+      // 同一类只保留一个（避免出现两个「楷体」）。
+      if (usedKind[info.kind]) {
+        continue;
+      }
+      usedKind[info.kind] = true;
       var idBase = slug(font.family).slice(0, 20) || 'font';
       var id = 'dev-' + idBase + '-' + hash36(font.family);
       if (used[id]) {
         continue;
       }
       used[id] = true;
-      var label = deviceLabel(font.family);
       var cssFamily = 'DSFont-' + idBase + '-' + hash36(font.family);
       var option = {
         id: id,
         kind: 'device',
-        zh: label.zh,
-        en: label.en,
+        zh: info.zh,
+        en: info.en,
+        // 详情行显示字体真名，用户能知道用的是哪个字体。
+        detailZh: font.family,
+        detailEn: font.family,
         stack: "'" + cssFamily + "', " + SYSTEM_STACK,
         device: { family: font.family, path: font.path, variable: !!font.variable, cssFamily: cssFamily }
       };
