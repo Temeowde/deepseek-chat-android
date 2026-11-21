@@ -421,9 +421,14 @@
   }
 }
 
+/*
+ * 尺寸来自官方实测（1080 屏、密度 3）：
+ *   蓝底圆直径 83px = 27.7dp，白色箭头 36px = 12dp 见方。
+ * 之前是 36px 圆 + 16px 箭头，整体大了约 30%，是「发送键和官方差别最大」的主因。
+ */
 .sendButton {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   transition:
     background-color 180ms var(--ds-ease-in-out),
     color 180ms var(--ds-ease-in-out),
@@ -479,6 +484,11 @@
 .actionGlyph {
   display: grid;
   place-items: center;
+}
+/* 图标按 16vp 原生尺寸渲染：资源内部箭头 ink 本身就是 12dp，不要再缩 */
+.sendButton .actionGlyph > svg {
+  width: 16px;
+  height: 16px;
   animation: composerActionIn var(--ds-motion-quick) var(--ds-ease-out) both;
 }
 

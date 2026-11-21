@@ -47,6 +47,17 @@
   }
 }
 
+/*
+ * 语音按钮图标：官方实测外圆环 22.7 css px，用 24px 盒渲染正好对上（22.5）。
+ * 必须显式定尺寸 —— 之前只靠 svg 的 width 属性，实际渲染成 21 css，
+ * 比旁边的加号（24.7）小了一圈，视觉上就成了「一个粗一个细」。
+ * 用直系子选择器，避免影响录音态里 halo / core / glyph 几个叠加层。
+ */
+.button > svg {
+  width: 24px;
+  height: 24px;
+}
+
 .disabled {
   color: var(--dsw-alias-label-caption);
   cursor: not-allowed;

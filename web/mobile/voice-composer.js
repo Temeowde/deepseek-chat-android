@@ -98,13 +98,17 @@ window.useMobileComposerVoice = function (React, props) {
   const holdLabel = recording ? (willCancel ? name('松手取消','Release to cancel') : name('松手发送，上滑取消','Release to send, slide up to cancel'))
     : transcribing ? name('正在转写…','Transcribing…') : mode ? name('按住说话','Hold to talk') : name('发消息或按住说话','Message or hold to talk');
   const modeLabel = mode ? name('切换至文字','Switch to typing') : name('切换至语音','Switch to voice');
-  const keyboard = 'M7 9h1m3 0h1m3 0h1M7 12h1m3 0h1m3 0h1M8 15h8';
-  const sound = 'M11 9.6a3.4 3.4 0 0 1 0 4.8M13.4 7.4a6.7 6.7 0 0 1 0 9.2';
-  const icon = h('svg',{width:25,height:25,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.7,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':true},
-    h('circle',{cx:12,cy:12,r:9.3}),
-    mode ? h('path',{d:keyboard}) : h(React.Fragment,null,
-      h('circle',{cx:8.9,cy:12,r:1.2,fill:'currentColor',stroke:'none'}),
-      h('path',{d:sound})));
+  /*
+   * 图标改用官方 APK 的原始矢量资源（CSS mask 渲染，和附件面板用同一套）：
+   *   ds-voice-mode.svg <- drawable/ic_voice_outline_26（圆圈 + 圆点 + 两道弧）
+   *   ds-keyboard.svg   <- drawable/ic_keyboard_outline_26（圆角框 + 点阵）
+   *
+   * 之前这里是手写的近似图形（24 视口、strokeWidth 1.7、显示 25px），
+   * 和外圈 22.7dp 的官方尺寸/描边都对不上，和旁边的加号放一起就一粗一细。
+   * 盒尺寸 24px：26 视口里外圈 22.66 + 描边 1.7 = 24.36，缩到 24px 正好 22.5 css。
+   */
+  const icon = h('span',{className:'ds-ui-icon ds-voice-mode-icon','aria-hidden':true,
+    style:{'--ds-icon':'url("ui-icons/' + (mode ? 'ds-keyboard' : 'ds-voice-mode') + '.svg")'}});
   const pad = mobile && (recording || transcribing || (blank && !busy && (mode || !focused))) && h('button',{
     type:'button',className:'ds-voice-pad' + (mode || recording || transcribing ? ' ds-talk' : '') + (willCancel ? ' ds-cancel' : ''),
     'aria-label':holdLabel, onPointerDown:onDown, onPointerMove:onMove, onPointerUp:onUp,

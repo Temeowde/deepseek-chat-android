@@ -2,9 +2,11 @@
 /*
  * 加号图标换成官方 ic_add_outline_26（圆圈 + 加号）后，不再用内联 svg，
  * 所以旋转目标从 svg path 改成 .ds-ui-icon。展开时转 45° 就是官方的 ⊗。
- * 尺寸 22px：官方输入栏里这个圆圈外径约 22 css px。
+ * 尺寸 24px：官方输入栏里加号和语音的圆圈外径实测都是 22.7 css px，
+ * 用 24px 盒（图标内部墨迹 22.66/26）渲染出来正好是 22.5，两边必须一致，
+ * 否则会因为缩放比例不同导致描边一粗一细。
  */
-.ds-attach-toggle .ds-ui-icon { width:22px;height:22px;transform-origin:center;
+.ds-attach-toggle .ds-ui-icon { width:24px;height:24px;transform-origin:center;
   transition:transform var(--ds-motion-quick,140ms) var(--ds-ease-out,cubic-bezier(.22,1,.36,1)); }
 .ds-attach-toggle[aria-expanded=true] .ds-ui-icon { transform:rotate(45deg); }
 
@@ -37,10 +39,36 @@
  *   - 这正是官方那种优雅感的来源：位移的头尾都不突兀
  * 展开和收起用同一组参数，保证对称。
  */
+/*
+ * 动效曲线：逐帧实测官方（小米机录制 433 帧，动画期间 ~8ms/帧）拟合出来的。
+ *
+ * 结论：官方用的是【临界阻尼弹簧】x(t) = 1 - (1+ωt)·e^(-ωt)，ω = 26.6 rad/s，
+ * 打开和关闭完全对称。关键点：25%@36ms、50%@63ms、90%@146ms、99%@250ms，
+ * 约 330ms 才完全停住。
+ *
+ * 这是「优雅感」的数学来源：起步有一小段加速（不是一上来就窜），
+ * 尾段指数收敛（慢慢贴上去，不会砸下去）。
+ *
+ * 之前试过 M3 emphasized-decelerate(.32,.72,0,1)：它 50% 出现在 6% 时长处，
+ * 官方是 24%，前段快了一倍多 —— 实测 rmse 7.3% 行程，形状是错的。
+ *
+ * 这里用 CSS linear() 直接采样弹簧曲线（21 个点，最接近真值）；
+ * 老 WebView 不支持 linear() 时退回同曲线的三阶贝塞尔近似（50%@56ms/90%@140ms）。
+ */
 .ds-attach-slot {
   display:grid;
   grid-template-rows:0fr;
-  transition:grid-template-rows 320ms cubic-bezier(.32,.72,0,1);
+  transition:grid-template-rows 330ms cubic-bezier(0.29, 0.80, 0.26, 1);
+}
+@supports (transition-timing-function: linear(0, 1)) {
+  .ds-attach-slot,
+  .ds-attach-panel {
+    transition-timing-function: linear(
+      0.000, 0.072, 0.219, 0.379, 0.524, 0.644, 0.739,
+      0.811, 0.865, 0.905, 0.933, 0.953, 0.968, 0.978,
+      0.985, 0.990, 0.993, 0.995, 0.997, 0.998, 1.000
+    );
+  }
 }
 .ds-attach-slot[data-open=true] { grid-template-rows:1fr; }
 
@@ -54,21 +82,16 @@
   transform:translate3d(0,100%,0) scale(.96);
   transform-origin:50% 100%;
   /*
-   * 位移 320ms 同上；透明度错开 60ms 再开始、180ms 结束：
-   * 卡片先「在下面」开始升，升到一半才开始显形，视觉上是「浮上来」而不是「突然出现」。
+   * 位移 330ms 用上面的弹簧曲线；透明度只在极短时间里补一点（官方实测整块
+   * 没有明显淡入，卡片文字暗度全程恒定 13.2，所以这里只留 120ms 的轻微显形，
+   * 避免刚出现时半透明卡片长时间悬在半空）。
    */
   transition:
-    transform 320ms cubic-bezier(.32,.72,0,1),
-    opacity 180ms cubic-bezier(.32,.72,0,1) 60ms;
+    transform 330ms cubic-bezier(0.29, 0.80, 0.26, 1),
+    opacity 120ms ease-out;
   will-change:transform,opacity;
 }
 .ds-attach-slot[data-open=true] .ds-attach-panel { opacity:1;transform:none; }
-/* 收起时反过来：先淡出再落位，避免半透明卡片悬在半空 */
-.ds-attach-slot[data-open=false] .ds-attach-panel {
-  transition:
-    transform 260ms cubic-bezier(.4,0,.6,1),
-    opacity 140ms cubic-bezier(.4,0,.6,1);
-}
 /* 入场动画结束前按钮不可点，避免连点时误触卡片；退场时同样不可点。 */
 .ds-attach-slot:not([data-ready=true]) .ds-attach-panel { pointer-events:none; }
 .ds-attach-actions {
