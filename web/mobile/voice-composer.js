@@ -98,31 +98,13 @@ window.useMobileComposerVoice = function (React, props) {
   const holdLabel = recording ? (willCancel ? name('松手取消','Release to cancel') : name('松手发送，上滑取消','Release to send, slide up to cancel'))
     : transcribing ? name('正在转写…','Transcribing…') : mode ? name('按住说话','Hold to talk') : name('发消息或按住说话','Message or hold to talk');
   const modeLabel = mode ? name('切换至文字','Switch to typing') : name('切换至语音','Switch to voice');
-  /*
-   * 图标改用官方 APK 的原始矢量资源（CSS mask 渲染，和附件面板用同一套）：
-   *   ds-voice-mode.svg <- drawable/ic_voice_outline_26（圆圈 + 圆点 + 两道弧）
-   *   ds-keyboard.svg   <- drawable/ic_keyboard_outline_26（圆角框 + 点阵）
-   *
-   * 之前这里是手写的近似图形（24 视口、strokeWidth 1.7、显示 25px），
-   * 和外圈 22.7dp 的官方尺寸/描边都对不上，和旁边的加号放一起就一粗一细。
-   * 盒尺寸 24px：26 视口里外圈 22.66 + 描边 1.7 = 24.36，缩到 24px 正好 22.5 css。
-   */
-  voiceSvg = ()=> h('svg',{width:24,height:24,viewBox:'0 0 26 26',fill:'none','aria-hidden':true},
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:1.8056, d:'M14.754,19.421C18.301,15.875 18.301,10.125 14.754,6.578'}),
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:1.8056, d:'M11.428,16.553C13.391,14.59 13.391,11.408 11.428,9.445'}),
-    h('path',{fill:'currentColor', stroke:'currentColor', strokeWidth:0.990804, d:'M8.237,12.998m-0.8,0a0.8,0.8 0,1 1,1.6 0a0.8,0.8 0,1 1,-1.6 0'}),
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:1.8056, d:'M13.001,12.999m-11.331,0a11.331,11.331 0,1 1,22.662 0a11.331,11.331 0,1 1,-22.662 0'}));
-  keyboardSvg = ()=> h('svg',{width:24,height:24,viewBox:'0 0 26 26',fill:'none','aria-hidden':true},
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:1.87, d:'M7.752,18.09H18.25'}),
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:2.1, d:'M7.182,13.606H9.582'}),
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:2.1, d:'M7.182,9.164H9.582'}),
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:2.1, d:'M11.801,13.606H14.201'}),
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:2.1, d:'M11.801,9.164H14.201'}),
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:2.1, d:'M16.418,13.606H18.818'}),
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:2.1, d:'M16.418,9.164H18.818'}),
-    h('path',{fill:'none', stroke:'currentColor', strokeWidth:1.8056, d:'M13.001,12.999m-11.331,0a11.331,11.331 0,1 1,22.662 0a11.331,11.331 0,1 1,-22.662 0'}));
-  /* 都来自官方 APK：圆圈+声波 / 圆角框+点阵。内联 SVG 渲染，边缘更干净。 */
-  const icon = mode ? keyboardSvg() : voiceSvg();
+  const keyboard = 'M7 9h1m3 0h1m3 0h1M7 12h1m3 0h1m3 0h1M8 15h8';
+  const sound = 'M11 9.6a3.4 3.4 0 0 1 0 4.8M13.4 7.4a6.7 6.7 0 0 1 0 9.2';
+  const icon = h('svg',{width:25,height:25,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.7,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':true},
+    h('circle',{cx:12,cy:12,r:9.3}),
+    mode ? h('path',{d:keyboard}) : h(React.Fragment,null,
+      h('circle',{cx:8.9,cy:12,r:1.2,fill:'currentColor',stroke:'none'}),
+      h('path',{d:sound})));
   const pad = mobile && (recording || transcribing || (blank && !busy && (mode || !focused))) && h('button',{
     type:'button',className:'ds-voice-pad' + (mode || recording || transcribing ? ' ds-talk' : '') + (willCancel ? ' ds-cancel' : ''),
     'aria-label':holdLabel, onPointerDown:onDown, onPointerMove:onMove, onPointerUp:onUp,

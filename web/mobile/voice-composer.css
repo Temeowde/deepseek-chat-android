@@ -3,9 +3,6 @@
   .ds-voice-pad.ds-talk { align-items:center;justify-content:center;padding:0;color:var(--dsw-alias-label-primary);font-weight:600;cursor:pointer; }
   .ds-voice-pad.ds-cancel { color:var(--dsw-alias-state-error-primary,#cf4949); }
   .ds-voice-mode { width:36px;height:36px;display:inline-grid;place-items:center;flex:none;padding:0;background:none;color:var(--dsw-alias-label-primary);border:none;cursor:pointer; }
-  /* 官方实测：语音/键盘按钮外圈 22.7 css px。24px 盒渲染出来的包围盒正好 22.5。
-     必须和附件面板的加号（也是 24px）一致，否则两者一粗一细。 */
-  .ds-voice-mode > svg { display:block;width:24px;height:24px; }
   .functionRow-ed6f47 { gap:4px;padding:7px 9px 9px; }
   .toggles-ed6f47 { gap:6px; }
   .toggle-ed6f47 { height:30px;padding:0 8px;border-color:var(--dsw-alias-border-l2); }

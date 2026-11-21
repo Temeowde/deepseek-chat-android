@@ -1,14 +1,6 @@
 .ds-attach-toggle { width:36px;height:36px;display:inline-grid;place-items:center;flex-shrink:0;background:none;border:none;padding:0;color:var(--dsw-alias-label-primary);cursor:pointer; }
-/*
- * 加号图标换成官方 ic_add_outline_26（圆圈 + 加号）后，不再用内联 svg，
- * 所以旋转目标从 svg path 改成 .ds-ui-icon。展开时转 45° 就是官方的 ⊗。
- * 尺寸 24px：官方输入栏里加号和语音的圆圈外径实测都是 22.7 css px，
- * 用 24px 盒（图标内部墨迹 22.66/26）渲染出来正好是 22.5，两边必须一致，
- * 否则会因为缩放比例不同导致描边一粗一细。
- */
-.ds-attach-toggle > svg { width:24px;height:24px;transform-origin:center;
-  transition:transform var(--ds-motion-quick,140ms) var(--ds-ease-out,cubic-bezier(.22,1,.36,1)); }
-.ds-attach-toggle[aria-expanded=true] > svg { transform:rotate(45deg); }
+.ds-attach-toggle svg path { transform-origin:center;transition:transform var(--ds-motion-quick,140ms) var(--ds-ease-out,cubic-bezier(.22,1,.36,1)); }
+.ds-attach-toggle[aria-expanded=true] svg path { transform:rotate(45deg); }
 
 /*
  * 附件面板（拍照 / 相册 / 文件）：打开时面板从底部滑入（translateY 100% → 0）
@@ -108,7 +100,7 @@
 
 
 @media (prefers-reduced-motion:reduce) {
-  .ds-attach-toggle > svg { transition:none; }
+  .ds-attach-toggle svg path { transition:none; }
   .ds-attach-slot, .ds-attach-panel,
 }
 
