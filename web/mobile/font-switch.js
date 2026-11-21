@@ -36,18 +36,20 @@
   var PREF_KEY = 'typeface';
   var STORAGE_KEY = 'ds.chat-typeface.v1';
   var CATALOG_KEY = 'ds.chat-font-catalog.v1';
+  /** 清单缓存版本：原生清单结构或筛选规则变化时 +1，旧缓存自动失效重新枚举。 */
+  var CATALOG_VERSION = 2;
   var DEFAULT_ID = 'follow';
   var SYSTEM_STACK = 'sans-serif';
   var FALLBACK_STACK =
     "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif";
   var ID_PATTERN = /^[a-z][a-z0-9-]{0,39}$/;
   /** 这些家族本身就是系统默认字体或主题字体，交给 follow/system 两个内置项表达，不重复列出。 */
-  var SKIP_DEVICE = /^(misans|roboto|sysfont|oplusosui|hyzhonghei|noto sans|noto serif|source sans)/i;
+  var SKIP_DEVICE = /^(mi\s?sans|misans|roboto|sysfont|oplusosui|hyzhonghei|noto|source sans|emoji)/i;
   /** 设备字体的中文名（能认出来的按用途起名，认不出来的用字体家族名）。 */
   var DEVICE_LABELS = [
-    [/(care ?font|kaiti|kai ti)/i, '楷体', 'KaiTi'],
-    [/(yuan|round)/i, '圆体', 'Rounded'],
-    [/serif/i, '宋体', 'Serif']
+    [/(care ?font|kaiti|kai ti|在乎体|可乐)/i, '楷体', 'KaiTi'],
+    [/(yuan|round|圆)/i, '圆体', 'Rounded'],
+    [/(serif|宋体|宋)/i, '宋体', 'Serif']
   ];
 
   var bridge = window.DeepSeekAndroid;
@@ -99,6 +101,11 @@
     }
   }
 
+  function readCatalogCache() {
+    var cached = readJson(CATALOG_KEY);
+    return cached && cached.v === CATALOG_VERSION && cached.data ? cached.data : null;
+  }
+
   function prettyFamily(family) {
     if (!family) {
       return '';
@@ -116,6 +123,14 @@
       return '系统出厂字体';
     }
     return family;
+  }
+
+  function hash36(value) {
+    var hash = 0;
+    for (var i = 0; i < value.length; i++) {
+      hash = (hash * 31 + value.charCodeAt(i)) | 0;
+    }
+    return (hash >>> 0).toString(36).slice(0, 6);
   }
 
   function slug(value) {
@@ -176,13 +191,14 @@
       if (SKIP_DEVICE.test(font.family) || (themeFamily && font.family === themeFamily)) {
         continue;
       }
-      var id = 'dev-' + slug(font.family);
-      if (!id || id === 'dev-' || used[id]) {
+      var idBase = slug(font.family).slice(0, 20) || 'font';
+      var id = 'dev-' + idBase + '-' + hash36(font.family);
+      if (used[id]) {
         continue;
       }
       used[id] = true;
       var label = deviceLabel(font.family);
-      var cssFamily = 'DSFont-' + id.slice(4);
+      var cssFamily = 'DSFont-' + idBase + '-' + hash36(font.family);
       var option = {
         id: id,
         kind: 'device',
@@ -361,8 +377,9 @@
         try {
           var raw = bridge.getFontCatalog();
           if (typeof raw === 'string' && raw) {
-            storageSet(CATALOG_KEY, raw);
-            applyCatalog(JSON.parse(raw));
+            var data = JSON.parse(raw);
+            storageSet(CATALOG_KEY, JSON.stringify({ v: CATALOG_VERSION, data: data }));
+            applyCatalog(data);
           }
         } catch (_) {
           // 原生枚举失败时保留缓存/内置项，功能不中断。
@@ -378,8 +395,8 @@
     return ensureCatalog(true);
   }
 
-  // ---- 启动：先用缓存立即生效，再在空闲时向原生要最新清单 ----
-  var cached = readJson(CATALOG_KEY);
+  // ---- 启动：先用缓存立即生效，需要时再向原生要最新清单 ----
+  var cached = readCatalogCache();
   var savedId = readSavedId();
   if (cached) {
     applyCatalog(cached);

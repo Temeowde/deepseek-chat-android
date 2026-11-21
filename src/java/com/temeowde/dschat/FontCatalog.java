@@ -1,8 +1,5 @@
 package com.temeowde.dschat;
 
-import android.graphics.Paint;
-import android.graphics.Typeface;
-
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
@@ -39,7 +36,7 @@ public final class FontCatalog {
 
     /** 系统字体目录；/product/fonts 是各厂商预置字体（小米主题字体库就在这里）。 */
     private static final String[] FONT_DIRS = {
-            "/system/fonts", "/product/fonts", "/system_ext/fonts", "/vendor/fonts",
+            "/product/fonts", "/system/fonts", "/system_ext/fonts", "/vendor/fonts",
     };
 
     /** 覆盖率测试字符：常用汉字 + 常用标点 + 拉丁字母 + 数字。子集字体（只含几十个字）会被筛掉。 */
@@ -92,8 +89,7 @@ public final class FontCatalog {
                     if (glyphCount(file) < MIN_GLYPHS) {
                         continue;
                     }
-                    Typeface typeface = Typeface.createFromFile(path);
-                    if (typeface == null || !coversSample(typeface)) {
+                    if (!coversSample(file)) {
                         continue;
                     }
                     String family = readFamilyName(file);
@@ -153,20 +149,114 @@ public final class FontCatalog {
         return null;
     }
 
-    /** 常用字符是否都有字形：缺任何一个就说明是子集字体，正文会出现字体混合。 */
-    private static boolean coversSample(Typeface typeface) {
-        Paint paint = new Paint();
-        paint.setTypeface(typeface);
-        for (int i = 0; i < COVERAGE.length(); i++) {
-            char c = COVERAGE.charAt(i);
-            if (Character.isHighSurrogate(c)) {
-                continue;
+    /**
+     * 常用字符是否都有字形：缺任何一个就说明是子集字体，正文会出现字体混合。
+     *
+     * <p>不能直接用 {@code Paint.hasGlyph}：字形缺失时它会走系统 fallback 返回 true，
+     * 结果 emoji/符号字体甚至子集字体都会被误判成"覆盖中文"。这里直接解析 sfnt 的
+     * cmap（format 4 / format 12），只认字体自己声明的码位。
+     */
+    private static boolean coversSample(File file) {
+        try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+            int tables = readU16(raf, 4);
+            long cmapOffset = -1;
+            for (int i = 0; i < tables; i++) {
+                long entry = 12L + i * 16L;
+                if (readU32(raf, entry) == 0x636d6170L) { // 'cmap'
+                    cmapOffset = readU32(raf, entry + 8);
+                    break;
+                }
             }
-            if (!paint.hasGlyph(String.valueOf(c))) {
+            if (cmapOffset < 0) {
                 return false;
             }
+            int count = readU16(raf, cmapOffset + 2);
+            long best = -1;
+            int bestFormat = 0;
+            int bestScore = -1;
+            for (int i = 0; i < count; i++) {
+                long record = cmapOffset + 4L + i * 8L;
+                int platform = readU16(raf, record);
+                int encoding = readU16(raf, record + 2);
+                long subtable = cmapOffset + readU32(raf, record + 4);
+                int format = readU16(raf, subtable);
+                if (format != 4 && format != 12) {
+                    continue;
+                }
+                int score = (format == 12 ? 4 : 2)
+                        + (platform == 3 && (encoding == 10 || encoding == 1) ? 2 : platform == 0 ? 1 : 0);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = subtable;
+                    bestFormat = format;
+                }
+            }
+            if (best < 0) {
+                return false;
+            }
+            if (bestFormat == 12) {
+                int groups = (int) Math.min(readU32(raf, best + 12), 20000L);
+                long[] start = new long[groups];
+                long[] end = new long[groups];
+                for (int g = 0; g < groups; g++) {
+                    long group = best + 16L + g * 12L;
+                    start[g] = readU32(raf, group);
+                    end[g] = readU32(raf, group + 4);
+                }
+                for (int i = 0; i < COVERAGE.length(); i++) {
+                    int cp = COVERAGE.charAt(i);
+                    if (Character.isHighSurrogate((char) cp)) {
+                        continue;
+                    }
+                    boolean covered = false;
+                    for (int g = 0; g < groups; g++) {
+                        if (cp >= start[g] && cp <= end[g]) {
+                            covered = true;
+                            break;
+                        }
+                    }
+                    if (!covered) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            int segX2 = readU16(raf, best + 6);
+            int segments = segX2 / 2;
+            long endOffset = best + 14L;
+            long startOffset = endOffset + segX2 + 2L;
+            long deltaOffset = startOffset + segX2;
+            long rangeOffset = deltaOffset + segX2;
+            for (int i = 0; i < COVERAGE.length(); i++) {
+                int cp = COVERAGE.charAt(i);
+                if (Character.isHighSurrogate((char) cp)) {
+                    continue;
+                }
+                boolean covered = false;
+                for (int seg = 0; seg < segments; seg++) {
+                    int end = readU16(raf, endOffset + seg * 2L);
+                    int start = readU16(raf, startOffset + seg * 2L);
+                    if (cp < start || cp > end) {
+                        continue;
+                    }
+                    int delta = (short) readU16(raf, deltaOffset + seg * 2L);
+                    int range = readU16(raf, rangeOffset + seg * 2L);
+                    if (range == 0) {
+                        covered = ((cp + delta) & 0xffff) != 0;
+                    } else {
+                        int gid = readU16(raf, rangeOffset + seg * 2L + range + (cp - start) * 2L);
+                        covered = gid != 0;
+                    }
+                    break;
+                }
+                if (!covered) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (Throwable ignored) {
+            return false;
         }
-        return true;
     }
 
     /** 读 maxp 表的 numGlyphs；一次性字体集合/损坏文件返回 0。 */
@@ -177,11 +267,11 @@ public final class FontCatalog {
             }
             int tables = readU16(raf, 4);
             for (int i = 0; i < tables; i++) {
-                raf.seek(12L + i * 16L);
-                if (readU32(raf, raf.getFilePointer()) == 0x6d617870L) { // 'maxp'
-                    long offset = readU32(raf, raf.getFilePointer() + 8);
-                    raf.seek(offset + 4L);
-                    return readU16(raf, raf.getFilePointer());
+                // 注意：表目录项是 tag(4) + checksum(4) + offset(4) + length(4)，必须按目录项起点算偏移。
+                long entry = 12L + i * 16L;
+                if (readU32(raf, entry) == 0x6d617870L) { // 'maxp'
+                    long offset = readU32(raf, entry + 8);
+                    return readU16(raf, offset + 4);
                 }
             }
         } catch (Throwable ignored) {
@@ -198,8 +288,7 @@ public final class FontCatalog {
                 want = (want << 8) | (tag.charAt(i) & 0xff);
             }
             for (int i = 0; i < tables; i++) {
-                raf.seek(12L + i * 16L);
-                if (readU32(raf, raf.getFilePointer()) == want) {
+                if (readU32(raf, 12L + i * 16L) == want) {
                     return true;
                 }
             }
@@ -216,10 +305,10 @@ public final class FontCatalog {
             long nameOffset = -1;
             long nameLength = 0;
             for (int i = 0; i < tables; i++) {
-                raf.seek(12L + i * 16L);
-                long tag = readU32(raf, raf.getFilePointer());
-                long offset = readU32(raf, raf.getFilePointer() + 8);
-                long length = readU32(raf, raf.getFilePointer() + 12);
+                long entry = 12L + i * 16L;
+                long tag = readU32(raf, entry);
+                long offset = readU32(raf, entry + 8);
+                long length = readU32(raf, entry + 12);
                 if (tag == 0x6e616d65L) { // 'name'
                     nameOffset = offset;
                     nameLength = Math.min(length, 2_000_000L);
@@ -237,12 +326,13 @@ public final class FontCatalog {
             String fallback = "";
             long recordOffset = nameOffset + 6L + (format == 1 ? 2L : 0L);
             for (int i = 0; i < count; i++) {
-                raf.seek(recordOffset + i * 12L);
-                int platform = readU16(raf, raf.getFilePointer());
-                int encoding = readU16(raf, raf.getFilePointer() + 2);
-                int nameId = readU16(raf, raf.getFilePointer() + 6);
-                int length = readU16(raf, raf.getFilePointer() + 8);
-                int offset = readU16(raf, raf.getFilePointer() + 10);
+                // name 记录：platformID(2) + encodingID(2) + languageID(2) + nameID(2) + length(2) + offset(2)
+                long record = recordOffset + i * 12L;
+                int platform = readU16(raf, record);
+                int encoding = readU16(raf, record + 2);
+                int nameId = readU16(raf, record + 6);
+                int length = readU16(raf, record + 8);
+                int offset = readU16(raf, record + 10);
                 if (nameId != 16 && nameId != 1) {
                     continue;
                 }
