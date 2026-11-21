@@ -178,6 +178,10 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
                 + "r.setProperty('--ds-safe-left','" + left + "px');"
                 + "r.setProperty('--ds-safe-right','" + right + "px');"
                 + "r.setProperty('--ds-ime-bottom','" + imeBottomCss + "px');"
+                // 键盘开合状态也告诉页面：键盘弹起时输入栏要贴紧键盘、并收起免责声明占位
+                + "if('" + imeBottomCss + "' > 0){"
+                + "document.documentElement.setAttribute('data-ds-ime','open');"
+                + "}else{document.documentElement.removeAttribute('data-ds-ime');}"
                 + "})();";
         root.post(() -> {
             android.webkit.WebView web = findWebView(root);

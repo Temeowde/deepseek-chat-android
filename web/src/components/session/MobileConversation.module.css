@@ -96,6 +96,22 @@
   visibility: visible;
 }
 
+/*
+ * 键盘弹起时：输入栏必须贴紧键盘。
+ *
+ * 键盘没弹时，底部那 15px + 免责声明 20px 的留白是给手势条让位的，没问题；
+ * 但键盘弹起后，屏幕底部已经被键盘占住，再留同样一段空白就会让输入栏
+ * 悬在键盘上方约 28 css px 处，非常突兀。官方在这种情况下是贴紧键盘的。
+ * 所以键盘打开时：收起免责声明占位（display:none，不是 visibility），
+ * 下边距也缩到 8px。
+ */
+html[data-ds-ime='open'] .dock {
+  padding-bottom: calc(var(--ds-ime-bottom, 0px) + 8px);
+}
+html[data-ds-ime='open'] .caveat {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .welcome {
     transform: none;
