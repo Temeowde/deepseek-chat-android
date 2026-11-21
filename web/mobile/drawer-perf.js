@@ -76,7 +76,8 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
 
     cardEl.style.transition = 'none';
     cardEl.style.transform = 'translate3d(' + tx + 'px,0,0) scale(' + scale + ')';
-    cardEl.style.borderRadius = (p * 30) + 'px';
+    // 圆角是恒定值，由 CSS 控制，不能按进度动画。
+    // 官方 odrag.mp4 逐帧拟合：p=0.20~0.93 全程约 75 物理px（≈25 css px），无变化趋势。
     // 阴影随进度出现，拖动中就能看到卡片浮起
     cardEl.style.boxShadow = p > 0.01
       ? '0 0 20px rgba(16,24,40,0.055), 0 14px 34px rgba(16,24,40,0.075), -10px 0 26px rgba(16,24,40,0.05)'
