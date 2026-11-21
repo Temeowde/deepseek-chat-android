@@ -51,7 +51,15 @@
 .ds-history .section-ac14ac { margin-top:12px;padding-top:0; }
 .ds-history .section-ac14ac:first-child { margin-top:0; }
 .ds-history .sectionHeader-ac14ac { box-sizing:border-box;background:var(--ds-ui-paper);padding:6px 12px 4px;line-height:18px; }
-.ds-history .item-ff6fc9 { box-sizing:border-box;min-height:44px;height:auto;border-radius:14px;padding:9px 12px;font-size:16px;line-height:24px;gap:10px;user-select:none;-webkit-user-select:none;touch-action:pan-y; }
+/*
+ * 字号 14.5px，不是 16px。
+ * 真机逐像素量（Realme 1080x2412 / density 3，官方 2.8.0 同设备）：
+ *   官方列表项文字墨迹高 41px，我们 16px 时是 45px —— 大了 9.8%，
+ *   行间距两者都是 132px（= min-height 44dp x 3），所以只有字大了。
+ * 按墨迹高反推：16 * 41/45 = 14.58px，取 14.5px。
+ * 注意 min-height:44px 才是决定行距的，改字号不会改变行距。
+ */
+.ds-history .item-ff6fc9 { box-sizing:border-box;min-height:44px;height:auto;border-radius:14px;padding:9px 12px;font-size:14.5px;line-height:24px;gap:10px;user-select:none;-webkit-user-select:none;touch-action:pan-y; }
 .ds-history .item-ff6fc9:has([data-match]) { min-height:56px; }
 .ds-history .title-ff6fc9 { flex:1;min-width:0;white-space:nowrap;text-overflow:ellipsis;overflow:hidden; }
 .ds-history .ds-search-status { pointer-events:none;position:absolute;top:0;left:8px;right:8px; }
