@@ -236,11 +236,37 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
         int botCss = Math.round(Math.max(botPx, imePx) / density);
         // IME 高度单独记一份：键盘收起时为 0，弹起时为键盘高度（已含导航栏区域）
         imeBottomCss = Math.round(imePx / density);
+        /*
+         * 键盘展开进度（0~1）也要推给页面。
+         *
+         * 输入栏在两种状态下底部留白不同：键盘弹起时贴紧键盘 8px；
+         * 收起时要有免责声明 20px + 15px 间距。以前这两者是用
+         * html[data-ds-ime=open] 一刀切的：键盘高度逐帧连续缩小，
+         * 但免责声明和内边距要等键盘**完全**收起才切换 ——
+         * 结果收键盘过程中输入栏先沉到只剩 8px（压住手势条），
+         * 最后一帧才突然弹回，就是用户看到的「收过了再瞬移回来」。
+         *
+         * 改成用 imeRatio 连续插值后，免责声明高度和内边距跟着键盘
+         * 同步收缩/展开，全程单调，不会过冲。
+         */
+        if (imeBottomCss > imeMaxCss) {
+            imeMaxCss = imeBottomCss;
+        }
+        imeRatio = imeMaxCss > 0 ? Math.min(1f, (float) imeBottomCss / (float) imeMaxCss) : 0f;
         pushInsets(topCss, botCss, 0, 0);
+        // 键盘完全收起后清零基准，下次再弹时重新测量（不同输入法高度可能不同）
+        if (imeBottomCss == 0) {
+            imeMaxCss = 0;
+            imeRatio = 0f;
+        }
     }
 
     private int lastTop = -1, lastBottom = -1, lastIme = -1, lastBottomRaw = -1;
     private int imeBottomCss = 0;
+    /** 本次键盘弹出过程中见过的最大 IME 高度（CSS px），用来算展开进度。 */
+    private int imeMaxCss = 0;
+    /** 键盘展开进度：0 = 完全收起，1 = 完全弹出。 */
+    private float imeRatio = 0f;
 
 
     /**
@@ -258,7 +284,9 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
                 + "r.setProperty('--ds-safe-bottom','" + bottom + "px');"
                 + "r.setProperty('--ds-safe-left','" + left + "px');"
                 + "r.setProperty('--ds-safe-right','" + right + "px');"
-                + "r.setProperty('--ds-ime-bottom','" + imeBottomCss + "px');"
+                + "r.setProperty('--ds-ime-bottom','" + imeBottomCss + "px');" 
+                // 键盘展开进度：CSS 用它连续插值输入栏底部留白和免责声明高度
+                + "r.setProperty('--ds-ime-ratio','" + String.format(java.util.Locale.US, "%.4f", imeRatio) + "');" 
                 // 键盘开合状态也告诉页面：键盘弹起时输入栏要贴紧键盘、并收起免责声明占位
                 + "if('" + imeBottomCss + "' > 0){"
                 + "document.documentElement.setAttribute('data-ds-ime','open');"

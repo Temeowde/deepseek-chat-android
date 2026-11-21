@@ -73,7 +73,14 @@
    *
    * 曾经这里写 env(...)，导致键盘弹起时只有键盘画上来、输入栏不动，被完全遮住。
    */
-  padding: 6px var(--ds-mobile-gutter) calc(var(--ds-ime-bottom, 0px) + 15px);
+  /*
+   * 底部留白 = 键盘高度 + 8px（键盘完全弹起时贴紧键盘）
+   *          + 最多 7px（键盘收起后恢复到 15px）。
+   * 中间那段 7px 用 --ds-ime-ratio 连续插值，不能等键盘收完再一次性跳
+   * （一次性跳的后果：收键盘时输入栏先沉到 8px 压住手势条，再突然弹回）。
+   */
+  padding: 6px var(--ds-mobile-gutter)
+    calc(var(--ds-ime-bottom, 0px) + 8px + 7px * (1 - var(--ds-ime-ratio, 0)));
 }
 
 /*
@@ -83,8 +90,21 @@
  * 之前只在 activeId 存在时才渲染这个节点，新对话就没有这一行，
  * 输入栏于是往下掉了 20px，几乎贴住手势条。
  */
+/*
+ * 免责声明占位高度 20px（4px padding-top + 16px 行高）。
+ * 键盘弹起时它要收成 0（否则输入栏离键盘多出 20px），
+ * 但**必须随键盘进度连续收缩**，不能 display:none 一刀切：
+ * 一刀切会让收起过程中的总高度少 20px，输入栏就会被手势条压住。
+ *
+ * 这里用 height + padding-top 两个可插值的量，配合 opacity 一起过渡；
+ * --ds-ime-ratio 由原生侧每帧推送（0=收起 1=弹起）。
+ */
 .caveat {
-  padding-top: 4px;
+  --ds-caveat-open: calc(1 - var(--ds-ime-ratio, 0));
+  height: calc(16px * var(--ds-caveat-open));
+  padding-top: calc(4px * var(--ds-caveat-open));
+  overflow: hidden;
+  opacity: var(--ds-caveat-open);
   color: var(--dsw-alias-label-secondary);
   font-size: 10px;
   line-height: 16px;
@@ -105,12 +125,8 @@
  * 所以键盘打开时：收起免责声明占位（display:none，不是 visibility），
  * 下边距也缩到 8px。
  */
-html[data-ds-ime='open'] .dock {
-  padding-bottom: calc(var(--ds-ime-bottom, 0px) + 8px);
-}
-html[data-ds-ime='open'] .caveat {
-  display: none;
-}
+/* 说明：以前这里有 html[data-ds-ime='open'] 的两条一刀切规则，
+ * 已全部由上面的 --ds-ime-ratio 连续插值替代（原因见 .caveat 注释）。 */
 
 @media (prefers-reduced-motion: reduce) {
   .welcome {
