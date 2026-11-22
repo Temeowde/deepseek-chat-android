@@ -1466,6 +1466,7 @@
 
     invoke-direct {v2, p0}, Landroid/webkit/WebView;-><init>(Landroid/content/Context;)V
 
+
     iput-object v2, p0, Lcom/temeowde/dschat/MainActivity;->webView:Landroid/webkit/WebView;
 
     .line 167
