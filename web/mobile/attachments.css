@@ -249,3 +249,30 @@
   background:var(--dsw-alias-bg-secondary,#f4f4f5);color:var(--dsw-alias-label-primary);
   font:500 14px/20px system-ui,sans-serif;cursor:pointer;
 }
+
+/*
+ * ══════════════════════════════════════════════════════════════════════════
+ * 轻量档动效（由 attachments.js 的 ATTACH_PERF 打上 data-perf="low"）
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * 触发条件：系统开了「减少动态效果」/ WebView 主版本 < 130 / 逻辑核心 <= 4。
+ *
+ * 只做两件事，观感差别很小，但每帧开销显著下降：
+ *   1. 时长 320ms → 220ms（60Hz 上从 19 帧降到 13 帧，少掉几帧的机会）
+ *   2. 面板去掉 translate 位移，只保留淡入淡出（少一层合成，少一次每帧重绘）
+ *
+ * 注意：height 动画本身无法消除，见 js 里 ATTACH_PERF 的实测说明。
+ */
+:root[data-perf=low] .ds-attach-slot,
+:root[data-perf=low] .ds-attach-slot[data-open=true],
+:root[data-perf=low] .ds-attach-slot[data-closing=true] {
+  transition: height 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root[data-perf=low] .ds-attach-panel,
+:root[data-perf=low] .ds-attach-slot[data-open=true] .ds-attach-panel,
+:root[data-perf=low] .ds-attach-slot[data-closing=true] .ds-attach-panel {
+  transform: none;
+  will-change: opacity;
+  transition: opacity 220ms cubic-bezier(0.2, 0, 0, 1);
+}

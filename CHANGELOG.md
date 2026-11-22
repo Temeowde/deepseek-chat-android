@@ -1,5 +1,12 @@
 # 更新记录
 
+## v3.2.2
+
+**[下载 DeepSeek-Chat-3.2.2.apk](https://github.com/Temeowde/deepseek-chat-android/releases/download/v3.2.2/DeepSeek-Chat-3.2.2.apk)**
+
+- **附件面板动效按设备能力分级**。面板展开是高度动画，渲染引擎每帧都要重排，这套开销在老的 WebView 上会明显掉帧。现在会自动判断：系统开了「减少动态效果」、WebView 主版本低于 130、或 CPU 逻辑核心不超过 4 时，改用轻量档（220ms、面板只淡入淡出不做位移），其余设备保持完整动效。
+- 这样在没有 Google Play、WebView 停留在出厂版本（如 117）的机型上也能有相对流畅的体验，不需要用户自己去升级系统组件。
+
 ## v3.2.1
 
 **[下载 DeepSeek-Chat-3.2.1.apk](https://github.com/Temeowde/deepseek-chat-android/releases/download/v3.2.1/DeepSeek-Chat-3.2.1.apk)**

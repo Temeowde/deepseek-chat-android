@@ -4,7 +4,7 @@ DeepSeek Chat 是一款非官方 DeepSeek Android 客户端。可以登录自己
 
 ## 下载
 
-**[下载 v3.2.1 APK](https://github.com/Temeowde/deepseek-chat-android/releases/download/v3.2.1/DeepSeek-Chat-3.2.1.apk)** · [所有版本](https://github.com/Temeowde/deepseek-chat-android/releases) · [更新记录](CHANGELOG.md)
+**[下载 v3.2.2 APK](https://github.com/Temeowde/deepseek-chat-android/releases/download/v3.2.2/DeepSeek-Chat-3.2.2.apk)** · [所有版本](https://github.com/Temeowde/deepseek-chat-android/releases) · [更新记录](CHANGELOG.md)
 
 支持 Android 8.0 及以上。在侧栏底部打开设置，填写在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 创建的 API Key；也可以在侧栏底部的账号行登录官方账号，同步官方会话。
 
@@ -33,12 +33,12 @@ $env:ANDROID_SDK = 'D:\AndroidToolchain\sdk'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-产物：`DeepSeek-Chat-3.2.1.apk`
+产物：`DeepSeek-Chat-3.2.2.apk`
 
 安装：
 
 ```bash
-adb install -r DeepSeek-Chat-3.2.1.apk
+adb install -r DeepSeek-Chat-3.2.2.apk
 ```
 
 Linux / macOS 下可以继续使用 `assemble.sh`（需要 python3）。

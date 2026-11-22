@@ -12,6 +12,56 @@ function readRecentCache() {
   } catch (e) { /* 缓存损坏或 localStorage 不可用，忽略 */ }
   return null;
 }
+/*
+ * ══════════════════════════════════════════════════════════════════════
+ * 动效性能分级
+ * ══════════════════════════════════════════════════════════════════════
+ *
+ * 为什么需要分级：
+ *   面板展开是 height 动画，WebView 每帧都要重排整条 dock（以及上方的聊天区），
+ *   这个开销无法用 CSS 消除（contain / content-visibility / 绝对定位实测均无效）。
+ *
+ *   实测量级（同一份代码）：
+ *     WebView 150 + 120Hz  → 布局 3~5ms，0 掉帧
+ *     WebView 150 + 60Hz   → 布局 12~20ms，偶发 1~2 帧掉帧
+ *     WebView 117 + 60Hz   → 布局 23~26ms，掉帧明显（国产 ROM 出厂预装，多数升不了）
+ *
+ *   所以不能指望用户升级 WebView（Android 14 上 WebView 可独立升级，
+ *   但很多机器没有 Google Play，根本升不动），必须自己降级。
+ *
+ * 判定规则（任一命中就用轻量档）：
+ *   - 系统设置了「减少动态效果」→ 直接轻量档（无障碍要求，必须尊重）
+ *   - WebView/Chrome 主版本 < 130 → 旧渲染引擎，布局开销翻倍
+ *   - 逻辑核心数 <= 4 → 低端机
+ *
+ * 轻量档的差别（只影响观感，不影响功能）：
+ *   - 动画时长 320ms → 220ms（60Hz 上从 19 帧降到 13 帧，少掉几帧的机会）
+ *   - 面板去掉位移，只做淡入淡出（少一层合成，少一次每帧重绘）
+ *
+ * 调试用：window.__DS_PERF_FORCE = 'low' | 'high' 可强制指定。
+ */
+const ATTACH_PERF = (() => {
+  const info = { low: false, reason: 'default', chrome: 0, cores: 0 };
+  try {
+    const m = String(navigator.userAgent || '').match(/Chrome\/(\d+)/);
+    info.chrome = m ? Number(m[1]) : 0;
+    info.cores = navigator.hardwareConcurrency || 0;
+    const reduced =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const forced = window.__DS_PERF_FORCE;
+    if (forced === 'low') { info.low = true; info.reason = 'forced'; }
+    else if (forced === 'high') { info.low = false; info.reason = 'forced'; }
+    else if (reduced) { info.low = true; info.reason = 'reduced-motion'; }
+    else if (info.chrome > 0 && info.chrome < 130) { info.low = true; info.reason = 'old-webview'; }
+    else if (info.cores > 0 && info.cores <= 4) { info.low = true; info.reason = 'low-cores'; }
+  } catch (e) { /* 检测失败就按完整档走 */ }
+  try {
+    if (info.low) document.documentElement.setAttribute('data-perf', 'low');
+    else document.documentElement.removeAttribute('data-perf');
+  } catch (e) { /* ignore */ }
+  return info;
+})();
 function writeRecentCache(data) {
   try {
     if (!data || !data.granted || !Array.isArray(data.items) || data.items.length === 0) return;
@@ -77,8 +127,10 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
    * 临界阻尼弹簧 ω=9.146，99% 点在 278ms，完全停住约 400ms。
    * 旧值是 330ms（对应一条错误的 ω=26.6 拟合），比官方快 15~25%。
    */
-  const OPEN_MS = 320;
-  const CLOSE_MS = 320;
+  /* 轻量档 220ms，完整档 320ms（见文件头 ATTACH_PERF 说明） */
+  const ATTACH_MS = ATTACH_PERF.low ? 220 : 320;
+  const OPEN_MS = ATTACH_MS;
+  const CLOSE_MS = ATTACH_MS;
   React.useLayoutEffect(() => { setPhase('closed'); }, [sessionId]);
   React.useLayoutEffect(() => {
     if (phase !== 'opening') return;
