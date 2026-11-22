@@ -195,6 +195,28 @@ window.createChatMobileSettings=function(React,portal,api) {
       setAccount(readAccount()); announceAccount();
       if (routeRef.current.view === 'login') navigatePage('account', 'back');
     };
+    /*
+     * 服务端 biz_msg 原样透传过来会是 RISK_DEVICE_DETECTED 这种英文错误码，
+     * 用户看不懂。这里映射成人话，并给出可操作的出路。
+     *
+     * 背景：密码登录接口要过服务端风控（官方 App 内有数美设备指纹 SDK）。
+     * 我们没接那个 SDK，所以真实账号很容易被判 RISK_DEVICE_DETECTED。
+     * 这种情况密码本身没错，改走「使用验证码登录」即可。
+     */
+    const loginErrorText = (raw) => {
+      const text = String(raw == null ? '' : raw);
+      if (/RISK_DEVICE_DETECTED|RISK_/i.test(text))
+        return tr('当前设备被风控拦截，密码登录暂时不可用，请改用「使用验证码登录」',
+                  'This device was flagged by risk control. Please use "Sign in with a code" instead.');
+      if (/PASSWORD_OR_USER_NAME_IS_WRONG/i.test(text))
+        return tr('账号或密码不正确', 'Wrong account or password');
+      if (/TOO_MANY|FREQUENT/i.test(text))
+        return tr('尝试过于频繁，请稍后再试', 'Too many attempts. Try again later.');
+      if (/REQUEST_DECRYPT/i.test(text))
+        return tr('登录请求被拒绝，请更新到最新版本', 'Sign-in request rejected. Please update the app.');
+      return text || tr('登录失败，请重试', 'Sign-in failed. Please try again.');
+    };
+
     const submitLogin = async () => {
       const bridge = officialBridge();
       if (!bridge || loginBusy) return;
@@ -209,7 +231,7 @@ window.createChatMobileSettings=function(React,portal,api) {
         const ok = await bridge.passwordLogin(name, loginForm.password);
         if (ok) { setLoginForm({account:'',password:''}); await finishLogin(); }
         else setLoginError(tr('账号或密码不正确','Wrong account or password'));
-      } catch (error) { setLoginError(String((error&&error.message)||error)); }
+      } catch (error) { setLoginError(loginErrorText((error&&error.message)||error)); }
       finally { setLoginBusy(false); }
     };
     const startWebLogin = () => {
