@@ -40,8 +40,12 @@ $out = "DeepSeek-Chat-$versionName.apk"
 $unsigned = ".build/android/DeepSeek-Chat-$versionName-unsigned.apk"
 
 Write-Host '编译聊天前端'
-npm --prefix web ci --ignore-scripts --include=optional --no-audit --no-fund
-if ($LASTEXITCODE -ne 0) { throw 'npm ci 失败' }
+# 依赖已装好时跳过 npm ci（它每次要重装 235 个包，约 7 分钟）。
+# 需要强制重置时：$env:DSH_FORCE_NPM_CI='1'
+if ($env:DSH_FORCE_NPM_CI -eq '1' -or -not (Test-Path 'web/node_modules/.package-lock.json')) {
+  npm --prefix web ci --ignore-scripts --include=optional --no-audit --no-fund
+  if ($LASTEXITCODE -ne 0) { throw 'npm ci 失败' }
+}
 npm --prefix web run build
 if ($LASTEXITCODE -ne 0) { throw '前端构建失败' }
 
