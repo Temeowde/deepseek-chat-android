@@ -197,7 +197,10 @@ window.createChatMobileSettings=function(React,portal,api) {
     };
     const submitLogin = async () => {
       const bridge = officialBridge();
-      if (!bridge || loginBusy || webLogin) return;
+      if (!bridge || loginBusy) return;
+      /* 之前点过「使用验证码登录」但没走完就返回时，webLogin 会一直卡在 true，
+         导致密码登录按钮被禁用。这里主动复位，密码登录优先。 */
+      if (webLogin) setWebLogin(false);
       const name = loginForm.account.trim();
       if (!name) { setLoginError(tr('请输入手机号或邮箱','Enter your phone number or email')); return; }
       if (!loginForm.password) { setLoginError(tr('请输入密码','Enter your password')); return; }
@@ -328,11 +331,11 @@ window.createChatMobileSettings=function(React,portal,api) {
             h('button',{type:'button',className:'ds-login-eye','aria-label':showPassword?tr('隐藏密码','Hide password'):tr('显示密码','Show password'),
               onClick:()=>setShowPassword(show=>!show)},icon(showPassword?'eye-off':'eye'))))),
       loginError?h('p',{className:'ds-login-error',role:'alert'},loginError):null,
-      h('button',{type:'button',className:'ds-login-submit',disabled:loginBusy||webLogin,onClick:()=>void submitLogin()},
+      h('button',{type:'button',className:'ds-login-submit',disabled:loginBusy,onClick:()=>void submitLogin()},
         loginBusy?tr('登录中…','Signing in…'):tr('登录','Sign in')),
-      h('button',{type:'button',className:'ds-login-alt',disabled:loginBusy,onClick:startWebLogin},
+      h('button',{type:'button',className:'ds-login-alt',disabled:loginBusy,onClick:()=>{ if(webLogin){ setWebLogin(false); setLoginError(''); return; } startWebLogin(); }},
         icon('smartphone'),h('span',null,tr('使用验证码登录','Sign in with a code'))),
-      webLogin?h('p',{className:'ds-login-hint',role:'status'},tr('已打开官方登录页，完成登录后会自动返回。','The official sign-in page is open; you will come back automatically.')):null,
+      webLogin?h('p',{className:'ds-login-hint',role:'status'},tr('已打开官方登录页，完成登录后会自动返回。再点一次可取消。','The official sign-in page is open. Tap again to cancel.')):null,
       h('p',{className:'ds-login-terms'},tr('登录即表示同意 ','By signing in you agree to '),
         h('a',{href:policyBase+'deepseek-terms-of-use.html',target:'_blank',rel:'noreferrer noopener'},tr('服务协议','Terms of Service')),
         tr(' 与 ',' and '),
