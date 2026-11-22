@@ -318,7 +318,8 @@ window.createChatMobileSettings=function(React,portal,api) {
       ? h(React.Fragment,null,note(tr('当前环境不支持官方账号登录。','Official account sign-in is not available in this environment.')))
       : !account.has
         ? h(React.Fragment,null,
-            section('',row('login','user-round',tr('登录 DeepSeek 账号','Sign in to DeepSeek'))),
+            /* 直接打开官方登录页，不再先跳到我们自己的表单页（密码登录被风控拦截，留着只会让人卡住） */
+            section('',row('login','user-round',tr('登录 DeepSeek 账号','Sign in to DeepSeek'),'',()=>{ startWebLogin(); })),
             note(tr('登录后，官方 App 里的对话会自动同步到这里；官方额度用完时，也可以在这里接着聊。','After signing in, chats from the official app sync here automatically.')))
         : h(React.Fragment,null,
             h('div',{className:'ds-pref-block'},
@@ -353,10 +354,16 @@ window.createChatMobileSettings=function(React,portal,api) {
             h('button',{type:'button',className:'ds-login-eye','aria-label':showPassword?tr('隐藏密码','Hide password'):tr('显示密码','Show password'),
               onClick:()=>setShowPassword(show=>!show)},icon(showPassword?'eye-off':'eye'))))),
       loginError?h('p',{className:'ds-login-error',role:'alert'},loginError):null,
-      h('button',{type:'button',className:'ds-login-submit',disabled:loginBusy,onClick:()=>void submitLogin()},
-        loginBusy?tr('登录中…','Signing in…'):tr('登录','Sign in')),
-      h('button',{type:'button',className:'ds-login-alt',disabled:loginBusy,onClick:()=>{ if(webLogin){ setWebLogin(false); setLoginError(''); return; } startWebLogin(); }},
-        icon('smartphone'),h('span',null,tr('使用验证码登录','Sign in with a code'))),
+      /*
+       * 主次调换：密码登录接口被服务端风控拦截（RISK_DEVICE_DETECTED），
+       * 实测换设备也一样 —— 官方 App 内有数美设备指纹 SDK，我们拿不到。
+       * 所以把「验证码登录」（走官方网页，可用）提为主路径，
+       * 密码登录降为次要入口，避免用户卡在这里反复失败。
+       */
+      h('button',{type:'button',className:'ds-login-submit',onClick:()=>{ if(webLogin){ setWebLogin(false); setLoginError(''); return; } startWebLogin(); }},
+        h('span',null,tr('使用验证码登录','Sign in with a code'))),
+      h('button',{type:'button',className:'ds-login-alt',disabled:loginBusy,onClick:()=>void submitLogin()},
+        loginBusy?tr('登录中…','Signing in…'):tr('使用密码登录','Sign in with password')),
       webLogin?h('p',{className:'ds-login-hint',role:'status'},tr('已打开官方登录页，完成登录后会自动返回。再点一次可取消。','The official sign-in page is open. Tap again to cancel.')):null,
       h('p',{className:'ds-login-terms'},tr('登录即表示同意 ','By signing in you agree to '),
         h('a',{href:policyBase+'deepseek-terms-of-use.html',target:'_blank',rel:'noreferrer noopener'},tr('服务协议','Terms of Service')),
