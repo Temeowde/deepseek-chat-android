@@ -21,7 +21,12 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
 import java.security.KeyStore;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.spec.MGF1ParameterSpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,6 +35,10 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.OAEPParameterSpec;
+import javax.crypto.spec.PSource;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * 官方账号通道：保存登录令牌，并以该令牌访问 chat.deepseek.com 的会话接口。
@@ -49,6 +58,14 @@ public final class OfficialAccount {
     private static final String UA =
             "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) "
                     + "Chrome/131.0.0.0 Mobile Safari/537.36";
+
+    /** 官方 auth 生产环境公钥（与 web bundle 的 eL.production 完全一致），只用于登录请求加密。 */
+    private static final String LOGIN_PUBLIC_KEY =
+            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0RLAhx1TOJhAQBHS1LHXlnkfOg86O+uhsmKWNNkmugVrRqO6cl13SnjBs2otRYZGJd50xpBG4We2i6/oCJCwxA/49YZfIwaeDmTx+WBIN7qrwhwP7vGCi6Osesmn/Ddgdye6mifYkRpRMonQjGY6VPaUMTw1jjOAIKph5YZn0bDVmGLvs5eH6CoQYHM5/Z1Nfhj36VL28eZi3elJHoz/L6Tzi2wY1rCYqYHfepq3Ysy8y5Y5BeFJXN60RYLlbs+MRC+2kyJqcfApUnn1O/W2om9dhxc6Rc5dqas1YB4X4CWCttrKk/suhpIx9zpQY9kqtotbe5zweYaKv0rCVeqx8wIDAQAB";
+
+    /** 官方 Android 客户端标识：登录接口会校验，缺了或写成别的值会被拒。 */
+    private static final String CLIENT_VERSION = "2.8.0";
+    private static final String CLIENT_BUNDLE_ID = "com.deepseek.chat";
 
     private static final ExecutorService IO = Executors.newFixedThreadPool(3);
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
@@ -236,6 +253,63 @@ public final class OfficialAccount {
         return status + " " + text;
     }
 
+    /** 用官方公钥做 RSA-OAEP(SHA-256) 包装 AES key||IV，返回 Base64 文本。 */
+    private static String wrapEncryptionKey(byte[] keyAndIv) throws Exception {
+        PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(
+                new X509EncodedKeySpec(Base64.decode(LOGIN_PUBLIC_KEY, Base64.NO_WRAP)));
+        Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey,
+                new OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256,
+                        PSource.PSpecified.DEFAULT));
+        return Base64.encodeToString(cipher.doFinal(keyAndIv), Base64.NO_WRAP);
+    }
+
+    /**
+     * 官方登录要求请求体加密：随机 AES-128 key/IV，body 用 AES/CBC/PKCS5Padding 加密，
+     * key||IV 用 RSA-OAEP 包装后放进 x-request-encryption-key，body 直接写密文字节。
+     * 只供 /api/v0/users/login 使用，普通 post() 保持原样。
+     */
+    private static String postEncrypted(String path, String body) throws Exception {
+        byte[] plain = body.getBytes(StandardCharsets.UTF_8);
+        byte[] keyBytes = new byte[16];
+        byte[] ivBytes = new byte[16];
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(keyBytes);
+        random.nextBytes(ivBytes);
+        byte[] keyAndIv = new byte[32];
+        System.arraycopy(keyBytes, 0, keyAndIv, 0, 16);
+        System.arraycopy(ivBytes, 0, keyAndIv, 16, 16);
+        String wrappedKey = wrapEncryptionKey(keyAndIv);
+
+        Cipher aes = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        aes.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, "AES"),
+                new IvParameterSpec(ivBytes));
+        byte[] encrypted = aes.doFinal(plain);
+
+        HttpURLConnection conn = (HttpURLConnection) new URL(HOST + path).openConnection();
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(30000);
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("Accept", "*/*");
+        conn.setRequestProperty("User-Agent", UA);
+        conn.setRequestProperty("x-client-platform", "android");
+        conn.setRequestProperty("x-client-version", CLIENT_VERSION);
+        conn.setRequestProperty("x-client-bundle-id", CLIENT_BUNDLE_ID);
+        conn.setRequestProperty("x-request-encryption-key", wrappedKey);
+        OutputStream out = conn.getOutputStream();
+        out.write(encrypted);
+        out.flush();
+        out.close();
+        int status = conn.getResponseCode();
+        InputStream in = status >= 200 && status < 300
+                ? conn.getInputStream() : conn.getErrorStream();
+        String text = in == null ? "" : readAll(in);
+        conn.disconnect();
+        return status + " " + text;
+    }
+
     /** 在响应里递归寻找令牌候选值。 */
     private static void collectTokens(JSONTokener tokener, java.util.List<String> out, int depth) {
         if (depth > 8) {
@@ -291,24 +365,57 @@ public final class OfficialAccount {
                     payload.put("email", name);
                 } else {
                     payload.put("mobile", name);
+                    /* 官方请求模型 UsersLoginWithPhoneAndPwdRequest 必带 area_code，
+                       缺了服务端会直接判参数错误 */
+                    payload.put("area_code", "+86");
                 }
                 payload.put("password", password == null ? "" : password);
                 payload.put("device_id", deviceId(context));
                 payload.put("os", "android");
-                String response = post("/api/v0/users/login", payload.toString(), null);
-                String body = response.substring(response.indexOf(' ') + 1);
-                java.util.List<String> candidates = new java.util.ArrayList<>();
-                collectTokens(new JSONTokener(body), candidates, 0);
-                for (String candidate : candidates) {
-                    String check = syncGet("/api/v0/users/current", candidate);
-                    if (check.contains("\"code\":0") || check.contains("\"biz_code\":0")) {
-                        setToken(context, candidate);
+                String response = postEncrypted("/api/v0/users/login", payload.toString());
+                int split = response.indexOf(' ');
+                int status = split > 0 ? Integer.parseInt(response.substring(0, split)) : -1;
+                String body = split > 0 ? response.substring(split + 1) : response;
+
+                /* 失败响应外层 code 也是 0，只能看 data.biz_code：
+                   0 成功；2 是鉴权失败（PASSWORD_OR_USER_NAME_IS_WRONG，网页层显示
+                   “账号或密码不正确”）；其它值回传对应 biz_msg。 */
+                JSONObject root = null;
+                JSONObject data = null;
+                try {
+                    root = new JSONObject(body);
+                    data = root.optJSONObject("data");
+                } catch (Exception ignored) {
+                    // 不是 JSON 就按原文回传。
+                }
+                int bizCode = data == null ? -1 : data.optInt("biz_code", -1);
+                if (bizCode == 0) {
+                    JSONObject bizData = data.optJSONObject("biz_data");
+                    JSONObject user = bizData == null ? null : bizData.optJSONObject("user");
+                    String token = user == null ? null : user.optString("token", "");
+                    if (token != null && !token.isEmpty()) {
+                        setToken(context, token);
                         deliver(view, id, "{\"ok\":true}", 200);
                         return;
                     }
                 }
-                // 没有可用令牌：把服务端的原文回传，方便判断原因。
-                deliver(view, id, body, 200);
+                if (data != null) {
+                    /* biz_code 2 是鉴权失败；服务端没给 biz_msg 时补上标准值，
+                       网页层会把它显示为“账号或密码不正确”。其它值原样回传 biz_msg。 */
+                    String bizMsg = data.optString("biz_msg", "");
+                    if (bizCode == 2 && bizMsg.isEmpty()) {
+                        bizMsg = "PASSWORD_OR_USER_NAME_IS_WRONG";
+                    }
+                    JSONObject failure = new JSONObject();
+                    failure.put("code", root.optInt("code", 0));
+                    failure.put("data", new JSONObject()
+                            .put("biz_code", bizCode)
+                            .put("biz_msg", bizMsg));
+                    deliver(view, id, failure.toString(), 200);
+                    return;
+                }
+                // 解析不了（含 422 等）：把服务端原文回传，方便判断原因。
+                deliver(view, id, body, status < 0 ? 200 : status);
             } catch (Exception error) {
                 deliver(view, id, error(error.getClass().getSimpleName() + ": "
                         + String.valueOf(error.getMessage())), -1);

@@ -349,7 +349,8 @@
 .ds-login-error { margin:2px 22px 0;color:var(--ds-set-danger);font-size:14px;line-height:20px; }
 .ds-login-submit {
   height:52px;
-  margin-top:4px;
+  /* 和输入卡片拉开距离，别贴着 */
+  margin-top:16px;
   border:0;
   border-radius:100px;
   background:var(--dsw-alias-button-primary-fill,#426efe);
@@ -360,16 +361,19 @@
 }
 .ds-login-submit:disabled { opacity:.5;box-shadow:none; }
 .ds-login-alt {
+  /* 次级入口：不再做成和主按钮一样大的一整块，
+     改成描边/无底色的轻量样式，并且和主按钮拉开间距 */
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:8px;
-  height:50px;
-  border:1px solid var(--ds-set-line);
+  gap:6px;
+  height:44px;
+  margin-top:10px;
+  border:0;
   border-radius:100px;
-  background:var(--ds-set-card);
-  color:var(--ds-set-text);
-  font-size:16px;
+  background:transparent;
+  color:var(--dsw-alias-brand-text,#426efe);
+  font-size:15px;
 }
 .ds-login-alt .ds-ui-icon { width:19px;height:19px;color:var(--ds-set-sub); }
 .ds-login-alt:disabled { opacity:.5; }

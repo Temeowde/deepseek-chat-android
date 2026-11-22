@@ -131,6 +131,13 @@ public final class LoginActivity extends Activity {
         cookies.setAcceptCookie(true);
         cookies.setAcceptThirdPartyCookies(webView, true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        /* 禁用缩放：这个官方网页登录页之前可以被捏合放大，和 App 内其它页面不一致 */
+        settings.setSupportZoom(false);
+        settings.setBuiltInZoomControls(false);
+        settings.setDisplayZoomControls(false);
+        settings.setUseWideViewPort(false);
+        settings.setLoadWithOverviewMode(false);
+        settings.setTextZoom(100);
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
