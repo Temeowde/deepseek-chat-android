@@ -1,3 +1,23 @@
+/*
+ * 最近照片列表的本地缓存。
+ * 只缓存「已授权 + 有条目」的结果，避免把「无权限」状态也缓存下来。
+ */
+const ATTACH_RECENT_CACHE_KEY = 'ds.attach.recent.v1';
+function readRecentCache() {
+  try {
+    const raw = window.localStorage.getItem(ATTACH_RECENT_CACHE_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (d && d.granted && Array.isArray(d.items) && d.items.length > 0) return d;
+  } catch (e) { /* 缓存损坏或 localStorage 不可用，忽略 */ }
+  return null;
+}
+function writeRecentCache(data) {
+  try {
+    if (!data || !data.granted || !Array.isArray(data.items) || data.items.length === 0) return;
+    window.localStorage.setItem(ATTACH_RECENT_CACHE_KEY, JSON.stringify(data));
+  } catch (e) { /* 配额或不可用，忽略 */ }
+}
 /* Mounted by the chat composer; the same upload callback handles all three sources. */
 window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, accept, sessionId) {
   const h = React.createElement;
@@ -19,7 +39,18 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
    * 数据是原生异步回调过来的：window.dsRecentMediaList(json) / window.dsRecentMediaData(id, dataUrl)。
    * 之所以不直接同步取：20 张缩略图解码要几百毫秒，同步会把 JS 线程卡住，点 + 后面板会顿。
    */
-  const [recent, setRecent] = React.useState(null);
+  /*
+   * 【缩略图本地缓存】
+   *
+   * 问题：冷启动后第一次打开面板经常没有最近照片，第二次才出现。
+   * 原因有两层：
+   *   1. 原生回调原来挂在 mounted 上，面板关着时没注册 → 预取回来的数据没人接；
+   *   2. 即使注册了，MediaStore 查询 + 20 张缩略图编码要 1~2 秒，用户点开太快也看不到。
+   *
+   * 所以除了修回调注册，再把最近一次成功的结果缓存在 localStorage，
+   * 冷启动时同步读出来直接渲染，第一次打开就有图；随后后台刷新覆盖。
+   */
+  const [recent, setRecent] = React.useState(readRecentCache);
   /*
    * 已经点过、图已进输入框 chip 的缩略图 id。
    * 官方点图后**面板不关闭**，可以连续点好几张，所以保留选中态用来画对勾。
@@ -30,6 +61,13 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
   const initialRef = React.useRef(true);
   const mounted = phase !== 'closed';
   const shown = phase === 'open';
+  /*
+   * closing 用于给 CSS 挂【退场专用曲线】。
+   * 展开曲线 (0.2,0,0,1) 是前快后慢，直接拿来做关闭会「嗖一下消失」；
+   * 关闭必须用它关于中心旋转 180° 的镜像 (1,0,0.8,1)，
+   * 这样前半程几乎不动、后半程才加速收掉。
+   */
+  const closing = phase === 'closing';
   // 复用全局动效变量；prefers-reduced-motion 下 --ds-motion-base 是 0ms。
   /*
    * 面板动画时长（ms）。必须和 attachments.css 里的 400ms 保持一致：
@@ -39,8 +77,8 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
    * 临界阻尼弹簧 ω=9.146，99% 点在 278ms，完全停住约 400ms。
    * 旧值是 330ms（对应一条错误的 ω=26.6 拟合），比官方快 15~25%。
    */
-  const OPEN_MS = 400;
-  const CLOSE_MS = 400;
+  const OPEN_MS = 320;
+  const CLOSE_MS = 320;
   React.useLayoutEffect(() => { setPhase('closed'); }, [sessionId]);
   React.useLayoutEffect(() => {
     if (phase !== 'opening') return;
@@ -67,15 +105,89 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
     const id = setTimeout(() => setReady(true), OPEN_MS);
     return () => clearTimeout(id);
   }, [phase]);
-  const expanded = phase === 'opening' || phase === 'open';
-  const request = next => setPhase(p => {
-    if (next === 'open') {
-      if (p === 'open' || p === 'opening') return p;
-      // 退场途中重新点开：直接反向过渡，从当前值继续，不重播。
-      return p === 'closing' ? 'open' : 'opening';
+  /*
+   * 【高度测量】把面板真实内容高度写进 CSS 变量 --ds-attach-h。
+   *
+   * slot 的 height 动画需要 0px → 目标高度，但浏览器无法从内容自动推出。
+   * 用 getBoundingClientRect 在临时撑开的状态下量，避开 overflow:hidden 的裁切。
+   * 缩略图异步到达时用 ResizeObserver 重测（只在关闭态测，避免动画中途跳变）。
+   */
+  const panelRef = React.useRef(null);
+  const slotRef = React.useRef(null);
+  /* 用 ref 保存 phase，供 ResizeObserver 回调读取最新值 */
+  const phaseRef = React.useRef(phase);
+  phaseRef.current = phase;
+  /*
+   * 【高度测量】把面板真实内容高度写进 CSS 变量 --ds-attach-h。
+   *
+   * 两个必须遵守的约束：
+   *
+   * 1) 只读，不写 slot 的任何样式。
+   *    之前为了绕过 overflow:hidden 把 slot.style.height 临时设成 'auto' 再还原，
+   *    结果 ResizeObserver 在关闭动画中途触发，把 height 还原成空字符串
+   *    → transition 被打断 → 高度一帧内跳到 0（实测 t=160ms 从 185px 跳 0）。
+   *    实际上 getBoundingClientRect() 返回元素自身尺寸，不受父级 overflow 裁切影响，
+   *    根本不需要临时放开高度。
+   *
+   * 2) 只在 open 态测。
+   *    opening/closing 期间面板尺寸在变，测量既没意义又会干扰动画。
+   */
+  React.useLayoutEffect(() => {
+    const body = panelRef.current;
+    const slot = slotRef.current;
+    if (!body || !slot) return undefined;
+    const measure = () => {
+      const h = body.getBoundingClientRect().height;
+      if (h > 0) slot.style.setProperty('--ds-attach-h', Math.ceil(h) + 'px');
+    };
+    measure();
+    if (typeof ResizeObserver === 'function') {
+      let raf = 0;
+      const ro = new ResizeObserver(() => {
+        if (phaseRef.current !== 'open') return;
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(measure);
+      });
+      ro.observe(body);
+      return () => { ro.disconnect(); cancelAnimationFrame(raf); };
     }
-    return (p === 'closed' || p === 'closing') ? p : 'closing';
-  });
+    return undefined;
+    /*
+     * 依赖里必须有 mounted：面板是条件渲染的（!mounted ? null : ...），
+     * 关闭时 DOM 不存在，effect 提前 return。只有 mounted 变化时才保证
+     * 面板已挂载、能测到真实高度。少了它 --ds-attach-h 永远是空的。
+     */
+  }, [recent, mounted]);
+
+  const expanded = phase === 'opening' || phase === 'open';
+  /*
+   * 【打开前同步量高度】
+   *
+   * height 动画需要明确的目标值（--ds-attach-h）。必须在这一帧、
+   * data-open 切换【之前】把它设好，否则动画第一帧会用 fallback 值，
+   * 下一帧变量更新又触发一次跳变。
+   */
+  /*
+   * 打开前补测一次高度。只读，绝不碰 slot 的任何样式 ——
+   * 碰了就会打断正在跑的 transition（曾经导致关闭动画一帧跳到 0）。
+   */
+  const primeHeight = () => {
+    const body = panelRef.current;
+    const slot = slotRef.current;
+    if (!body || !slot) return;
+    const h = body.getBoundingClientRect().height;
+    if (h > 0) slot.style.setProperty('--ds-attach-h', Math.ceil(h) + 'px');
+  };
+  const request = next => {
+    if (next === 'open') primeHeight();
+    setPhase(p => {
+      if (next === 'open') {
+        if (p === 'open' || p === 'opening') return p;
+        return p === 'closing' ? 'open' : 'opening';
+      }
+      return (p === 'closed' || p === 'closing') ? p : 'closing';
+    });
+  };
   const close = () => { request('close'); return true; };
   /*
    * 【互斥规则】附件面板 和 键盘 抢同一块底部空间，永远不能同时打开。
@@ -105,16 +217,30 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
     document.addEventListener('focusin', onFocusIn, true);
     return () => document.removeEventListener('focusin', onFocusIn, true);
   }, [mounted]);
-  /* 原生回调：最近图片列表 */
+  /*
+   * 原生回调：最近图片列表。
+   *
+   * 【必须常驻注册】原来有 if (!mounted) return undefined; 且依赖 [mounted, onFiles]，
+   * 面板一关回调就被 delete。而预取在面板关闭时发起请求、
+   * 原生回调数据时回调不存在 → 数据直接丢失 → 冷启动第一次打开没图。
+   *
+   * 现在挂在常驻生命周期上（deps 空），只有组件真正卸载才清理。
+   * onFiles 用 ref 取最新值，避免因为它的引用变化导致重复注册。
+   */
+  const onFilesRef = React.useRef(onFiles);
+  onFilesRef.current = onFiles;
   React.useEffect(() => {
-    if (!mounted) return undefined;
     window.dsRecentMediaList = json => {
+      let next;
       try {
         const data = JSON.parse(json);
-        setRecent({ granted: !!data.granted, items: Array.isArray(data.items) ? data.items : [] });
+        next = { granted: !!data.granted, items: Array.isArray(data.items) ? data.items : [] };
       } catch (e) {
-        setRecent({ granted: false, items: [] });
+        next = { granted: false, items: [] };
       }
+      setRecent(next);
+      /* 缓存下来，下次冷启动第一次打开就能立刻显示 */
+      writeRecentCache(next);
     };
     window.dsRecentMediaGranted = ok => {
       setRecent(prev => (ok ? null : { granted: false, items: [] }));
@@ -132,7 +258,7 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
         /* 文件名要以白名单扩展名结尾（上传侧按扩展名判类型）；用 id 保证唯一 */
-        onFiles([new File([bytes], 'photo-' + id + '.jpg', { type: 'image/jpeg' })]);
+        onFilesRef.current([new File([bytes], 'photo-' + id + '.jpg', { type: 'image/jpeg' })]);
       } catch (e) {
         setPicked(prev => { const next = new Set(prev); next.delete(id); return next; });
       }
@@ -142,7 +268,7 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
       delete window.dsRecentMediaGranted;
       delete window.dsRecentMediaData;
     };
-  }, [mounted, onFiles]);
+  }, []);
 
   /*
    * 最近图片的加载策略。
@@ -166,14 +292,28 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
    *   - 展开动画期间绝不发起请求，不抢主线程
    */
   React.useEffect(() => {
-    const bridge = window.DeepSeekAndroid;
-    if (!bridge || typeof bridge.recentMediaList !== 'function') return undefined;
     /* 面板正在展开：什么都不做，避免和动画抢主线程 */
     if (expanded) return undefined;
-    const delay = initialRef.current ? 300 : 60;
+    let cancelled = false;
+    let tries = 0;
+    let timer = 0;
+    /*
+     * 【重试】之前只尝试一次：effect 执行时如果 window.DeepSeekAndroid
+     * 还没注入（或方法不可用），就直接 return，后面永远不会再拉 ——
+     * 表现为「面板打开但没有最近照片」。加轮询重试直到桥接就绪。
+     */
+    const attempt = () => {
+      if (cancelled) return;
+      const bridge = window.DeepSeekAndroid;
+      if (!bridge || typeof bridge.recentMediaList !== 'function') {
+        if (++tries < 25) timer = setTimeout(attempt, 200);
+        return;
+      }
+      try { bridge.recentMediaList(); } catch (e) { /* 忽略，下次收起再试 */ }
+    };
+    timer = setTimeout(attempt, initialRef.current ? 300 : 60);
     initialRef.current = false;
-    const id = setTimeout(() => bridge.recentMediaList(), delay);
-    return () => clearTimeout(id);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [expanded]);
 
   React.useEffect(() => {
@@ -217,9 +357,9 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
      * 之前这里盖了一层 rgb(0 0 0 / 21%)，而且因为 .dock 有 z-index:1 自成层叠
      * 上下文，遮罩连同聊天内容一起被压灰，是明显的 bug。
      */
-    panel: !mounted ? null : h('div', {className:'ds-attach-slot','data-open':shown ? 'true' : 'false','data-ready':ready ? 'true' : 'false'},
+    panel: !mounted ? null : h('div', {className:'ds-attach-slot',ref:slotRef,'data-open':shown ? 'true' : 'false','data-closing':closing ? 'true' : 'false','data-ready':ready ? 'true' : 'false'},
         h('div', {className:'ds-attach-clip'},
-          h('div', {className:'ds-attach-panel',role:'group','aria-label':zh?'附件':'Attachments'},
+          h('div', {className:'ds-attach-panel',ref:panelRef,role:'group','aria-label':zh?'附件':'Attachments'},
             h('div', {className:'ds-attach-recent','data-show':recent && (recent.items.length > 0 || !recent.granted) ? 'true' : 'false'},
               recent && recent.granted
                 ? recent.items.map(item => h('button', {

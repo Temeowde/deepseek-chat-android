@@ -23,15 +23,43 @@ body {
 
   --ds-font-size-m: 14px;
 
+  /*
+   * 【逆向实得】官方缓动曲线，全部从 APK dex 字节码提取（非猜测）。
+   *
+   * 定位方式：
+   *   Lnh3; = androidx.compose.animation.core.CubicBezierEasing <init>(FFFF)V
+   *   Lmn7;<clinit> = Material3 的 11 条标准曲线
+   *   Lwz1;<clinit> = 官方全局默认曲线 CubicBezierEasing(0,0,0.58,1)
+   *   Lcu7; / Lf84; / Lic0; = 应用自有动画规格（含 tween 时长）
+   *
+   * 注意：--ds-ease-in-out 原本就是 (0.4,0,0.2,1)，恰好是官方 Standard
+   * （FastOutSlowIn），这一条本来就对，不用改。
+   */
   --ds-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  /* 官方全局默认（Lwz1;）—— 大多数 Compose 过渡用的就是这条 */
+  --ds-ease-standard: cubic-bezier(0, 0, 0.58, 1);
+  /* M3 Emphasized（Lmn7; 第 1 条）—— 强调型过渡、面板进出 */
+  --ds-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);  /* 官方面板动画实测最佳拟合 */
+  /* M3 EmphasizedDecelerate（Lmn7; 第 2 条）—— 进场 */
+  --ds-ease-emphasized-decelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  /* M3 EmphasizedAccelerate（Lmn7; 第 3 条）—— 退场 */
+  --ds-ease-emphasized-accelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  /* 官方老标准（Lf84;）—— Material Legacy */
+  --ds-ease-legacy: cubic-bezier(0.4, 0, 0.6, 1);
+  /* 官方 ease-in-out（Lic0;）—— 大跨度过渡，配 600ms */
+  --ds-ease-symmetric: cubic-bezier(0.42, 0, 0.58, 1);
 
   --ds-font-family-code:
     Menlo, Monaco, Consolas, 'Cascadia Mono', 'Ubuntu Mono', 'DejaVu Sans Mono', 'Liberation Mono',
     'JetBrains Mono', 'Fira Code', Cousine, 'Roboto Mono', 'Courier New', Courier, sans-serif,
     system-ui;
 
+  /* 【逆向实得】官方 tween 时长（Lcu7;=250/200ms, Lf84;=120/150ms, Lic0;=600ms） */
   --ds-transition-duration: 0.2s;
   --ds-transition-duration-slow: 0.3s;
+  --ds-duration-short: 120ms;
+  --ds-duration-medium: 250ms;
+  --ds-duration-long: 600ms;
 }
 
 body {
