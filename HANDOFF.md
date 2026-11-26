@@ -2,9 +2,9 @@
 
 ## 基本信息
 
-- 项目：非官方 DeepSeek Android 客户端，包名 `com.temeowde.dschat`，版本 3.2.2（versionCode 34）
-- 仓库：`C:\Users\zzzy\Desktop\1121\deepseek-chat-android`
-- 远端：`https://github.com/Temeowde/deepseek-chat-android`，开发分支 `release-v3.1.0`
+- 项目：非官方 DeepSeek Android 客户端，包名 `com.temeowde.dschat`，版本 4.5.0（versionCode 250）
+- 仓库：`C:\Users\zzzy\Desktop\1121\ds-merged`（多会话合并工作区）
+- 远端：`https://github.com/Temeowde/deepseek-chat-android`，主分支 `master`
 - 技术栈：smali 外壳 + Java 辅助类 + React/rspack 前端，跑在 WebView 里
 
 ## 构建
@@ -14,7 +14,7 @@ $env:ANDROID_SDK = 'D:\AndroidToolchain\sdk'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-产物 `DeepSeek-Chat-3.2.2.apk`，约 2.09 MB。工具链（JDK17 / Node22 / Android SDK 35）已在本机就绪，`tools/` 里带了 smali.jar，无需额外下载。
+产物 `DeepSeek-Chat-4.5.0.apk`，约 3.7 MB。工具链（JDK17 / Node22 / Android SDK 35）已在本机就绪，`tools/` 里带了 smali.jar，无需额外下载。
 
 签名用 `%USERPROFILE%\.android\debug.keystore`（androiddebugkey / android），与已发布版本同签名，可直接覆盖安装。
 
