@@ -1,10 +1,10 @@
 # DeepSeek Chat
 
-DeepSeek Chat 是一款非官方 DeepSeek Android 客户端。可以登录自己的官方账号同步会话，也可以使用自备的 API Key 继续聊天；聊天记录保存在本机。
+DeepSeek Chat 是一款非官方 DeepSeek Android 客户端。可以登录自己的官方账号同步会话，也可以使用自备的 API Key 继续聊天；聊天记录保存在本机，并支持自动备份到手机公共目录，卸载重装也不会丢。
 
 ## 下载
 
-**[下载 v3.2.2 APK](https://github.com/Temeowde/deepseek-chat-android/releases/download/v3.2.2/DeepSeek-Chat-3.2.2.apk)** · [所有版本](https://github.com/Temeowde/deepseek-chat-android/releases) · [更新记录](CHANGELOG.md)
+**[下载 v4.5.0 APK](https://github.com/Temeowde/deepseek-chat-android/releases/download/v4.5.0/DeepSeek-Chat-4.5.0.apk)** · [所有版本](https://github.com/Temeowde/deepseek-chat-android/releases) · [更新记录](CHANGELOG.md)
 
 支持 Android 8.0 及以上。在侧栏底部打开设置，填写在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 创建的 API Key；也可以在侧栏底部的账号行登录官方账号，同步官方会话。
 
@@ -13,9 +13,12 @@ DeepSeek Chat 是一款非官方 DeepSeek Android 客户端。可以登录自己
 ## 主要功能
 
 - **官方账号同步**。登录自己的官方账号后，官方 App 里的会话会同步到本地列表，打开会话时自动刷新；侧栏支持下拉刷新。官方额度用完时，可以在同一条对话里用 API 接着聊。
-- **搜索与备份**。按标题、提问或回答搜索历史，直接定位到匹配消息。支持导入网页版对话 ZIP、合并本地历史，以及导出备份。
-- **会话管理**。置顶、重命名和批量整理会话。修改提问或重新生成时可切换回答分支，也可停止生成后继续回答。
-- **阅读与分享**。切换会话时保留阅读位置。支持朗读回答、查看联网搜索引用、展开表格和导出 CSV，也可将选中的问答分享为文本或长图。
+- **本地备份与恢复**。开启后约每 2 分钟检查一次，有改动的会话增量备份到手机公共目录（通常几百 KB），并定期刷新一份完整备份。支持扫描本机备份、按时间点恢复、恢复前确认与进度显示；卸载重装后也能找回。
+- **导入与导出**。支持导入网页版对话 ZIP、导入本机备份、合并本地历史，以及把全部历史导出为 ZIP。大文件分块读写，导出完成会登记到系统「最近文件」并可一键打开文件管理器。
+- **自定义 API**。内置 DeepSeek 官方接口，也支持自定义兼容 OpenAI 格式的服务商（可配置多个供应商与模型），在设置 → 数据管理 → 自定义 API 里切换。
+- **朗读**。回答支持朗读，接入官方 4 个朗读音色（贝壳、白浪、海星、暗潮），切换音色时可试听。
+- **搜索与整理**。按标题、提问或回答搜索历史，直接定位到匹配消息。置顶、重命名和批量整理会话；修改提问或重新生成时可切换回答分支，也可停止生成后继续回答。
+- **阅读与分享**。切换会话时保留阅读位置。查看联网搜索引用、展开表格和导出 CSV，也可将选中的问答分享为文本或长图。
 - **输入与设置**。支持相册最近图片、拍照、文件和语音输入。可调节主题、界面语言、字体、正文大小、思考内容折叠和朗读音色。
 
 ## 构建
@@ -33,12 +36,12 @@ $env:ANDROID_SDK = 'D:\AndroidToolchain\sdk'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-产物：`DeepSeek-Chat-3.2.2.apk`
+产物：`DeepSeek-Chat-4.5.0.apk`
 
 安装：
 
 ```bash
-adb install -r DeepSeek-Chat-3.2.2.apk
+adb install -r DeepSeek-Chat-4.5.0.apk
 ```
 
 Linux / macOS 下可以继续使用 `assemble.sh`（需要 python3）。
@@ -48,12 +51,13 @@ Linux / macOS 下可以继续使用 `assemble.sh`（需要 python3）。
 ```
 src/smali/            Java 代码（smali 汇编格式）
 src/smali_classes2/
-src/java/             Android 附件、显示偏好、官方账号、分享和来源阅读页
+src/java/             Android 附件、显示偏好、官方账号、本地备份、分享和来源阅读页
 dec2/                 资源与 AndroidManifest
 web/src/              可编辑的 React / TypeScript 聊天前端
 web/mobile/           手机交互、样式和图标
 wicon/                图标矢量
 tools/                smali.jar 及其依赖（构建用，已随仓库提供）
+tools/dev/            开发期真机调试脚本（不参与构建）
 build.ps1             Windows 构建脚本
 assemble.sh           Linux / macOS 构建脚本
 tests/                离线回归和仅供调试的真机测试音源

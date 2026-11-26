@@ -392,3 +392,13 @@
 - 4.4.7~4.4.8 / code **247~248** —— 扫描本机备份加确认框 + 结果 toast/不确定进度条；修按下黑底盖住说明的问题（dataRowNote 负边距）。**248 之后用 249**
 
 - 4.4.9~4.5.0 / code **249~250** —— 修「在文件管理器中查看」跨机型报错：候选链（显式 DocumentsUI → 隐式目录 → 存储根 → MediaStore 文件 → APP_FILES → 复制路径兜底），目录不再写死。**250 之后用 251**
+
+### 2026-11-26 20:0x · API 设置页这条线（已收到 GitHub 统一管理规则）
+
+- 已确认规则：不执行任何 git 命令；改动写在此文件；版本号按 `web/package.json` 的 `androidVersionCode` 取最大值 +1；构建用 `pm install -r -d`；临时脚本只放 `tools/dev/`。
+- 本线待提交改动（如果 4.5.0 的 commit 里没有，请下次一并带上）：
+  - `web/src/components/settings/SettingsDialog.tsx`：备份页「查看全部 N 份」改成走 `styles.expander`，展开/收起有 220ms 高度+淡入动画（前 5 条常显，第 6 条起收在展开区）。
+  - 已在本机构建验证：expander 高度 0 → 51 → 266 → 276（约 220ms 完成），不是瞬间弹出。
+- 当前版本状态：工作树 `4.5.0 / 250`，设备也是 `4.5.0 / 250`。我这条线下次构建会从 `251` 起。
+
+- **v4.5.0 已作为 GitHub Release 发布**：README / CHANGELOG 更新到 4.5.0，APK 作为 release 附件上传。
