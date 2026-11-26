@@ -9,7 +9,7 @@ import type { LocalePreference, ThemePreference, useSettings } from './services/
 import type { TtsVoice } from './services/api/speech.js'
 import type { showToast } from './components/base/toastState.js'
 
-type Preferences = { locale: LocalePreference; theme: ThemePreference; voice: TtsVoice }
+type Preferences = { locale: LocalePreference; theme: ThemePreference; voice: TtsVoice; provider: 'deepseek' | 'workbuddy'; workbuddyModel: string; safety: boolean }
 /** 字体选择机制的选项；kind 用于 UI 分组，stack 是可直接用于 preview 的 CSS font-family。 */
 export type FontOption = {
   id: string
@@ -60,7 +60,7 @@ declare global {
       subscribe: Listener
       collapse(): boolean
     }
-    useComposerAttachments(react: Runtime, disabled: boolean, ensure: () => boolean, add: (files: File[]) => void, accept: string, sessionId: string | null): { toggle: UI; inputs: UI; panel: UI }
+    useComposerAttachments(react: Runtime, disabled: boolean, ensure: () => boolean, add: (files: File[]) => void, accept: string, sessionId: string | null): { toggle: UI; inputs: UI; panel: UI; clearPicked: () => void }
     useMobileComposerVoice(react: Runtime, config: {
       mobile: boolean; sessionId: string | null; busy: boolean; voice: ReturnType<typeof useVoiceInput>; text: string; fileCount: number
       textarea: React.RefObject<HTMLTextAreaElement>; limitRef: React.MutableRefObject<(() => void) | null>
@@ -82,6 +82,10 @@ declare global {
       sync(): Promise<boolean>
       passwordLogin(account: string, password: string): Promise<boolean>
       profile(): { name: string; avatar: string }
+      /** 官方 TTS 音色清单（含 palette 与试听地址）。 */
+      ttsVoices(): Promise<{ id: string; name: string; desc: string; palette?: string[]; demoUrls?: Record<string, string> }[]>
+      /** 播放某个音色的官方试听句（官方 CDN mp3）。 */
+      playVoiceDemo(voiceId: string): Promise<boolean>
     }
     chatHistoryMetadata(api: {
       epoch(): number; get(): { sessions: SessionSummary[]; importingHistory: boolean }; deleting(id: string): boolean
@@ -93,7 +97,11 @@ declare global {
       openSession(id: string, target?: HistorySearchTarget): void; metadata(id: string, fields: Fields): Promise<boolean>; remove(id: string): Promise<boolean>; settings(): void; notify: typeof showToast
     }): React.ComponentType<{ searching: boolean; setSearching(searching: boolean): void }>
     createChatMobileSettings(react: Runtime, portal: Portal, api: { useStore: typeof useSettings; set: { [K in keyof Preferences]: (value: Preferences[K]) => void } }): React.ComponentType<{
-      initial: SettingsSection; busy: boolean; close(): void; closeOverlay(): boolean; keyPanel: UI; keySubmit: UI; dataPanel: UI; advancedPanel: UI
+      initial: SettingsSection; busy: boolean; close(): void; closeOverlay(): boolean; panel: UI; locationPanel: UI
+  /** 打开设置时直接进入的数据管理三级页（没填 Key 被带上来的场景） */
+  initialDataView?: 'dataApi' | 'dataBackup'
+  /** 数据管理的三级页内容（注册为设置壳的正式视图） */
+  dataApiPanel?: UI; dataBackupPanel?: UI
     }>
   }
 }

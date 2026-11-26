@@ -366,7 +366,15 @@ body[data-ds-dark-theme] {
     --chat-canvas: #ffffff;
     --chat-paper: #fff;
     --chat-line: #e0e3e9;
-    --chat-prompt: #eef0f4;
+    --chat-prompt: #edf3fe;
+    --chat-user-text: #0f0f0f;
+    --chat-body-text: #191b23;
+  --chat-footer-icon: #8e9094;
+    /* 官方实测：文字核心像素恒为 (221,221,221)=#DDDDDD（实色，不随底部渐变浮动），旧值 #808080 深了 3.7 倍 */
+  --chat-caveat: #dddddd;
+  --chat-table-head: #FAFAFA;
+  /* 官方 MenuDivider 颜色（colorSchemeV2 divider） */
+  --chat-menu-line: #d4d4d4;
     --chat-reply-line: #c4c9d3;
     --dsw-alias-brand-text: #426efe;
     --dsw-alias-button-primary-fill: #426efe;
@@ -378,10 +386,20 @@ body[data-ds-dark-theme] {
   }
 
   body[data-ds-dark-theme] {
-    --chat-canvas: #121316;
-    --chat-paper: #1d1e23;
-    --chat-line: #373940;
-    --chat-prompt: #272930;
+    --chat-canvas: #0F0F0F;
+    --chat-paper: #1E1E1E;
+  /* 官方实测：输入栏底 #242424，四周 1dp #333333 亮边（深色才有） */
+  --chat-input: #242424;
+  --chat-input-line: #333333;
+    --chat-line: #3C3C3D;
+    --chat-prompt: #333333;
+    --chat-user-text: #F8F8F8;
+    --chat-body-text: #F8F8F8;
+  --chat-footer-icon: #8b8f97;
+    /* 深色为推断值：沿用浅色的 13.3% 镜像透明度（#121316 上 13.3% 白） */
+  --chat-caveat: #323335;
+  --chat-table-head: #1E1E1E;
+  --chat-menu-line: #5e6063;
     --chat-reply-line: #555967;
     --dsw-alias-brand-text: #a7baff;
     --dsw-alias-button-primary-fill: #507bf2;
@@ -404,4 +422,59 @@ body[data-ds-dark-theme] {
     --dsw-specific-sidebar-nav-item-active-accent: var(--dsw-alias-button-ghost-active-fill);
     --dsw-specific-sidebar-nav-item-hover: var(--chat-prompt);
   }
+
+  /*
+   * 深色必须写在共用块**之后**：上面 body, body[data-ds-dark-theme] 同时命中深色，
+   * 写在前面会被它覆盖成 --chat-paper(#1E1E1E)，导致输入栏内层和外层分成两层灰。
+   */
+  body[data-ds-dark-theme] {
+    --dsw-specific-input-major: var(--chat-input, #242424);
+  }
+}
+
+/* Mobile chat text: official values are 17sp body / 26dp line height.
+   The "Text size" preference (mobile-settings.js) exposes --ds-chat-scale so the
+   whole conversation typography scales proportionally instead of only one size. */
+@media not all and (min-width: 768px) {
+  body {
+    --dsw-font-markdown-h1: 700 calc(24px * var(--ds-chat-scale, 1)) / calc(34px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-h2: 700 calc(22px * var(--ds-chat-scale, 1)) / calc(32px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-h3: 700 calc(20px * var(--ds-chat-scale, 1)) / calc(28px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-h4: 600 calc(16px * var(--ds-chat-scale, 1)) / calc(26px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-base: calc(16px * var(--ds-chat-scale, 1)) / calc(26px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-base-strong: 600 calc(16px * var(--ds-chat-scale, 1)) / calc(26px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-table: calc(15px * var(--ds-chat-scale, 1)) / calc(25px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-table-head: 500 calc(15px * var(--ds-chat-scale, 1)) / calc(25px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-small: calc(14px * var(--ds-chat-scale, 1)) / calc(24px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-small-strong: 600 calc(14px * var(--ds-chat-scale, 1)) / calc(24px * var(--ds-chat-scale, 1)) var(--dsw-font-family);
+    --dsw-font-markdown-code: calc(14px * var(--ds-chat-scale, 1)) / calc(22px * var(--ds-chat-scale, 1)) var(--ds-font-family-code);
+    --dsw-font-markdown-code-block: calc(13px * var(--ds-chat-scale, 1)) / calc(22px * var(--ds-chat-scale, 1)) var(--ds-font-family-code);
+  }
+
+  .ds-assistant-message-main-content {
+    color: var(--chat-body-text, var(--dsw-alias-label-primary));
+  }
+}
+
+
+/*
+ * 补齐「被引用但没定义」的语义色 token。
+ * 这些变量在 attachments.css / Settings.module.css / Spectrum.module.css / message-actions.css
+ * 里都带了浅色兜底（如 var(--dsw-alias-bg-secondary, #f4f4f5)），
+ * 一旦没定义，深色模式下就永远取到浅色兜底 —— 表现是附件面板三个按钮发白。
+ */
+:root {
+  --dsw-alias-bg-secondary: #f4f4f5;
+  --dsw-alias-bg-l1: rgba(15, 15, 15, 0.03);
+  --dsw-alias-bg-message: #f4f4f5;
+  --dsw-alias-button-info-hover: rgba(66, 110, 254, 0.08);
+  --ds-set-sep: rgba(0, 0, 0, 0.06);
+}
+
+body[data-ds-dark-theme] {
+  --dsw-alias-bg-secondary: #2a2b2f;
+  --dsw-alias-bg-l1: rgba(255, 255, 255, 0.04);
+  --dsw-alias-bg-message: #2a2b2f;
+  --dsw-alias-button-info-hover: rgba(103, 153, 254, 0.16);
+  --ds-set-sep: rgba(255, 255, 255, 0.08);
 }

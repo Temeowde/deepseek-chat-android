@@ -128,11 +128,17 @@ export type TextBlockParam = { type: 'text'; text: string }
 /**
  * 文件块：引用经 Files API 上传的文件，图片用 image、其余用 document；
  * 图片请求需带 anthropic-beta: files-api-2025-04-14；扩展模式不支持 document，返回 400。
+ *
+ * 另一种是内联图片：WorkBuddy / 自定义通道没有 Files API，直接把 base64 放进请求。
  */
-export type FileBlockParam = {
-  type: 'image' | 'document'
-  source: { type: 'file'; file_id: string }
-}
+export type FileBlockParam =
+  | { type: 'image' | 'document'; source: { type: 'file'; file_id: string } }
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+  /**
+   * 内联文本 document 块：把长文本当"文档"发送，不占单条消息的 32,768 tokens 文本上限
+   * （官方 Anthropic 兼容接口支持，仅 DeepSeek 官方通道使用）。
+   */
+  | { type: 'document'; source: { type: 'text'; media_type: 'text/plain'; data: string } }
 
 /** 接口接受的调用块；历史只回传 kind 为 read_link 的调用 */
 export type ServerToolUseBlockParam = Pick<
@@ -178,7 +184,7 @@ export type CreateMessageRequest = {
   messages: MessageParam[]
   thinking: { type: 'enabled' | 'disabled' }
   tools: (DeepseekWebSearchTool | DeepseekReadUrlTool)[]
-  safety_check?: { level: 'high' }
+  safety_check?: { level: 'low' | 'high' }
   title?: { enabled: boolean }
 }
 
@@ -237,7 +243,13 @@ export type MessageStreamEvent =
  * POST /anthropic/v1/files 的 purpose：PDF 与 Word、PPT 需要服务端做版面解析；
  * 纯文本、代码、表格与电子书不需要解析，用 user_data。
  */
-export type FilePurpose = 'rich_layout_recognition' | 'user_data'
+/**
+ * 文件解析用途：
+ * - `text_recognition`：只取文字，丢弃图表（便宜），适合合同/论文/扫描文本
+ * - `rich_layout_recognition`：文字 + 裁出图表并还原位置（更贵），适合报表/幻灯片/说明书
+ * - `user_data`：纯文本、Excel、电子书，上传时直接转换，**不计费**
+ */
+export type FilePurpose = 'rich_layout_recognition' | 'text_recognition' | 'user_data'
 
 /** POST /anthropic/v1/files 的响应 */
 export type FileObject = {

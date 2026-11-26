@@ -110,6 +110,12 @@ const MarkdownPhrasingContentItem = memo(function MarkdownPhrasingContentItem({
   switch (node.type) {
     case 'inlineMath':
       return <InlineMath value={node.value} />
+    case 'math':
+      /*
+       * display 公式有时会落在段落里（占位符在行内被还原），
+       * 这里同样交给 MathBlock 渲染，否则整块公式会消失。
+       */
+      return <MathBlock value={node.value} />
     case 'break':
       return <br />
     case 'emphasis':

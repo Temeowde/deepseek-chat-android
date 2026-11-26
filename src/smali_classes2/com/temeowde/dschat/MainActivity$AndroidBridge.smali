@@ -380,6 +380,20 @@
     return-void
 .end method
 
+.method public officialPost(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    .locals 3
+    .param p1, "id"    # Ljava/lang/String;
+    .param p2, "path"    # Ljava/lang/String;
+    .param p3, "json"    # Ljava/lang/String;
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$AndroidBridge;->this$0:Lcom/temeowde/dschat/MainActivity;
+    invoke-virtual {v0}, Lcom/temeowde/dschat/MainActivity;->bridgeWebView()Landroid/webkit/WebView;
+    move-result-object v1
+    invoke-static {v1, p1, p2, p3}, Lcom/temeowde/dschat/OfficialAccount;->postRequest(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+    return-void
+.end method
+
 .method public officialPasswordLogin(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
     .locals 2
     .annotation runtime Landroid/webkit/JavascriptInterface;

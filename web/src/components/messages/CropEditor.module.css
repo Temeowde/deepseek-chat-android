@@ -1,0 +1,175 @@
+/* 裁切页外壳 + Cropper.js 主题覆盖（官方风格：白色角标 + 白色边块） */
+
+.root {
+  position: fixed;
+  inset: 0;
+  /* 必须高于 ImageViewer 的 1300，否则整个裁切页会被查看器盖住（只剩一个叉号） */
+  z-index: 1400;
+  background: #000;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  touch-action: none;
+}
+
+/* 顶栏：还原 / 旋转（给裁切区留出高度） */
+.topBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(8px + var(--ds-safe-top, 0px)) 18px 8px;
+  pointer-events: none;
+}
+.topAction {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 15px;
+  opacity: 1;
+}
+.topAction:disabled {
+  opacity: 0.5;
+}
+.topIcon {
+  display: inline-flex;
+}
+
+/* 裁切舞台：占满中间，Cropper 的容器由库挂在这里 */
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.image {
+  display: block;
+  max-width: 100%;
+}
+
+/* 底栏：✕ / 去提问 */
+.bottomBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px calc(16px + var(--ds-safe-bottom, 0px));
+}
+.cancel {
+  flex: none;
+  width: 54px;
+  height: 54px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.confirm {
+  flex: 1 1 auto;
+  height: 54px;
+  border: 0;
+  border-radius: 27px;
+  background: #4f7cff;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+/* ---------------- Cropper.js 主题：官方那种白色标记 ---------------- */
+
+.root :global(.cropper-container) {
+  touch-action: none;
+}
+
+/* 框外的压暗：用库自带的 modal 太黑，这里自己控制 */
+.root :global(.cropper-modal) {
+  opacity: 0.55;
+  background-color: #000;
+}
+
+/* 8 个控制点：白色小方块，但命中区比视觉大很多（伪元素扩展） */
+.root :global(.cropper-point) {
+  width: 10px;
+  height: 10px;
+  background-color: #fff;
+  opacity: 1;
+  border-radius: 1px;
+}
+.root :global(.cropper-point::before) {
+  content: '';
+  position: absolute;
+  inset: -26px;
+}
+/* 四角做成 L 形提示（视觉和官方一致） */
+.root :global(.cropper-point.point-nw),
+.root :global(.cropper-point.point-ne),
+.root :global(.cropper-point.point-sw),
+.root :global(.cropper-point.point-se) {
+  width: 14px;
+  height: 14px;
+  background: #fff;
+}
+/* 四边中点做成短横条 */
+.root :global(.cropper-point.point-n),
+.root :global(.cropper-point.point-s) {
+  width: 26px;
+  height: 4px;
+}
+.root :global(.cropper-point.point-w),
+.root :global(.cropper-point.point-e) {
+  width: 4px;
+  height: 26px;
+}
+
+/* 边线：透明，但用伪元素把命中区加粗到 44px */
+.root :global(.cropper-line) {
+  background-color: transparent;
+}
+.root :global(.cropper-line.line-n::before),
+.root :global(.cropper-line.line-s::before) {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 44px;
+}
+.root :global(.cropper-line.line-n::before) {
+  top: -22px;
+}
+.root :global(.cropper-line.line-s::before) {
+  bottom: -22px;
+}
+.root :global(.cropper-line.line-w::before),
+.root :global(.cropper-line.line-e::before) {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+}
+.root :global(.cropper-line.line-w::before) {
+  left: -22px;
+}
+.root :global(.cropper-line.line-e::before) {
+  right: -22px;
+}
+
+/* 框边线：1px 白线 */
+.root :global(.cropper-dashed) {
+  display: none;
+}
+.root :global(.cropper-crop-box),
+.root :global(.cropper-view-box) {
+  outline: 1px solid rgb(255 255 255 / 85%);
+}

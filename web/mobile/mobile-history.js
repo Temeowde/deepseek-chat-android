@@ -296,8 +296,21 @@ window.createMobileHistory = function (React, portal, api) {
           h('button',{className:'ds-danger',disabled:busy||!selectedRows.length,onClick:()=>confirmDelete(selectedRows.map(r=>r.id))},icon('trash-2'),t('delete'))):
         h('div',{className:'ds-history-account-row'},
           h('button',{type:'button',className:'ds-history-account','aria-label':tr('设置','Settings'),onClick:api.settings},
-            h('span',{className:'ds-account-avatar'},officialProfile.avatar&&!avatarBroken?h('img',{src:officialProfile.avatar,alt:'',onError:()=>setAvatarBroken(true)}):officialProfile.name?h('span',{className:'ds-account-initial'},officialProfile.name.slice(0,1)):icon('user-round')),
+            h('span',{className:'ds-account-avatar'},officialProfile.avatar&&!avatarBroken?h('img',{src:dsAvatarSrc(officialProfile.avatar),alt:'',onError:()=>setAvatarBroken(true)}):officialProfile.name?h('span',{className:'ds-account-initial'},officialProfile.name.slice(0,1)):icon('user-round')),
             h('span',{className:'ds-account-name'},officialProfile.name||(official?tr('官方账号','Official account'):tr('未登录','Not signed in')))),
           h('button',{type:'button',className:'ds-history-gear','aria-label':tr('设置','Settings'),onClick:api.settings},icon('ellipsis')))),floatingMenu,modal);
   };
 };
+/* ── 头像缓存：优先用原生缓存的 dataURL，避免弱网/冷启动掉成「昵称首字」 ── */
+function dsAvatarSrc(url){
+  if(!url) return '';
+  const api=window.AvatarAndroid;
+  if(!api||typeof api.avatar!=='function') return url;
+  const memo=window.__dsAvatarMemo||(window.__dsAvatarMemo={});
+  if(Object.prototype.hasOwnProperty.call(memo,url)) return memo[url];
+  let out='';
+  try{ out=api.avatar(url)||''; }catch(error){ out=''; }
+  memo[url]=out||url;
+  return memo[url];
+}
+

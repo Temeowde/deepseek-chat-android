@@ -4,7 +4,7 @@ window.useMobileComposerVoice = function (React, props) {
   const latest = React.useRef(props), press = React.useRef(null);
   const acceptResult = React.useRef(false), queued = React.useRef(null);
   const [mode, setMode] = React.useState(false), [focused, setFocused] = React.useState(false);
-  const [willCancel, setWillCancel] = React.useState(false);
+  const [willCancel, setWillCancel] = React.useState(false), [pressing, setPressing] = React.useState(false);
   latest.current = props;
   const {mobile, sessionId, busy, voice, text, fileCount, textarea} = props;
   const scope = React.useRef(sessionId);
@@ -15,6 +15,7 @@ window.useMobileComposerVoice = function (React, props) {
     const p = press.current;
     if (p) clearTimeout(p.timer);
     press.current = null;
+    setPressing(false);
     if (p?.started || acceptResult.current || latest.current.voice.status !== 'idle') latest.current.voice.cancel();
     acceptResult.current = false; queued.current = null; setWillCancel(false);
   };
@@ -78,12 +79,13 @@ window.useMobileComposerVoice = function (React, props) {
     e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId);
     const p = {id:e.pointerId, y:e.clientY, started:false, cancel:false, timer:0};
     press.current = p;
+    setPressing(true);
     p.timer = setTimeout(() => begin(p), 280);
   };
   const onMove = e => {
     const p = press.current;
     if (!p || p.id !== e.pointerId) return;
-    const cancel = p.y - e.clientY > 44;
+    const cancel = p.y - e.clientY > 64;
     if (cancel !== p.cancel) { p.cancel = cancel; setWillCancel(cancel); }
     if (!p.started && cancel) clearTimeout(p.timer);
   };
@@ -91,11 +93,13 @@ window.useMobileComposerVoice = function (React, props) {
     const p = press.current;
     if (!p || p.id !== e.pointerId) return;
     const type = !p.started && !p.cancel && !mode;
-    finish(p.y - e.clientY > 44);
+    setPressing(false);
+    finish(p.y - e.clientY > 64);
     if (type) textarea.current?.focus({preventScroll:true});
   };
   const recording = voice.status === 'recording', transcribing = voice.status === 'transcribing';
-  const holdLabel = recording ? (willCancel ? name('松手取消','Release to cancel') : name('松手发送，上滑取消','Release to send, slide up to cancel'))
+  const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const holdLabel = recording ? (willCancel ? name('松手取消','Release to cancel') : name('松手发送，上滑取消','Release to send, slide up to cancel')) + (voice.seconds > 0 ? ' · ' + clock(voice.seconds) : '')
     : transcribing ? name('正在转写…','Transcribing…') : mode ? name('按住说话','Hold to talk') : name('发消息或按住说话','Message or hold to talk');
   const modeLabel = mode ? name('切换至文字','Switch to typing') : name('切换至语音','Switch to voice');
   const keyboard = 'M7 9h1m3 0h1m3 0h1M7 12h1m3 0h1m3 0h1M8 15h8';
@@ -106,7 +110,7 @@ window.useMobileComposerVoice = function (React, props) {
       h('circle',{cx:8.9,cy:12,r:1.2,fill:'currentColor',stroke:'none'}),
       h('path',{d:sound})));
   const pad = mobile && (recording || transcribing || (blank && !busy && (mode || !focused))) && h('button',{
-    type:'button',className:'ds-voice-pad' + (mode || recording || transcribing ? ' ds-talk' : '') + (willCancel ? ' ds-cancel' : ''),
+    type:'button',className:'ds-voice-pad' + (mode || recording || transcribing ? ' ds-talk' : '') + (willCancel ? ' ds-cancel' : '') + (pressing ? ' ds-pressing' : ''),
     'aria-label':holdLabel, onPointerDown:onDown, onPointerMove:onMove, onPointerUp:onUp,
     onPointerCancel:e=>{if(press.current?.id===e.pointerId) stop();}, onLostPointerCapture:e=>{if(press.current?.id===e.pointerId) stop();},
     onContextMenu:e=>e.preventDefault(), onClick:e=>{

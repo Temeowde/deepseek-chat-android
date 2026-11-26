@@ -24,6 +24,25 @@
     flex-direction: column;
     min-height: 0;
     overflow-y: auto;
+    /*
+     * 必须显式写 overflow-x: hidden：
+     * 只写 overflow-y:auto 时，overflow-x 的计算值会从 visible 变成 auto，
+     * 于是宽公式/长单词会让整个消息区可以横向滚动 —— 双指一拖内容就整体左移、左边被裁掉，
+     * 关抽屉后看起来就是「主界面错位」。
+     */
+    overflow-x: hidden;
+    /*
+     * 拉伸变换作用在滚动容器上：必须让它常驻合成层，
+     * 否则 scaleY 每变一次都要按新比例重新栅格化整屏内容 → 每帧重排/重绘 → 掉帧。
+     */
+    will-change: transform;
+    backface-visibility: hidden;
+    /*
+     * 横向裁到与输入卡同宽（卡片左右各内缩 12px）：
+     * 下方多出的 26px 只允许出现在卡片宽度以内，否则侧边会漏出文字。
+     * 底部留 0，靠卡片自身圆角遮挡。
+     */
+    clip-path: inset(0 12px 0 12px);
     overscroll-behavior-y: contain;
     overflow-anchor: none;
     scrollbar-color: var(--scroll-color) transparent;
@@ -38,8 +57,17 @@
   }
 
   .scroll .column {
-    max-width: calc(100% - 2 * var(--ds-mobile-gutter));
-    margin-inline: auto;
+    /* 官方实测：AI 正文左内边距 22dp；用户气泡右边距 15dp（不是对称 gutter） */
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+    /*
+     * 底部安全距离 = 卡片圆角重叠量(26px) + 视觉呼吸(10px) = 36px。
+     * 为什么必须 ≥26px：.dock 上移了 26px 让内容可以延伸进输入卡圆角下方，
+     * 那 26px 在视觉上是被卡片盖住的，padding 小于它时滚到底最后一行会被压住。
+     */
+    padding: 0 15px 36px 22px;
     animation: messagesIn var(--ds-motion-base) var(--ds-ease-out) both;
   }
 }
@@ -68,26 +96,27 @@
 
 /* The zero-height anchor tracks the top of the composer, including when the IME is open. */
 .jumpAnchor { position: relative; flex: none; height: 0; z-index: 1; }
+/* 官方实测：Ø36dp 纯图标圆钮，白色底 + 阴影，右边距 18dp，距输入框 13dp */
 .jump {
   position: absolute;
-  inset-inline-end: var(--ds-mobile-gutter);
-  bottom: 8px;
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  inset-inline-end: 18px;
+  /* 13px（官方实测）+ 26px（滚动区下延的补偿），保持按钮与输入卡的原始间距 */
+  bottom: 39px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  padding-inline: 11px;
-  border-radius: 12px;
-  border: 1px solid var(--chat-line);
+  padding: 0;
+  border-radius: 50%;
+  border: 0;
   background: var(--chat-paper);
   color: var(--dsw-alias-label-primary);
-  font: inherit;
-  font-size: 13px;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 7%);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 14%), 0 0 1px rgb(0 0 0 / 8%);
   animation: jumpIn var(--ds-motion-quick) var(--ds-ease-out) both;
 }
-.jump svg { width: 16px; height: 16px; }
+.jump :global(.ds-ui-icon) { width: 20px; height: 20px; }
+.jump svg { width: 20px; height: 20px; }
 
 @keyframes jumpIn {
   from { opacity: 0; transform: translateY(4px); }
@@ -99,4 +128,30 @@
   max-width: calc(100% - 40px);
   margin: 0 auto;
   padding-bottom: 24px;
+}
+
+
+/* 空壳会话（只有标题、正文没在本地）的说明 */
+.emptySession {
+  margin: 24px auto;
+  max-width: 520px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-elevated, #ffffff);
+  color: var(--dsw-alias-label-secondary, #6b7280);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.emptySession strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--dsw-alias-label-primary, #1f2329);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.emptySession p {
+  margin: 0;
 }

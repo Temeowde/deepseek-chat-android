@@ -7,6 +7,8 @@ import {
 } from '../components/sider/mobileSiderState.js'
 
 export const handleNativeBack = (): boolean => {
+  // 全屏图片查看器 / 裁切页（Android 返回键与侧滑返回都走这里）
+  if (window.closeImageViewer?.()) return true
   if (dismissSearchPanel()) return true
   const table = document.querySelector<HTMLDialogElement>('dialog[data-table-full][open]')
   if (table) { table.close(); return true }

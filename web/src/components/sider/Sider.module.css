@@ -389,6 +389,12 @@
 .drawer[data-searching='true'] {
   width: 100%;
   border-radius: 0;
+  /*
+   * 搜索态铺满整屏时，必须盖住后面的对话卡片。
+   * 侧栏打开时 .main 卡片是 z-index:801 并向右平移 269px/缩放 0.95，
+   * 抽屉只在 800，所以卡片会从右边露出一截；搜索模式盖满整屏，把抽屉提到卡片之上。
+   */
+  z-index: 900;
 }
 
 .drawerMaskOpen {

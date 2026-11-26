@@ -1,8 +1,14 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import { toSessionSummary, type Session, type SessionSummary } from './types.js'
 
+/** 官方同步会话的 id 前缀；导入归档里的会话用裸 id，两者指同一条会话。 */
+const OFFICIAL_PREFIX = 'off_'
+
 /** IndexedDB 存储结构版本；新增或调整存储、索引时递增。 */
 const DB_VERSION = 11
+
+/** 后台补下附件原件后广播，消息里的附件据此重新读取本地原件（原件缺失 -> 可显示）。 */
+export const FILE_SAVED_EVENT = 'chat-demo:file-saved'
 
 /** 文件原件按附件的本地 id 存储，所有引用同一 id 的消息共用一份；用于缩略图、打开查看，以及没有 serverId 时补传。 */
 export type StoredFile = {
@@ -86,7 +92,14 @@ export const saveSummary = async (summary: SessionSummary): Promise<void> => {
   const db = await getDB()
   const existing = await db.get('sessionSummaries', summary.id)
   const tx = db.transaction('sessionSummaries', 'readwrite')
-  await tx.store.put({ ...summary, fileIds: existing?.fileIds ?? [] })
+  /*
+   * updatedAt 只增不减（关键修复）：
+   * 用 API 续聊产生的消息只存在本地，官方服务器的 updated_at 还是旧的。
+   * 直接覆盖会让「刚聊过的会话」在下次同步时退回旧分组（今天 → 7天内）。
+   * 标题/置顶仍按服务端为准，只有时间戳做单调保护。
+   */
+  const updatedAt = Math.max(existing?.updatedAt ?? 0, summary.updatedAt)
+  await tx.store.put({ ...summary, updatedAt, fileIds: existing?.fileIds ?? [] })
   await tx.done
 }
 
@@ -166,7 +179,12 @@ const putFiles = async (store: 'files' | 'filesStaging', files: StoredFile[]) =>
   await Promise.all([...files.map((file) => tx.store.put(file)), tx.done])
 }
 
-export const saveFiles = (files: StoredFile[]): Promise<void> => putFiles('files', files)
+export const saveFiles = async (files: StoredFile[]): Promise<void> => {
+  await putFiles('files', files)
+  if (typeof window !== 'undefined' && files.length > 0) {
+    window.dispatchEvent(new Event(FILE_SAVED_EVENT))
+  }
+}
 
 export const loadFile = async (id: string): Promise<Blob | undefined> =>
   (await (await getDB()).get('files', id))?.blob
@@ -267,7 +285,7 @@ export const commitStaging = async (): Promise<SessionSummary[]> => {
 
 /** 原件已在暂存时校验。会话、摘要和新原件一起提交。 */
 export const mergeStaging = async (loadedIds: ReadonlySet<string>) => {
-  const { mergeArchivedSession } = await import('./history/mergeSession.js')
+  const { mergeArchivedSession, sessionsEquivalent } = await import('./history/mergeSession.js')
   const tx = (await getDB()).transaction(
     ['sessions', 'sessionSummaries', 'files', 'sessionsStaging', 'filesStaging'],
     'readwrite'
@@ -292,8 +310,27 @@ export const mergeStaging = async (loadedIds: ReadonlySet<string>) => {
     let updated = 0
     for (let cursor = await stagedSessions.openCursor(); cursor; cursor = await cursor.continue()) {
       const incoming = cursor.value
-      const existing = await sessions.get(incoming.id)
-      const session = existing ? mergeArchivedSession(existing, incoming) : incoming
+      /*
+       * 同一条官方会话在本地有两种 id：导入来的裸 id 和官方同步的 off_<id>。
+       * 合并时两种都要找，否则跨命名空间必然 miss，于是列表里出现两个同名会话。
+       *
+       * 但跨命名空间**不能见到同 id 就合**：导入的存档可能比官方账号多聊了几轮
+       * （导出的官方会话 + 导入后继续聊）。那种情况下必须当成两个会话分别保留，
+       * 否则多出来的消息会被官方那份覆盖（用户反馈过的丢消息 bug）。
+       * 只有「所有消息逐条完全一致」才合并。
+       */
+      const direct = await sessions.get(incoming.id)
+      const cross = direct ? undefined : await sessions.get(OFFICIAL_PREFIX + incoming.id)
+      const existing = direct ?? cross
+      let session: Session
+      if (!existing) {
+        session = incoming
+      } else if (!direct && !sessionsEquivalent(existing, incoming)) {
+        // 内容不一致：另存为独立会话，保留导入的完整内容
+        session = incoming
+      } else {
+        session = mergeArchivedSession(existing, incoming)
+      }
       const summary = storedSummary(session)
       if (session === existing && !summary.fileIds.some(id => copiedFiles.has(id))) continue
       if (session !== existing) {

@@ -3,11 +3,12 @@
   align-items: center;
   flex: none;
   box-sizing: border-box;
-  min-height: 52px;
+  min-height: 48px;
   /* 状态栏让位已经由 .frame 的 padding-top 处理，这里不要再加，否则双重偏移 */
-  padding-inline: max(0px, calc(var(--ds-mobile-gutter) - 6px));
+  padding-inline: 2px 0;
   gap: 2px;
-  color: var(--dsw-alias-label-primary);
+  /* 官方顶栏图标实测 #0F0F0F；标题色单独用正文色 #191B23 */
+  color: #0f0f0f;
   background: var(--chat-canvas);
   border-block-end: 1px solid transparent;
 }
@@ -19,13 +20,17 @@
 .title {
   flex: 1;
   min-width: 0;
-  margin-inline: 6px;
+  /* 官方标题首字墨迹左缘 x=166 device px，原 9px 偏右 2dp */
+  margin-inline: 7px 6px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 22px;
+  /* 官方 2.8.0 实测：标题字距 44.25 device px（≈14.75dp）、笔画/正文=1.22 → Medium(500)。
+     17px/600 实测比官方大 15%、粗 23%。标题不随聊天字号缩放，故写死 px。 */
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--chat-body-text);
   animation: titleIn var(--ds-motion-base) var(--ds-ease-out) both;
 }
 
@@ -34,22 +39,11 @@
   to { opacity: 1; }
 }
 
-
-/* 顶栏三个图标统一尺寸和描边，和官方一致 */
-.header svg {
-  width: 18px;
-  height: 18px;
+/* 顶栏图标统一由官方 SVG 的 mask 渲染，尺寸在组件里逐项指定 */
+.header :global(.ds-ui-icon) {
+  background-color: currentColor;
 }
 
-/* 三个图标的内部留白不同，按官方实测的墨迹大小分别校准 */
-.header > button:first-child svg { width: 22px; height: 22px; }
-.header > button:nth-child(3) svg { width: 18.6px; height: 18.6px; }
-.header > button:last-child svg { width: 20.2px; height: 20.2px; }
-
-.header svg path,
-.header svg line,
-.header svg circle,
-.header svg rect,
-.header svg polyline {
-  stroke-width: 1.75px;
+:global(body)[data-ds-dark-theme] .header {
+  color: #f2f3f5;
 }

@@ -4,11 +4,15 @@ import { createId } from '../../utils/id.js'
 import {
   cancelUpload,
   isImage,
+  markInlineImage,
+  markInlineText,
   resolveMimeType,
   uploadAttachment,
   validateFiles,
   type UploadTask,
 } from '../attachments.js'
+import { isTextFile } from '../textfile.js'
+import { canParseLocally } from '../docparse/index.js'
 import type { FileAttachment } from './types.js'
 
 export type DraftAttachment = {
@@ -46,7 +50,22 @@ const updateDraft = (sessionId: string | null, update: (draft: Draft) => Draft) 
 export const setDraftText = (sessionId: string | null, text: string) =>
   updateDraft(sessionId, (draft) => ({ ...draft, text }))
 
-const upload = (attachment: DraftAttachment, apiKey: string) => {
+const upload = (attachment: DraftAttachment, apiKey: string, inline: boolean) => {
+  // 非 DeepSeek 通道的图片不传 Files API，直接标记为内联，发送时读本地原件转 base64。
+  if (inline && attachment.isImage) {
+    markInlineImage(attachment.id)
+    return
+  }
+  // 纯文本附件（txt / md / csv / 代码）本地读取，不需要上传。
+  if (isTextFile(attachment.file.name, attachment.file.type)) {
+    markInlineText(attachment.id)
+    return
+  }
+  // 没有 Files API 的通道里，PDF / Word / PPT 也在本地解析成文本，标记为内联跳过上传。
+  if (inline && canParseLocally(attachment.file.name)) {
+    markInlineText(attachment.id)
+    return
+  }
   // 上传任务负责记录错误，输入框的附件卡片展示失败及重试入口。
   void uploadAttachment(
     apiKey,
@@ -61,7 +80,8 @@ const upload = (attachment: DraftAttachment, apiKey: string) => {
 export const addDraftFiles = (
   sessionId: string | null,
   files: File[],
-  apiKey: string
+  apiKey: string,
+  inlineImages = false
 ): TranslationMessage | null => {
   if (files.length === 0) {
     return null
@@ -80,36 +100,39 @@ export const addDraftFiles = (
     }
   })
   updateDraft(sessionId, (draft) => ({ ...draft, attachments: [...draft.attachments, ...added] }))
-  added.forEach((attachment) => upload(attachment, apiKey))
+  added.forEach((attachment) => upload(attachment, apiKey, inlineImages))
   return null
 }
 
 export const retryDraftAttachment = (
   sessionId: string | null,
   attachmentId: string,
-  apiKey: string
+  apiKey: string,
+  inlineImages = false
 ) => {
   const attachment = getDraft(sessionId).attachments.find((item) => item.id === attachmentId)
   if (attachment) {
-    upload(attachment, apiKey)
+    upload(attachment, apiKey, inlineImages)
   }
 }
 
-/** 发送按钮和实际提交共用规则：有内容，且全部附件已上传成功。 */
+/** 发送按钮和实际提交共用规则：有内容，且全部附件已就绪（已上传或已标记内联）。 */
 export const prepareDraftMessage = (draft: Draft, tasks: Record<string, UploadTask>) => {
   const text = draft.text.trim()
   if (!text && draft.attachments.length === 0) {
     return null
   }
-  const files: (FileAttachment & { serverId: string; blob: Blob })[] = []
+  const files: (FileAttachment & { serverId: string | null; blob: Blob })[] = []
   for (const attachment of draft.attachments) {
     const task = tasks[attachment.id]
-    if (task?.status !== 'done' || !task.serverId) {
+    const inlineImage = task?.status === 'inline'
+    const inlineText = task?.status === 'inline-text'
+    if (!inlineImage && !inlineText && (task?.status !== 'done' || !task.serverId)) {
       return null
     }
     files.push({
       id: attachment.id,
-      serverId: task.serverId,
+      serverId: inlineImage || inlineText ? null : task?.status === 'done' ? task.serverId : null,
       name: attachment.file.name,
       size: attachment.file.size,
       isImage: attachment.isImage,

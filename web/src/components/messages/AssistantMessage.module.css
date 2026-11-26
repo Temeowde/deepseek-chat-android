@@ -139,8 +139,10 @@
 
   .bottom {
     left: auto;
-    gap: 4px;
-    padding-block: 6px 0;
+    /* 官方底部操作栏比正文列再宽一点（左边 14.5dp / 右边 13dp） */
+    margin-inline: -7px -2px;
+    gap: 0;
+    padding-block: 0 8px;
 
     &[data-inline='false'] {
       display: none;
@@ -150,9 +152,9 @@
   .actions {
     display: flex;
     flex: 1;
-    flex-wrap: wrap;
-    min-width: min(216px, 100%);
-    gap: 2px;
+    flex-wrap: nowrap;
+    min-width: 0;
+    gap: 0;
     opacity: 1;
 
     &[data-inline='false'] {
@@ -162,13 +164,19 @@
     button {
       display: grid;
       place-items: center;
-      min-width: 34px;
-      height: 40px;
+      flex: none;
+      width: 37px;
+      height: 44px;
       padding: 0;
       border: 0;
       background: transparent;
-      color: var(--dsw-alias-label-secondary);
+      color: var(--chat-footer-icon, #8e9094);
       cursor: pointer;
+    }
+
+    /* 官方：重新生成单独靠最右（Tooltip 触发层是 display:contents，按钮本身才是 flex item） */
+    button[data-msg-action='regenerate'] {
+      margin-inline-start: auto;
     }
 
     button:disabled {
@@ -177,14 +185,14 @@
     }
 
     :global(.ds-ui-icon) {
-      width: 17px;
-      height: 17px;
+      width: 18px;
+      height: 18px;
     }
 
     [aria-pressed='true'] {
-      color: var(--dsw-alias-brand-text);
-      background: var(--dsw-alias-button-ghost-active-fill);
-      border-radius: 8px;
+      color: inherit;
+      background: none;
+      border-radius: 0;
     }
   }
 }

@@ -2,7 +2,7 @@ import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
 import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { useIsMobile } from '../../app/viewport.js'
-import { IconEditOutline16 } from '../base/icons.js'
+import { MaskIcon } from '../base/MaskIcon.js'
 import { editMessage, retryUpload } from '../../services/chat/store.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
 import type { UserMessage as UserMessageType } from '../../services/chat/types.js'
@@ -126,7 +126,7 @@ export const UserMessage = memo(function UserMessage({
             <div className={clsx(styles.actions, isLast && styles.alwaysShow)}>
               {message.content ? <CopyButton text={message.content} /> : null}
               <IconButton
-                icon={<IconEditOutline16 />}
+                icon={<MaskIcon name="pencil" />}
                 tooltip={t('editMessage')} data-msg-action="edit"
                 tooltipPlacement="bottom"
                 disabled={busy}

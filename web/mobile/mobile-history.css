@@ -31,6 +31,16 @@
   gap: 0;
   transition: grid-template-columns var(--ds-motion-base) var(--ds-ease-out);
 }
+/*
+ * 搜索模式：官方会把侧栏展开铺满整屏（不再是 69.6vw 的抽屉宽度），
+ * 同时给底部让出键盘高度，否则结果列表会被键盘挡住。
+ */
+.ds-history[data-searching=true] {
+  width:100%;
+  max-width:100%;
+  padding-bottom:var(--ds-safe-bottom,0px);
+  padding-bottom:var(--ds-ime-bottom,var(--ds-safe-bottom,0px));
+}
 .ds-history[data-searching=true] .ds-history-search { grid-template-columns: 48px minmax(0, 1fr); }
 .ds-history .ds-history-search-back {
   display: grid;
@@ -50,7 +60,8 @@
 .ds-history .list-ac14ac { margin:0;padding:0 8px; }
 .ds-history .section-ac14ac { margin-top:12px;padding-top:0; }
 .ds-history .section-ac14ac:first-child { margin-top:0; }
-.ds-history .sectionHeader-ac14ac { box-sizing:border-box;background:var(--ds-ui-paper);padding:6px 12px 4px;line-height:18px;display:flex;align-items:center;gap:8px; }
+/* 分组吸顶条底色 = 侧栏真实底色(canvas)，用 --ds-ui-paper 会在深色下多出一条灰带 */
+.ds-history .sectionHeader-ac14ac { box-sizing:border-box;background:var(--chat-canvas,var(--ds-ui-paper));padding:6px 12px 4px;line-height:18px;display:flex;align-items:center;gap:8px; }
 /* 分组标题文字：占满剩余宽度，过长省略 */
 .ds-history .ds-section-label { flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 /*

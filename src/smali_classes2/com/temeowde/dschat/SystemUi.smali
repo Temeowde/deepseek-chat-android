@@ -79,6 +79,18 @@
 
     invoke-virtual {v1, v5}, Landroid/view/Window;->setNavigationBarColor(I)V
 
+    # 深色下把「窗口背景」也改掉：侧滑返回的系统手势预览、冷启动占位
+    # 用的是 windowBackground，只改 content 背景的话预览会露一块浅色
+    invoke-virtual {p0}, Landroid/app/Activity;->getWindow()Landroid/view/Window;
+
+    move-result-object v2
+
+    new-instance v3, Landroid/graphics/drawable/ColorDrawable;
+
+    invoke-direct {v3, v0}, Landroid/graphics/drawable/ColorDrawable;-><init>(I)V
+
+    invoke-virtual {v2, v3}, Landroid/view/Window;->setBackgroundDrawable(Landroid/graphics/drawable/Drawable;)V
+
     .line 64
     const v1, 0x1020002
 

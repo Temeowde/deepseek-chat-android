@@ -280,6 +280,8 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
      */
     private void pushInsets(int top, int bottom, int left, int right) {
         final String js = "(function(){var r=document.documentElement.style;"
+                // 标记：本机由原生推送 IME 高度，页面不要再用 visualViewport 高度二次让位
+                + "document.documentElement.setAttribute('data-ds-native-ime','1');"
                 + "r.setProperty('--ds-safe-top','" + top + "px');"
                 + "r.setProperty('--ds-safe-bottom','" + bottom + "px');"
                 + "r.setProperty('--ds-safe-left','" + left + "px');"

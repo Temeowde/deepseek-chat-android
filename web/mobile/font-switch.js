@@ -79,7 +79,13 @@
     { id: 'follow', kind: 'follow', zh: '跟随系统', en: 'Follow system', stack: "'DSSystemFont', " + FALLBACK_STACK },
     { id: 'system', kind: 'system', zh: '系统默认', en: 'System default', stack: SYSTEM_STACK },
     { id: 'serif', kind: 'system', zh: '宋体（衬线）', en: 'Serif', stack: 'serif' },
-    { id: 'mono', kind: 'system', zh: '等宽字体', en: 'Monospace', stack: 'monospace' }
+    { id: 'mono', kind: 'system', zh: '等宽字体', en: 'Monospace', stack: 'monospace' },
+    /*
+     * 内置 MiSans：字体文件随 APK 打包（子集化 woff2，约 1.7MB），
+     * 任何机型都不依赖系统字体，效果完全一致。
+     * 依据 MiSans 知识产权许可协议：免费商用、允许嵌入软件（需在应用内注明使用了 MiSans）。
+     */
+    { id: 'misans', kind: 'system', zh: 'MiSans（内置）', en: 'MiSans (built-in)', stack: "'MiSansEmbedded', " + FALLBACK_STACK }
   ];
   var options = base.slice();
   var snapshot = options;
@@ -294,6 +300,20 @@
     return null;
   }
 
+  /** 内置 MiSans 的 @font-face：只注入一次，路径相对 assets/chat/index.html。 */
+  function ensureEmbeddedFace() {
+    if (document.getElementById('ds-font-embedded')) {
+      return;
+    }
+    var el = document.createElement('style');
+    el.id = 'ds-font-embedded';
+    el.textContent =
+      "@font-face{font-family:'MiSansEmbedded';" +
+      "src:url('fonts/MiSans-VF.woff2') format('woff2');" +
+      'font-weight:400 500;font-style:normal;font-display:swap;}';
+    (document.head || document.documentElement).appendChild(el);
+  }
+
   function ensureStyleEl() {
     if (styleEl && styleEl.isConnected) {
       return styleEl;
@@ -321,8 +341,14 @@
     // font-synthesis-weight:none（避免主题可变字体被二次加粗），该属性会继承整页；
     // 用户换成只有单一字重的设备字体（楷体/圆体等）时，必须把它恢复成 auto，
     // 否则标题/加粗文字不会合成粗体。follow 模式清空本 style，Java 的 none 仍然生效。
+    /*
+     * 内置 MiSans 的上限字重压到 620：系统字体在 MIUI 上 700 会被映射成约 450，
+     * 换成真 MiSans 后 700 是实打实的 Bold，标题会明显过粗（用户反馈"粗得没边"）。
+     * 同时禁止合成加粗，避免 800/900 再叠一层伪粗体。
+     */
+    var synthesis = currentId === 'misans' ? 'none' : 'auto';
     el.textContent =
-      ':root:root,:root:root body{--dsw-font-family:' + stack + ' !important;font-synthesis-weight:auto;}';
+      ':root:root,:root:root body{--dsw-font-family:' + stack + ' !important;font-synthesis-weight:' + synthesis + ';}';
   }
 
   function readSavedId() {
@@ -381,6 +407,9 @@
       return false;
     }
     var stack = option.stack;
+    if (option.id === 'misans') {
+      ensureEmbeddedFace();
+    }
     if (option.kind === 'device') {
       registerDeviceFace(option);
     }

@@ -14,22 +14,100 @@ import type {
   ReplyStatus,
   UserMessage,
 } from './types.js'
+import type { ContextMemory } from './contextMemory.js'
+import { estimateTokens } from './contextMemory.js'
+
+/**
+ * 长文本（含文本附件正文）超过这个估算 token 数时，DeepSeek 官方通道改用内联 document 块发送。
+ * 服务端对 document 块不套用单条消息 32,768 tokens 的文本上限（真机实测 6 万/20 万字均通过）。
+ */
+const LARGE_TEXT_AS_DOCUMENT_TOKENS = 16000
+
+/**
+ * 单次请求最多带多少张历史图片。
+ * 服务端硬上限是 600 张，但真正的问题是：
+ * 1) 导入的历史图片没有 serverId，发送前要逐张补传，几百张会等到超时；
+ * 2) 请求里图片 ≥15 张时，服务端把单边上限从 8192px 收紧到 4096px。
+ * 所以这里从"最新"往旧最多保留 20 张，更早的图片用一行文字占位。
+ */
+export const MAX_REQUEST_IMAGES = 20
+/** 图片总量上限（本地按附件体积估算），避免请求体/上传时间失控 */
+const MAX_REQUEST_IMAGE_BYTES = 32 * 1024 * 1024
+
+/** 真正会作为图片块发出去的附件（上传成功走 serverId，非官方通道走 base64） */
+const isSendableImage = (file: FileAttachment): boolean =>
+  file.isImage && !!(file.serverId || file.inlineImage)
+
+/**
+ * 选出本次请求要发送/上传的图片 id：按用户消息顺序（旧的在前）从最新往旧保留。
+ * store 用它决定"只补传哪些历史图片"，reply 用它决定"请求里带哪些图片块"。
+ */
+export const selectRequestImageIds = (users: UserMessage[]): Set<string> => {
+  const entries = users.flatMap((user) =>
+    user.files.filter((file) => file.isImage).map((file) => ({ id: file.id, size: file.size || 0 }))
+  )
+  const kept = new Set<string>()
+  let count = 0
+  let bytes = 0
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]
+    if (count + 1 > MAX_REQUEST_IMAGES || bytes + entry.size > MAX_REQUEST_IMAGE_BYTES) {
+      break
+    }
+    kept.add(entry.id)
+    count += 1
+    bytes += entry.size
+  }
+  return kept
+}
 
 /**
  * 文件按 Files API 的 file_id（附件的 serverId）引用：图片用 image 块，其余用 document 块。
  * 发送前 streamReply 会先补齐 serverId；仍为 null 的是本地没有原件的附件，不进入请求。
+ *
+ * 非 DeepSeek 通道没有 Files API：图片改用 base64 内联块，由调用方预先填好 data。
  */
-const toFileBlocks = (files: FileAttachment[]): FileBlockParam[] =>
-  files.flatMap(({ serverId, isImage }) =>
-    serverId
+const toFileBlocks = (
+  files: FileAttachment[],
+  /** 本轮请求允许发送的图片 id；不在集合里的图片跳过（用文字占位提示） */
+  keptImageIds?: Set<string>
+): FileBlockParam[] =>
+  files.flatMap(({ id, serverId, isImage, inlineImage, documentText }) => {
+    if (isImage && keptImageIds && !keptImageIds.has(id)) {
+      return []
+    }
+    if (documentText) {
+      // 文本附件走内联 document 块：不占单条 32K 文本上限，也不用 Files API 上传。
+      return [
+        {
+          type: 'document' as const,
+          source: { type: 'text' as const, media_type: 'text/plain' as const, data: documentText },
+        },
+      ]
+    }
+    if (inlineImage) {
+      return isImage
+        ? [
+            {
+              type: 'image' as const,
+              source: {
+                type: 'base64' as const,
+                media_type: inlineImage.mediaType,
+                data: inlineImage.data,
+              },
+            },
+          ]
+        : []
+    }
+    return serverId
       ? [
           {
             type: isImage ? 'image' : 'document',
             source: { type: 'file', file_id: serverId },
-          },
+          } as FileBlockParam,
         ]
       : []
-  )
+  })
 
 const toReplyBlock = (block: OutputBlockStart, now: number): ReplyBlock | null => {
   switch (block.type) {
@@ -202,13 +280,42 @@ const isUsableReply = (message: Message): message is AssistantMessage =>
   getReplyText(message) !== ''
 
 /** 有文件时用内容块数组：先文件后文本，文件按 Files API 的 file_id 引用 */
-const toUserParam = ({ content, files }: UserMessage): MessageParam => {
-  const blocks = toFileBlocks(files)
+const toUserParam = (
+  { content, files }: UserMessage,
+  /** DeepSeek 官方通道：长文本改用内联 document 块，避免撞单条 32,768 tokens 上限 */
+  largeTextAsDocument = false,
+  /** 本次请求允许发送的图片 id；未保留的图片用一行文字占位 */
+  keptImageIds?: Set<string>
+): MessageParam => {
+  const omittedImages =
+    keptImageIds === undefined
+      ? 0
+      : files.filter(
+          (file) =>
+            file.isImage && (!keptImageIds.has(file.id) || !isSendableImage(file))
+        ).length
+  const text =
+    omittedImages > 0
+      ? [content, `[较早的 ${omittedImages} 张图片已省略]`].filter(Boolean).join('\n\n')
+      : content
+  const blocks = toFileBlocks(files, keptImageIds)
+  if (largeTextAsDocument && text && estimateTokens(text) > LARGE_TEXT_AS_DOCUMENT_TOKENS) {
+    return {
+      role: 'user',
+      content: [
+        ...blocks,
+        {
+          type: 'document' as const,
+          source: { type: 'text' as const, media_type: 'text/plain' as const, data: text },
+        },
+      ],
+    }
+  }
   return blocks.length === 0
-    ? { role: 'user', content }
+    ? { role: 'user', content: text }
     : {
         role: 'user',
-        content: [...blocks, ...(content ? [{ type: 'text' as const, text: content }] : [])],
+        content: [...blocks, ...(text ? [{ type: 'text' as const, text }] : [])],
       }
 }
 
@@ -305,7 +412,17 @@ export const toRequestMessages = (
   question: UserMessage,
   prefix?: AssistantMessage,
   thinking = prefix?.thinking ?? false,
-  latestReminder?: string
+  latestReminder?: string,
+  /**
+   * 上下文爆满后用户主动压缩得到的滚动摘要。
+   * 只有 memory 存在时才会改写发送内容；普通聊天传 null/undefined，行为与原来完全一致。
+   */
+  memory?: ContextMemory | null,
+  /**
+   * DeepSeek 官方通道：把过长的用户文本（含文本附件正文）作为内联 document 块发送，
+   * 绕开单条消息 32,768 tokens 的文本上限。其他通道保持原样。
+   */
+  largeTextAsDocument = false
 ): MessageParam[] => {
   const messages: MessageParam[] = []
   let previousReminder: string | undefined
@@ -316,16 +433,48 @@ export const toRequestMessages = (
       previousReminder = reminder
     }
   }
-  for (const [user, reply] of getContextRounds(history)) {
+  const rounds = getContextRounds(history)
+  /**
+   * 摘要只有在「仍然对应当前分支、覆盖轮数没超界」时才生效：
+   * - anchorId 不同（切到别的分支 / 导入替换了历史）→ 忽略旧摘要；
+   * - coveredRounds 超过现存轮数 → 忽略，而不是 clamp 后把全部历史顶掉。
+   */
+  const memoryAnchor = rounds[0]?.[0]?.id
+  const validMemory =
+    memory &&
+    memory.summary.trim() &&
+    memory.coveredRounds > 0 &&
+    memory.coveredRounds <= rounds.length &&
+    (!memory.anchorId || !memoryAnchor || memory.anchorId === memoryAnchor)
+      ? memory
+      : null
+  const skipRounds = validMemory ? Math.min(validMemory.coveredRounds, rounds.length) : 0
+  const keptImageIds = selectRequestImageIds([
+    ...rounds.slice(skipRounds).map(([user]) => user),
+    question,
+  ])
+  if (skipRounds > 0) {
+    // 用一段合成的「摘要 + 应答」代替被压缩的早期轮次：
+    // 摘要内容一旦生成就固定不变，保证后续请求的前缀稳定（缓存命中、费用低）。
+    messages.push({
+      role: 'user',
+      content: `【以下是本对话更早内容的摘要，请把它当作已经发生过的上下文】\n${validMemory?.summary ?? ''}`,
+    })
+    messages.push({
+      role: 'assistant',
+      content: [{ type: 'text', text: '好的，我已了解之前对话的要点，会在此基础上继续。' }],
+    })
+  }
+  for (const [user, reply] of rounds.slice(skipRounds)) {
     // 历史提问没有文字、附件也都没有 serverId 时，提问为空，连同回答一起省略。
     if (!user.content && toFileBlocks(user.files).length === 0) {
       continue
     }
     appendReminder(reply.latestReminder)
-    messages.push(toUserParam(user), toAssistantParam(reply))
+    messages.push(toUserParam(user, largeTextAsDocument, keptImageIds), toAssistantParam(reply))
   }
   appendReminder(latestReminder)
-  messages.push(toUserParam(question))
+  messages.push(toUserParam(question, largeTextAsDocument, keptImageIds))
   if (prefix?.prefix) {
     const assistant = toAssistantParam(prefix, true, thinking)
     // 没有非空白正文或有效思考时直接重发原问题，避免服务端拒绝空 Prefill。

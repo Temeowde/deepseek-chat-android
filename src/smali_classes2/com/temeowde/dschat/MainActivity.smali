@@ -517,6 +517,10 @@
     .line 396
     invoke-virtual {v5, v6, v4, v7, v7}, Landroid/content/ContentResolver;->update(Landroid/net/Uri;Landroid/content/ContentValues;Ljava/lang/String;[Ljava/lang/String;)I
 
+    # 落盘校验：读回文件大小，和待写字节数比对；不一致就抛异常走失败提示
+    invoke-static {v5, v6, v3}, Lcom/temeowde/dschat/ExportCheck;->verify(Landroid/content/ContentResolver;Landroid/net/Uri;[B)V
+
+
     .line 397
     const-string v0, "\u7cfb\u7edf\u4e0b\u8f7d\u76ee\u5f55 / DeepSeek Chat"
     :try_end_4
@@ -1560,6 +1564,54 @@
     invoke-direct {v4, p0}, Lcom/temeowde/dschat/MainActivity$AndroidBridge;-><init>(Lcom/temeowde/dschat/MainActivity;)V
 
     const-string v5, "DeepSeekAndroid"
+
+    invoke-virtual {v1, v4, v5}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
+
+    new-instance v4, Lcom/temeowde/dschat/WorkBuddyBridge;
+
+    invoke-direct {v4, p0, v1}, Lcom/temeowde/dschat/WorkBuddyBridge;-><init>(Landroid/app/Activity;Landroid/webkit/WebView;)V
+
+    const-string v5, "WorkBuddyAndroid"
+
+    invoke-virtual {v1, v4, v5}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
+
+    new-instance v4, Lcom/temeowde/dschat/CustomProviderBridge;
+
+    invoke-direct {v4, p0, v1}, Lcom/temeowde/dschat/CustomProviderBridge;-><init>(Landroid/app/Activity;Landroid/webkit/WebView;)V
+
+    const-string v5, "CustomAndroid"
+
+    invoke-virtual {v1, v4, v5}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
+
+    new-instance v4, Lcom/temeowde/dschat/BackupBridge;
+
+    invoke-direct {v4, p0, v1}, Lcom/temeowde/dschat/BackupBridge;-><init>(Landroid/app/Activity;Landroid/webkit/WebView;)V
+
+    const-string v5, "BackupAndroid"
+
+    invoke-virtual {v1, v4, v5}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
+
+    new-instance v4, Lcom/temeowde/dschat/FontBridge;
+
+    invoke-direct {v4, p0, v1}, Lcom/temeowde/dschat/FontBridge;-><init>(Landroid/app/Activity;Landroid/webkit/WebView;)V
+
+    const-string v5, "FontAndroid"
+
+    invoke-virtual {v1, v4, v5}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
+
+    new-instance v4, Lcom/temeowde/dschat/ScreenBridge;
+
+    invoke-direct {v4, p0, v1}, Lcom/temeowde/dschat/ScreenBridge;-><init>(Landroid/app/Activity;Landroid/webkit/WebView;)V
+
+    const-string v5, "ScreenAndroid"
+
+    invoke-virtual {v1, v4, v5}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
+
+    new-instance v4, Lcom/temeowde/dschat/AvatarBridge;
+
+    invoke-direct {v4, p0, v1}, Lcom/temeowde/dschat/AvatarBridge;-><init>(Landroid/app/Activity;Landroid/webkit/WebView;)V
+
+    const-string v5, "AvatarAndroid"
 
     invoke-virtual {v1, v4, v5}, Landroid/webkit/WebView;->addJavascriptInterface(Ljava/lang/Object;Ljava/lang/String;)V
 

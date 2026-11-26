@@ -114,10 +114,13 @@
 
   .bubble {
     max-width: 85%;
-    padding: 9px 14px;
-    border: 1px solid var(--chat-line);
-    border-radius: 16px 16px 4px 16px;
+    padding: 9.8px 14.5px;
+    border: 0;
+    border-radius: 22px 20px 5px 22px;
     background: var(--chat-prompt);
+    color: var(--chat-user-text, var(--dsw-alias-label-primary));
+    font-size: calc(16px * var(--ds-chat-scale, 1));
+    line-height: calc(24px * var(--ds-chat-scale, 1));
   }
 
   /* 长按菜单仍使用按钮的动作。仅在确有版本时将控制条放进布局。 */

@@ -5,12 +5,15 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.webkit.CookieManager;
 import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
@@ -81,12 +84,24 @@ public final class LoginActivity extends Activity {
 
         getWindow().setStatusBarColor(Color.WHITE);
         getWindow().setNavigationBarColor(Color.WHITE);
+        if (Build.VERSION.SDK_INT >= 30) {
+            // Android 11+ 默认会把网页画到状态栏/导航栏下面；登录网页顶部会压到状态栏。
+            getWindow().setDecorFitsSystemWindows(false);
+        }
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.WHITE);
+        if (Build.VERSION.SDK_INT >= 30) {
+            // 给状态栏和导航栏让位；网页本身仍从 header 下方开始。
+            root.setOnApplyWindowInsetsListener((view, insets) -> {
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                return insets;
+            });
+        }
 
         // 顶栏对齐设置页：居中标题 + 左侧圆形关闭按钮。
         FrameLayout header = new FrameLayout(this);
@@ -163,6 +178,16 @@ public final class LoginActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         setContentView(root);
+        if (Build.VERSION.SDK_INT >= 30) {
+            // 必须在 setContentView 之后取 controller，否则 DecorView 还没建好会 NPE。
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                int appearance = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                controller.setSystemBarsAppearance(appearance, appearance);
+            }
+            root.requestApplyInsets();
+        }
         webView.loadUrl(LOGIN_URL);
         polling = true;
         handler.postDelayed(poll, 1500);

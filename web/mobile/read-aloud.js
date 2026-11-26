@@ -1,7 +1,12 @@
 /* Automatic playback follows a live generation, never a rendered history item. */
+/*
+ * 注意：这个文件会作为构建入口被打包成模块，此时 module.exports 存在，
+ * 原来的 UMD 判断会走 CommonJS 分支，导致 window.createChatAutoRead 永远不挂载。
+ * 所以优先挂到 window（浏览器/WebView），只有在没有 window 的 Node 环境才导出模块。
+ */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory;
-  else root.createChatAutoRead = options => factory({...options, native:root.DeepSeekAndroid});
+  if (root) root.createChatAutoRead = options => factory({...options, native:root.DeepSeekAndroid});
+  else if (typeof module === 'object' && module.exports) module.exports = factory;
 })(typeof window !== 'undefined' ? window : null, function ({storage, foreground, active, play, stop, native}) {
   const key = 'ds.mobile.read-aloud.v1', listeners = new Set();
   let enabled = false, pending = null;

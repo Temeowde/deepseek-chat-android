@@ -15,23 +15,82 @@ import type {
 /** 返回图片原件在 ZIP 里的条目名；无原件或非图片附件返回 null，仅导出元数据。 */
 export type ExportImage = (file: { id: string; name: string; isImage: boolean }) => string | null
 
-const iso = (ms: number) => new Date(ms).toISOString()
+/** 转换时发现并已容错的数据问题；导出汇总后提示用户，不再让整次导出失败。 */
+export type ArchiveConversionStats = {
+  /** 无法表示成合法 UTC 时间、已回退的个数 */
+  invalidTimestamps: number
+  /** 其他不满足归档校验的数值（耗时、计数等），已回退的个数 */
+  invalidValues: number
+}
 
-/** 来源日期可能是任意格式的原始字符串，无法解析时不导出。 */
+/** Date 能表示的最大毫秒数；超出后 `toISOString` 抛 RangeError。 */
+const MAX_TIME = 8.64e15
+const EPOCH_ISO = new Date(0).toISOString()
+
+/**
+ * 毫秒转 UTC 时间。
+ *
+ * 时间戳可能来自官方接口或旧数据的脏值（NaN/Infinity/超出 Date 范围），
+ * 直接 `new Date(ms).toISOString()` 会抛 RangeError，让任何一条脏数据毁掉整次导出。
+ * 这里回退到合法值并计数：NaN/Infinity → 1970-01-01，超范围 → Date 边界。
+ */
+const iso = (ms: number, stats?: ArchiveConversionStats): string => {
+  if (Number.isFinite(ms)) {
+    if (Math.abs(ms) <= MAX_TIME) {
+      return new Date(ms).toISOString()
+    }
+    if (stats) {
+      stats.invalidTimestamps += 1
+    }
+    return new Date(ms > 0 ? MAX_TIME : -MAX_TIME).toISOString()
+  }
+  if (stats) {
+    stats.invalidTimestamps += 1
+  }
+  return EPOCH_ISO
+}
+
+/** 归档要求非负安全整数（schema 的 count）；无法满足时回退 0，避免整条消息导入校验失败。 */
+const count = (value: number, stats?: ArchiveConversionStats): number => {
+  if (Number.isSafeInteger(value) && value >= 0) {
+    return value
+  }
+  if (stats) {
+    stats.invalidValues += 1
+  }
+  return 0
+}
+
+/** 耗时（秒）允许 null，但不能是 NaN/Infinity。 */
+const seconds = (value: number | null, stats?: ArchiveConversionStats): number | null => {
+  if (value === null || Number.isFinite(value)) {
+    return value
+  }
+  if (stats) {
+    stats.invalidValues += 1
+  }
+  return null
+}
+
+/** 来源日期可能是任意格式的原始字符串，无法解析时不导出（正常缺省，不计入异常）。 */
 const isoOrNull = (value: string | null) => {
   const ms = value === null ? NaN : Date.parse(value)
   return Number.isFinite(ms) ? iso(ms) : null
 }
 
-const userFragments = (message: UserMessage, exportImage: ExportImage): Fragment[] => {
+const userFragments = (
+  message: UserMessage,
+  exportImage: ExportImage,
+  stats?: ArchiveConversionStats
+): Fragment[] => {
   const files = message.files.map((file): FileEntry => {
     const isImage = file.isImage
     return {
       id: file.id,
       file_name: file.name,
-      file_size: file.size,
+      file_size: count(file.size, stats),
       token_usage: null,
-      inserted_at: iso(message.createdAt),
+      inserted_at: iso(message.createdAt, stats),
       export_path: exportImage({ id: file.id, name: file.name, isImage }),
       is_image: isImage,
       width: null,
@@ -121,7 +180,10 @@ const toolFragment = (tool: ServerToolUseBlock, result: ReplyBlock | undefined):
  * 引用改由正文外的来源表示，不写入标记；
  * 本轮调用过联网能力时，剥除模型原样输出的 [citation:N]。
  */
-const assistantFragments = (message: AssistantMessage): Fragment[] => {
+const assistantFragments = (
+  message: AssistantMessage,
+  stats?: ArchiveConversionStats
+): Fragment[] => {
   const { blocks } = message
   const results = new Map<string, ReplyBlock>()
   for (const block of blocks) {
@@ -149,11 +211,13 @@ const assistantFragments = (message: AssistantMessage): Fragment[] => {
               {
                 type: 'THINK',
                 content: block.thinking,
-                elapsed_secs:
+                elapsed_secs: seconds(
                   block.elapsedSeconds ??
-                  (block.startedAt === undefined || block.endedAt === undefined
-                    ? null
-                    : (block.endedAt - block.startedAt) / 1000),
+                    (block.startedAt === undefined || block.endedAt === undefined
+                      ? null
+                      : (block.endedAt - block.startedAt) / 1000),
+                  stats
+                ),
               },
             ]
           : []
@@ -234,7 +298,11 @@ const numberMessages = (messages: Message[]) => {
   return { ordered, ids }
 }
 
-export const toSessionFile = (original: Session, exportImage: ExportImage): SessionFile => {
+export const toSessionFile = (
+  original: Session,
+  exportImage: ExportImage,
+  stats?: ArchiveConversionStats
+): SessionFile => {
   const session = normalizeSession(original)
   const { ordered, ids } = numberMessages(session.messages)
   const id = (message: Message) => ids.get(message.id) ?? fail('backupInvalidBranches')
@@ -257,10 +325,13 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
       status: message.role === 'user' ? 'FINISHED' : replyStatus(message),
       thinking_enabled: reply?.thinking ?? false,
       search_enabled: reply?.search ?? false,
-      accumulated_token_usage: message.role === 'user' ? 0 : contextTokens(message),
-      inserted_at: iso(message.createdAt),
+      accumulated_token_usage:
+        message.role === 'user' ? 0 : count(contextTokens(message), stats),
+      inserted_at: iso(message.createdAt, stats),
       fragments:
-        message.role === 'user' ? userFragments(message, exportImage) : assistantFragments(message),
+        message.role === 'user'
+          ? userFragments(message, exportImage, stats)
+          : assistantFragments(message, stats),
     }
   })
   const current = getVisibleMessages(session).at(-1)
@@ -270,8 +341,8 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
     pinned: session.pinned === true,
     // 格式要求非空；空会话没有消息可指向，写 0。
     current_message_id: current ? id(current) : 0,
-    inserted_at: iso(session.createdAt),
-    updated_at: iso(session.updatedAt),
+    inserted_at: iso(session.createdAt, stats),
+    updated_at: iso(session.updatedAt, stats),
     messages,
   }
 }

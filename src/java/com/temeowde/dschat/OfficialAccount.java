@@ -182,6 +182,51 @@ public final class OfficialAccount {
         });
     }
 
+    /**
+     * 以官方令牌发起 POST（JSON body），把响应按 id 回传给网页。
+     * 目前用于朗读：/api/v0/auth/ticket 取一次性 TTS 票据、/api/v0/chat/tts/voice 切换音色。
+     */
+    public static void postRequest(WebView view, String id, String path, String json) {
+        final String token = getToken(view.getContext());
+        if (token == null || token.isEmpty()) {
+            deliver(view, id, error("未登录官方账号"), -1);
+            return;
+        }
+        IO.execute(() -> {
+            int status = -1;
+            String body;
+            try {
+                HttpURLConnection conn = (HttpURLConnection) new URL(HOST + path).openConnection();
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "*/*");
+                conn.setRequestProperty("User-Agent", UA);
+                conn.setRequestProperty("x-client-platform", "web");
+                conn.setRequestProperty("x-client-locale", "zh_CN");
+                conn.setRequestProperty("Authorization", "Bearer " + token);
+                OutputStream out = conn.getOutputStream();
+                out.write((json == null ? "" : json).getBytes(StandardCharsets.UTF_8));
+                out.flush();
+                out.close();
+                status = conn.getResponseCode();
+                InputStream in = status >= 200 && status < 300
+                        ? conn.getInputStream() : conn.getErrorStream();
+                body = in == null ? "" : readAll(in);
+                conn.disconnect();
+                if (status == 401 || isInvalidToken(body)) {
+                    clear(view.getContext());
+                }
+            } catch (Exception e) {
+                deliver(view, id, error(e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage())), status);
+                return;
+            }
+            deliver(view, id, body, status);
+        });
+    }
+
     private static boolean isInvalidToken(String body) {
         return body != null && (body.contains("INVALID_TOKEN") || body.contains("\"code\":40003")
                 || body.contains("\"code\":40001") || body.contains("Authorization Failed"));

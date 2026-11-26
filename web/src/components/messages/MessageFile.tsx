@@ -7,10 +7,19 @@ import type { FileAttachment } from '../../services/chat/types.js'
 import { IconPhotoErrorFill20, IconRefreshOutline16 } from '../base/icons.js'
 import { Tooltip } from '../base/Tooltip.js'
 import { FileCard } from '../files/FileCard.js'
+import { ImageViewer } from './ImageViewer.js'
 import styles from './MessageFile.module.css'
 
-/** 原件从 IndexedDB 读出并生成本地地址；undefined 表示加载中，null 表示原件缺失。 */
-const useFileUrl = (id: string) => {
+/**
+ * 原件从 IndexedDB 读出并生成本地地址；undefined 表示加载中，null 表示原件缺失。
+ *
+ * 官方会话同步过来的图片原件还在 CDN 上（FileAttachment.remoteUrl），本地暂时没有副本，
+ * 这时直接退回远端地址显示 —— 否则会掉成"文件卡片/上传失败"。
+ * 后台补下成功、落库后重新渲染会切回本地原件。
+ */
+const useFileUrl = (file: FileAttachment) => {
+  const id = file.id
+  const remoteUrl = file.remoteThumbUrl ?? file.remoteUrl
   const [fileUrl, setFileUrl] = useState<{ id: string; url: string | null } | null>(null)
   useEffect(() => {
     let objectUrl: string | null = null
@@ -18,7 +27,7 @@ const useFileUrl = (id: string) => {
     loadFile(id).then((blob) => {
       if (!cancelled) {
         objectUrl = blob ? URL.createObjectURL(blob) : null
-        setFileUrl({ id, url: objectUrl })
+        setFileUrl({ id, url: objectUrl ?? remoteUrl ?? null })
       }
     })
     return () => {
@@ -27,7 +36,7 @@ const useFileUrl = (id: string) => {
         URL.revokeObjectURL(objectUrl)
       }
     }
-  }, [id])
+  }, [id, remoteUrl])
   return fileUrl?.id === id ? fileUrl.url : undefined
 }
 
@@ -56,7 +65,10 @@ export const MessageFile = ({
   onRetry: (() => void) | null
 }) => {
   const t = useTranslate()
-  const url = useFileUrl(file.id)
+  const url = useFileUrl(file)
+  /* 点图片在应用内放大查看；原图地址优先，拿不到就用当前展示地址 */
+  const [opened, setOpened] = useState(false)
+  const fullUrl = file.remoteUrl ?? url ?? null
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const upload = useUploadState(file)
   const uploading = upload?.status === 'uploading'
@@ -134,17 +146,27 @@ export const MessageFile = ({
       )
     }
 
-    // 正常态：链接到原件
+    /*
+     * 正常态：点击在应用内放大查看。
+     *
+     * 以前是 <a href target=_blank>，在 WebView 里会跳到外部浏览器 ——
+     * 官方 CDN 的图片地址离开应用后没有登录态，浏览器里打不开（用户看到"网页无法打开"）。
+     */
     return url ? (
-      <a
-        className={clsx(styles.image, styles.imageThumb)}
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        title={file.name}
-      >
-        {preview}
-      </a>
+      <>
+        <button
+          type="button"
+          className={clsx(styles.image, styles.imageThumb)}
+          title={file.name}
+          aria-label={file.name}
+          onClick={() => setOpened(true)}
+        >
+          {preview}
+        </button>
+        {opened && fullUrl ? (
+          <ImageViewer src={fullUrl} name={file.name} onClose={() => setOpened(false)} />
+        ) : null}
+      </>
     ) : (
       // 原件还没加载出来（极短暂）
       <div className={styles.image} />

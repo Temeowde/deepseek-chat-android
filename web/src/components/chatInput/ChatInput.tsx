@@ -26,10 +26,12 @@ import { ensureApiKey } from '../settings/settingsDialogState.js'
 import { DragMask, useFileDrop } from './DragMask.js'
 import { showToast } from '../base/toastState.js'
 import { ACCEPT, useUploads } from '../../services/attachments.js'
+import { isBinaryDocument, isTextFile } from '../../services/textfile.js'
+import { canParseLocally } from '../../services/docparse/index.js'
 import { DraftAttachments } from './DraftAttachments.js'
 import { useVoiceInput } from './useVoiceInput.js'
 import { VoiceButton } from './VoiceButton.js'
-import { Spectrum } from './Spectrum.js'
+import { VoiceMaskOverlay } from './VoiceMaskOverlay.js'
 import { useTranslate } from '../../i18n/index.js'
 import styles from './ChatInput.module.css'
 
@@ -111,29 +113,86 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
     return () => observer.disconnect()
   }, [t])
 
+  const provider = useSettings((state) => state.provider)
+
+  /** 语音识别/朗读走 DeepSeek 官方能力，和聊天 provider 无关；没有 Key 时给明确提示。 */
+  const ensureVoiceKey = () => {
+    if (useSettings.getState().apiKey) {
+      return true
+    }
+    showToast(t('voiceNeedsApiKey'))
+    return false
+  }
+
+  /**
+   * 图片在 WorkBuddy / 自定义通道直接内联，不需要 DeepSeek Key；
+   * 纯文本附件本地读取，也不需要 Key；
+   * PDF / Word / PPT 在这些通道本地解析，同样不需要 Key；
+   * 只有 Excel 与 .doc / .ppt / .xls 老格式必须走 DeepSeek。
+   */
+  const inlineImages = provider !== 'deepseek' && !useSettings.getState().search
+  const ensureAttachmentKey = (files?: File[]) => {
+    const list = files ?? []
+    // 没有 Files API 的通道里，本地解析不了的文档直接拦下，免得发送时才失败
+    if (inlineImages) {
+      const blocked = list.find(
+        (file) => isBinaryDocument(file.name) && !canParseLocally(file.name)
+      )
+      if (blocked) {
+        showToast(t('attachmentsNeedDeepSeek'))
+        return false
+      }
+    }
+    if (useSettings.getState().apiKey) {
+      return true
+    }
+    const needsUpload = list.some((file) => {
+      if (isTextFile(file.name, file.type)) {
+        return false
+      }
+      // 内联通道的图片、可本地解析的文档都不进 Files API
+      return !inlineImages
+    })
+    if (!needsUpload) {
+      return true
+    }
+    showToast(t('attachmentsNeedApiKey'))
+    return false
+  }
+
   const acceptFiles = (files: File[]) => {
-    if (editId || files.length === 0 || unavailable || useChatStore.getState().importingHistory || !ensureApiKey()) {
+    if (editId || files.length === 0 || unavailable || useChatStore.getState().importingHistory || !ensureAttachmentKey(files)) {
       return
     }
-    const error = addDraftFiles(sessionId, files, useSettings.getState().apiKey ?? '')
+    const error = addDraftFiles(
+      sessionId,
+      files,
+      useSettings.getState().apiKey ?? '',
+      inlineImages
+    )
     if (error) {
       showToast(error)
+    } else if (!inlineImages && provider !== 'deepseek') {
+      showToast(t('attachmentsViaDeepSeekToast'))
     }
   }
   const retryFile = useCallback(
     (id: string) => {
-      if (!useChatStore.getState().importingHistory && ensureApiKey()) {
-        retryDraftAttachment(sessionId, id, useSettings.getState().apiKey ?? '')
+      if (!useChatStore.getState().importingHistory && ensureAttachmentKey()) {
+        retryDraftAttachment(sessionId, id, useSettings.getState().apiKey ?? '', inlineImages)
       }
     },
-    [sessionId]
+    [sessionId, inlineImages]
   )
   const removeFile = useCallback(
     (id: string) => {
       if (!useChatStore.getState().importingHistory) {
         removeDraftAttachment(sessionId, id)
+        // 附件从草稿移除后也清掉缩略图勾选，保证同一张照片能再次选择
+        attachment.clearPicked()
       }
     },
+    // attachment 在下方才创建；回调执行时已初始化，不能把它放进依赖数组（渲染期会 TDZ）
     [sessionId]
   )
   const dragging = useFileDrop(acceptFiles)
@@ -204,6 +263,8 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
     if (!ensureApiKey() || !sendMessage(sessionId)) {
       return
     }
+    // 草稿已经发出：清掉附件面板里"已选中"的缩略图标记，否则再点同一张没反应
+    attachment.clearPicked()
     stopReadAloud()
     if (isMobile) {
       textareaRef.current?.blur()
@@ -214,10 +275,10 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
 
   const voiceUI = window.useMobileComposerVoice(React, {
     mobile: isMobile, sessionId, busy: disabled || streaming || !!edit, voice, text, fileCount: attachments.length,
-    textarea: textareaRef, limitRef: voiceLimit, resultRef: voiceResult, ensureKey: ensureApiKey, setText, send,
+    textarea: textareaRef, limitRef: voiceLimit, resultRef: voiceResult, ensureKey: ensureVoiceKey, setText, send,
   })
   const attachment = window.useComposerAttachments(
-    React, disabled || !!edit || (isMobile && voice.status !== 'idle'), ensureApiKey, acceptFiles, ACCEPT, sessionId,
+    React, disabled || !!edit || (isMobile && voice.status !== 'idle'), ensureAttachmentKey, acceptFiles, ACCEPT, sessionId,
   )
   const showVoice = isMobile && voiceUI.showToggle && !streaming && !edit
   const action = showVoice ? voiceUI.toggle : (
@@ -302,7 +363,7 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
           }}
         />
         {!edit && voiceUI.pad}
-        {recording && isMobile ? <Spectrum getAnalyser={voice.getAnalyser} /> : null}
+        {isMobile ? <VoiceMaskOverlay status={voice.status} getAnalyser={voice.getAnalyser} /> : null}
         <div className={styles.mirror} aria-hidden>
           {`${text}\n`}
         </div>
@@ -322,13 +383,23 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
               <span className={styles.toggleLabel}>{t('thinkingSwitch')}</span>
             </button>
           </Tooltip>
-          <Tooltip content={t('deactivatedSearchTooltip')}>
+          <Tooltip content={provider === 'deepseek' ? t('deactivatedSearchTooltip') : t('searchViaDeepSeekTooltip')}>
             <button
               type="button"
               className={clsx(styles.toggle, search && styles.selected)}
               aria-label={t('search')}
               aria-pressed={search}
-              onClick={() => { vibrate(); setSearch(!search) }}
+              onClick={() => {
+                if (!search && !useSettings.getState().apiKey) {
+                  showToast(t('searchNeedsApiKey'))
+                  return
+                }
+                if (!search && provider !== 'deepseek') {
+                  showToast(t('searchViaDeepSeekTooltip'))
+                }
+                vibrate()
+                setSearch(!search)
+              }}
             >
               <IconGlobeLanguageOutline14 />
               <span className={styles.toggleLabel}>{t('search')}</span>
@@ -343,7 +414,7 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
             onClick={() => {
               if (
                 voice.status !== 'idle' ||
-                (!useChatStore.getState().importingHistory && ensureApiKey())
+                (!useChatStore.getState().importingHistory && ensureVoiceKey())
               ) {
                 void voice.toggle()
               }

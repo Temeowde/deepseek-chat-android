@@ -1,8 +1,8 @@
 import { useTranslate } from '../../i18n/index.js'
 import { useRef } from 'react'
 import type { MessageVersions } from '../../services/chat/branches.js'
-import { IconChevronRightOutline14 } from '../base/icons.js'
 import { IconButton } from '../base/IconButton.js'
+import { MaskIcon } from '../base/MaskIcon.js'
 import styles from './BranchSwitcher.module.css'
 
 export type { MessageVersions } from '../../services/chat/branches.js'
@@ -36,8 +36,7 @@ export const BranchSwitcher = ({
       data-message-version={ids[index]}
     >
       <IconButton
-        icon={<IconChevronRightOutline14 />}
-        className={styles.previous}
+        icon={<MaskIcon name="chevron-left" size={20} />}
         aria-label={t('previousVersion')}
         disabled={disabled || index <= 0}
         onClick={() => select(ids[index - 1])}
@@ -46,7 +45,7 @@ export const BranchSwitcher = ({
         {index + 1} / {ids.length}
       </span>
       <IconButton
-        icon={<IconChevronRightOutline14 />}
+        icon={<MaskIcon name="chevron-right" size={20} />}
         aria-label={t('nextVersion')}
         disabled={disabled || index >= ids.length - 1}
         onClick={() => select(ids[index + 1])}

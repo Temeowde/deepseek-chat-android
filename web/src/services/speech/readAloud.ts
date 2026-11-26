@@ -2,8 +2,11 @@ import { create } from 'zustand'
 import type { TranslationMessage } from '../../i18n/index.js'
 import { ApiError } from '../api/client.js'
 import { classifyApiError } from '../api/errors.js'
-import { synthesize, TTS_SAMPLE_RATE } from '../api/speech.js'
+import { synthesize, TTS_SAMPLE_RATE, type TtsVoice } from '../api/speech.js'
 import { API_KEY_TTS_VOICES } from '../official/sync.js'
+import { officialHasToken } from '../official/bridge.js'
+import { isOfficialVoice, resolveOfficialMessageId, setOfficialVoice, speakOfficial } from './officialTts.js'
+import { useChatStore } from '../chat/store.js'
 import { useSettings } from '../settings.js'
 
 /**
@@ -55,6 +58,9 @@ const toFloat32 = (bytes: Uint8Array) => {
 }
 
 export const describeReadAloudError = (error: unknown): TranslationMessage | string => {
+  if (error instanceof Error && error.message === 'needs-deepseek-key') {
+    return { key: 'readAloudNeedsApiKey' }
+  }
   if (error instanceof ApiError && error.kind === 'protocol') {
     return error.message
   }
@@ -88,6 +94,12 @@ export const toggleReadAloud = (
   if (reading === messageId) {
     return
   }
+  // 朗读走 DeepSeek 官方 TTS；WorkBuddy 不提供，没 Key 时直接给出明确提示。
+  const { apiKey, ttsVoice } = useSettings.getState()
+  if (!apiKey) {
+    onError(new Error('needs-deepseek-key'))
+    return
+  }
   const controller = new AbortController()
   let context: AudioContext
   try { context = new AudioContext({ sampleRate: TTS_SAMPLE_RATE }) } catch (error) { onError(error); return }
@@ -95,14 +107,70 @@ export const toggleReadAloud = (
   current = { controller, context }
   useReadAloud.setState({ messageId, status: 'loading' })
   // 音色在开始朗读时读取，设置中切换后下一次朗读生效
-  const { apiKey, ttsVoice } = useSettings.getState()
   /*
-   * 公开 TTS API（api.deepseek.com/v1/tools/tts，用用户自己的 API Key）
-   * 的 voice_id 枚举只有 stella / tide；mira（贝壳）和 echo（白浪）是官方 App
-   * 内部链路才有的音色。设置页四个都列出来是为了和官方一致，但这里要回退到
-   * 公开 API 支持的音色，否则选了贝壳朗读会直接 400。
+   * 四个音色（mira 贝壳 / echo 白浪 / stella 海星 / tide 暗潮）里，
+   * 公开 API 只认 stella / tide；mira 和 echo 必须走官方账号的 WebSocket 朗读通道
+   * （chat.deepseek.com/api/v0/chat/tts/），服务端按「消息 id + 账号当前音色」合成。
+   *
+   * 所以顺序是：
+   * 1. 有官方登录 + 当前会话是官方会话 + 能把这条回复匹配到服务端 message_id → 官方通道（4 音色都对）
+   * 2. 否则退回公开 API（stella / tide），此时 mira/echo 按近似的女声/男声映射
    */
-  const voiceId: string = API_KEY_TTS_VOICES.includes(ttsVoice) ? ttsVoice : API_KEY_TTS_VOICES[0]
+  const publicFallbackFor = (voice: string): TtsVoice =>
+    voice === 'mira' ? 'stella' : voice === 'echo' ? 'tide' : (API_KEY_TTS_VOICES.includes(voice) ? voice : API_KEY_TTS_VOICES[0]) as TtsVoice
+
+  const schedulePcm = (samples: Float32Array) => {
+    if (samples.length === 0 || current?.controller !== controller) {
+      return
+    }
+    const buffer = context.createBuffer(1, samples.length, TTS_SAMPLE_RATE)
+    buffer.copyToChannel(samples as Float32Array<ArrayBuffer>, 0)
+    const source = context.createBufferSource()
+    source.buffer = buffer
+    source.connect(context.destination)
+    playNext = Math.max(playNext, context.currentTime + (playedAny ? 0 : START_DELAY))
+    source.start(playNext)
+    playNext += buffer.duration
+    playedAny = true
+    if (useReadAloud.getState().status === 'loading') {
+      useReadAloud.setState({ status: 'playing' })
+    }
+  }
+  let playNext = 0
+  let playedAny = false
+
+  const playViaOfficial = async (messageIdParam: string): Promise<boolean> => {
+    if (!officialHasToken()) {
+      return false
+    }
+    const sessionId = useChatStore.getState().activeId
+    if (!sessionId || !sessionId.startsWith('off_') || !isOfficialVoice(ttsVoice)) {
+      return false
+    }
+    // 同步下来的消息 id 形如 o_<服务端 message_id>，可以直接用，省一次历史请求
+    const officialMatch = /^o_(\d+)$/.exec(messageIdParam)
+    const messageId: number | null = officialMatch
+      ? Number(officialMatch[1])
+      : await resolveOfficialMessageId(sessionId, text)
+    if (messageId === null) {
+      return false
+    }
+    await setOfficialVoice(ttsVoice)
+    await speakOfficial(sessionId, messageId, {
+      signal: controller.signal,
+      onError: (error) => {
+        if (!controller.signal.aborted) {
+          finish(controller)
+          onError(error)
+        }
+      },
+      onAudio: (bytes) => {
+        const samples = toFloat32(bytes)
+        schedulePcm(samples)
+      },
+    })
+    return true
+  }
 
   void (async () => {
     let nextTime = 0
@@ -110,7 +178,12 @@ export const toggleReadAloud = (
     let eof = false
     let rest = new Uint8Array(0)
     try {
-      const stream = await synthesize(apiKey ?? '', text, voiceId, controller.signal)
+      // 先试官方通道：只有它能拿到 mira / echo 两个音色
+      if (await playViaOfficial(messageId)) {
+        finish(controller)
+        return
+      }
+      const stream = await synthesize(apiKey ?? '', text, publicFallbackFor(ttsVoice), controller.signal)
       const reader = stream.getReader()
       controller.signal.addEventListener('abort', () => void reader.cancel().catch(() => {}))
       for (;;) {

@@ -113,3 +113,39 @@ button.image {
     transform: rotate(360deg);
   }
 }
+
+/* 图片放大查看：全屏遮罩 + 等比铺满，点击任意处关闭 */
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 92%);
+  cursor: zoom-out;
+  animation: viewerIn 160ms var(--ds-ease-out, ease-out);
+}
+
+.viewerImage {
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: contain;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@keyframes viewerIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 图片是 <button>（可点击放大）：去掉浏览器默认按钮样式 */
+.imageThumb {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+}

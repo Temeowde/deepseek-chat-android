@@ -21,8 +21,13 @@ export type Recording = {
 
 /** 开始录音；到达时长上限时调用 onLimit，由调用方决定何时 stop */
 export const startRecording = async (onLimit: () => void): Promise<Recording> => {
+  /*
+   * 官方 App 用的是原生 AudioRecord 裸采集（MIC，无 AGC/NS 处理）。
+   * 浏览器的 noiseSuppression 会把人声的辅音一起吃掉，识别精度明显下降，
+   * 所以这里关掉 NS/EC，只保留 AGC（小声也能被识别），再在编码前做峰值归一化。
+   */
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: true },
   })
   let context: AudioContext | undefined
   let source: MediaStreamAudioSourceNode | undefined
@@ -58,8 +63,15 @@ export const startRecording = async (onLimit: () => void): Promise<Recording> =>
     processor = context.createScriptProcessor(BUFFER_SIZE, 1, 1)
     // 频谱分析用：串在录音链路中间（原样透传），WebKit 不会处理未连到输出的分析节点
     analyser = context.createAnalyser()
-    analyser.fftSize = 512
-    analyser.smoothingTimeConstant = 0.2
+    /*
+     * 官方是 2048 点 FFT、-100..0 dBFS 归一化（见 07-语音动效-官方实现 §3.2）。
+     * Web Audio 默认 maxDecibels=-30（只有 70dB 跨度），会把动态压扁，
+     * 所以这里显式拉到 -100..0，和官方一致；平滑也关掉，自己在 JS 里做。
+     */
+    analyser.fftSize = 2048
+    analyser.minDecibels = -100
+    analyser.maxDecibels = 0
+    analyser.smoothingTimeConstant = 0
     const chunks: Float32Array[] = []
     let length = 0
     let limited = false
@@ -86,7 +98,23 @@ export const startRecording = async (onLimit: () => void): Promise<Recording> =>
     return {
       stop: async () => {
         release()
-        return length === 0 ? null : encodeWav(chunks, length)
+        if (length === 0) {
+          return null
+        }
+        /*
+         * 峰值归一化：手机麦克风增益差异很大，录进来的声音经常只有 -30dB 左右，
+         * 服务端 ASR 对低电平的识别率明显更差。这里把峰值拉到约 -1.5dBFS。
+         * 上限 12x 增益，避免把底噪也放大成噪音。
+         */
+        let peak = 0
+        for (const chunk of chunks) {
+          for (let i = 0; i < chunk.length; i += 1) {
+            const abs = chunk[i] < 0 ? -chunk[i] : chunk[i]
+            if (abs > peak) peak = abs
+          }
+        }
+        const gain = peak > 1e-4 ? Math.min(12, 0.84 / peak) : 1
+        return encodeWav(chunks, length, gain)
       },
       cancel: release,
       analyser,
@@ -97,7 +125,7 @@ export const startRecording = async (onLimit: () => void): Promise<Recording> =>
   }
 }
 
-const encodeWav = (chunks: Float32Array[], length: number) => {
+const encodeWav = (chunks: Float32Array[], length: number, gain = 1) => {
   const samples = Math.min(length, MAX_SECONDS * SAMPLE_RATE)
   const buffer = new ArrayBuffer(44 + samples * 2)
   const view = new DataView(buffer)
@@ -123,7 +151,7 @@ const encodeWav = (chunks: Float32Array[], length: number) => {
   let written = 0
   for (const chunk of chunks) {
     for (let i = 0; i < chunk.length && written < samples; i++, written++) {
-      const sample = Math.max(-1, Math.min(1, chunk[i]))
+      const sample = Math.max(-1, Math.min(1, chunk[i] * gain))
       view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true)
       offset += 2
     }

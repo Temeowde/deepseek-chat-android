@@ -4,16 +4,47 @@
 }
 .ds-msg-scrim,.ds-msg-selection-tools,.ds-share-screen {--paper:var(--dsw-alias-bg-base,#fff);--ink:var(--dsw-alias-label-primary,#191a1d);--line:var(--dsw-alias-border-l1,#e8e8e8);--chosen:var(--dsw-alias-button-primary-fill);color:var(--ink);}
 .ds-msg-scrim,.ds-share-screen {position:fixed;inset:0;z-index:1320;}
-.ds-msg-menu,.ds-msg-selection-tools {box-sizing:border-box;background:var(--paper);border-radius:14px;box-shadow:0 4px 20px #0002,0 0 1px #0002;overflow:auto;max-height:calc(100% - 16px);}
-.ds-msg-menu {position:absolute;width:min(192px,calc(100vw - 16px));animation:ds-msg-in .12s ease-out;}
+.ds-msg-menu,.ds-msg-selection-tools {box-sizing:border-box;background:var(--paper);border-radius:16px;box-shadow:0 6px 24px #0002,0 0 1px #0002;overflow:auto;max-height:calc(100% - 16px);}
+.ds-msg-menu {position:absolute;width:min(187px,calc(100vw - 16px));animation:ds-msg-in .12s ease-out;color:#0f0f0f;}
 .ds-msg-scrim button,.ds-msg-selection-tools button,.ds-share-screen button {box-sizing:border-box;margin:0;border:0;font:inherit;color:inherit;background:transparent;cursor:pointer;}
-.ds-msg-menu button {width:100%;min-height:44px;display:flex;align-items:center;gap:12px;padding:0 16px;text-align:start;font-size:16px;}
-.ds-msg-menu button+button {border-top:1px solid var(--line);}
-.ds-msg-menu button:active,.ds-share-row:active {background:var(--dsw-alias-bg-layer-2,#f5f6f8);}
+/* 官方长按菜单：字号跟随对话字体大小（--ds-chat-scale），行高 44dp 固定；
+ * 分隔线是官方 MenuDivider：1 物理像素、全宽、#D4D4D4（反编译 thickness=1px，截图仅 1 行）。 */
+.ds-msg-menu button {position:relative;width:100%;min-height:44px;display:flex;align-items:center;gap:12px;padding:0 12px;text-align:start;
+  font-size:calc(16px * var(--ds-chat-scale,1));line-height:22px;font-weight:400;border-radius:0;overflow:hidden;
+  -webkit-tap-highlight-color:transparent;}
+.ds-msg-menu button + button {border-top:calc(1px / var(--ds-dpr,3)) solid var(--chat-menu-line,#d4d4d4);}
+/* 按压反馈：官方菜单项是 M3 Surface 的触点 ripple（圆形水波），不是整行变暗。
+ * 触点坐标由 JS 在 pointerdown 写入 --press-x/--press-y。 */
+.ds-msg-menu button::after {content:'';position:absolute;left:var(--press-x,50%);top:var(--press-y,50%);
+  width:220px;height:220px;margin:-110px 0 0 -110px;border-radius:50%;background:currentColor;opacity:0;
+  transform:scale(.3);pointer-events:none;transition:opacity 90ms linear,transform 260ms cubic-bezier(.2,0,0,1);}
+.ds-msg-menu button:active::after {opacity:.10;transform:scale(1);}
+.ds-share-row:active {background:var(--dsw-alias-bg-layer-2,#f5f6f8);}
 .ds-msg-scrim button:disabled,.ds-share-screen button:disabled {opacity:.4;cursor:default;}
-.ds-msg-menu .ds-ui-icon,.ds-msg-selection-tools .ds-ui-icon {width:17px;height:17px;}
-.ds-msg-selection-tools {position:fixed;display:flex;z-index:1321;width:180px;min-height:50px;}
-.ds-msg-selection-tools button {display:grid;flex:1;justify-items:center;align-content:center;gap:3px;font-size:13px;padding:4px;}
+/* 官方长按菜单图标实测墨迹 46×45 device px（约 15dp），盒 ≈20dp；颜色与文字同为 #0F0F0F */
+.ds-msg-menu .ds-ui-icon {width:20px;height:20px;color:inherit;}
+/* 按住消息、菜单弹出前的轻反馈：官方是消息区域后面叠一层浅灰「阴影/底色」，文字不缩放不变形 */
+[data-chat-message] .bubble-_4cfe7,[data-chat-message] .ds-assistant-message-main-content {transition:background .12s linear,box-shadow .12s linear;border-radius:10px;}
+[data-chat-message].ds-msg-holding .ds-assistant-message-main-content,
+[data-chat-message].ds-msg-holding .bubble-_4cfe7 {background:rgba(0,0,0,.045);box-shadow:0 0 0 9px rgba(0,0,0,.045);}
+[data-ds-dark-theme] [data-chat-message].ds-msg-holding .ds-assistant-message-main-content,
+[data-ds-dark-theme] [data-chat-message].ds-msg-holding .bubble-_4cfe7 {background:rgba(255,255,255,.07);box-shadow:0 0 0 9px rgba(255,255,255,.07);}
+[data-ds-dark-theme] .ds-msg-menu {color:#f2f3f5;}
+.ds-msg-selection-tools .ds-ui-icon {width:20px;height:20px;}
+/* 官方工具栏约 168dp 宽、圆角 16dp */
+.ds-msg-selection-tools {position:fixed;display:flex;z-index:1321;width:168px;min-height:50px;overflow:visible;}
+.ds-msg-selection-tools button {display:grid;flex:1;justify-items:center;align-content:center;gap:3px;font-size:12px;padding:5px 4px;}
+/* 官方选择文本：选区 #DEEAFF；两端蓝色手柄视觉 23dp（#6799FE），热区扩大到 44px；
+ * 起点手柄右上角为方角尖端贴选区首行左下角，终点手柄左上角为方角尖端贴选区末行右下角。 */
+.ds-msg-selected ::selection {background:#deeaff;color:inherit;}
+[data-ds-dark-theme] .ds-msg-selected ::selection {background:rgba(103,158,254,.34);color:inherit;}
+.ds-msg-handle {position:fixed;z-index:1322;box-sizing:border-box;width:24px;height:24px;border-radius:50%;
+  background:var(--dsw-static-blue-400,#6799fe);box-shadow:0 1px 4px #0003;touch-action:none;cursor:grab;
+  -webkit-tap-highlight-color:transparent;}
+.ds-msg-handle::before {content:'';position:absolute;inset:-10px;border-radius:50%;}
+.ds-msg-handle:active {transform:scale(1.06);}
+.ds-msg-handle-start {border-top-right-radius:7px;}
+.ds-msg-handle-end {border-top-left-radius:7px;}
 .ds-share-screen {background:var(--paper);display:flex;flex-direction:column;animation:ds-msg-in .16s ease-out;}
 .ds-share-screen header,.ds-share-count {display:flex;align-items:center;min-height:48px;padding:0 16px;gap:10px;}
 .ds-share-screen header button,.ds-share-count button {display:flex;align-items:center;gap:8px;min-height:44px;}
@@ -41,4 +72,4 @@
 .ds-share-preview img {max-width:100%;height:auto;box-shadow:0 2px 9px #0002;}
 .ds-msg-toast {position:fixed;z-index:1400;bottom:18%;left:50%;transform:translateX(-50%);max-width:85vw;width:max-content;background:#26272a;color:#fff;padding:8px 14px;border-radius:10px;font-size:14px;pointer-events:none;}
 @keyframes ds-msg-in {from {opacity:.3;transform:translateY(3px);}to {opacity:1;transform:none;}}
-@media(prefers-reduced-motion:reduce){.ds-msg-menu,.ds-share-screen{animation:none;}}
+@media(prefers-reduced-motion:reduce){.ds-msg-menu,.ds-share-screen{animation:none;}.ds-msg-menu button::after{transition:none;}[data-chat-message] .bubble-_4cfe7,[data-chat-message] .ds-assistant-message-main-content{transition:none;}}

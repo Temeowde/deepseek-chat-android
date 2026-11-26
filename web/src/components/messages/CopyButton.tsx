@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
-import { IconCheckOutline16, IconCopyOutline16 } from '../base/icons.js'
 import { IconButton } from '../base/IconButton.js'
+import { MaskIcon } from '../base/MaskIcon.js'
 import { showToast } from '../base/toastState.js'
 import { copyText } from '../../utils/clipboard.js'
 
@@ -14,7 +14,7 @@ export const CopyButton = ({ text }: { text: string }) => {
 
   return (
     <IconButton
-      icon={copied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
+      icon={<MaskIcon name={copied ? 'check' : 'copy'} />}
       tooltip={t('copy')} data-msg-action="copy"
       tooltipPlacement="bottom"
       onClick={async () => {

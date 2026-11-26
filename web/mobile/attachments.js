@@ -213,6 +213,14 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
 
   const expanded = phase === 'opening' || phase === 'open';
   /*
+   * 官方行为：打开附件面板（加号）时，输入栏下方“回答由 AI 生成，仅供参考”整行自动隐藏，
+   * 否则面板会压在那行字上（对话页有两行时会明显重叠）。用 body class 让会话页的免责声明收起。
+   */
+  React.useEffect(() => {
+    document.body.classList.toggle('ds-attach-open', expanded);
+    return () => document.body.classList.remove('ds-attach-open');
+  }, [expanded]);
+  /*
    * 【打开前同步量高度】
    *
    * height 动画需要明确的目标值（--ds-attach-h）。必须在这一帧、
@@ -402,6 +410,8 @@ window.useComposerAttachments = function (React, disabled, ensureKey, onFiles, a
     plus && h('circle', {cx:12, cy:12, r:9.25}), h('path', {d}));
   return {
     toggle: h('button', {className:'ds-attach-toggle',type:'button', disabled,'aria-expanded':expanded ? 'true' : 'false','aria-label':expanded ? (zh?'收起附件':'Close attachments') : (zh?'添加附件':'Add attachments'), onClick:()=>{if (!expanded && document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur(); request(expanded ? 'close' : 'open');}}, icon('M12 8.6v6.8 M8.6 12h6.8',true)),
+    /* 草稿被发送/移除后清空"已选中"标记：否则下次打开面板缩略图仍显示勾选、且点同一张没有反应 */
+    clearPicked: () => setPicked(new Set()),
     inputs: rows.map(([ref], i) => h('input', {key:(sessionId ?? 'new') + ':' + i,ref,hidden:true,type:'file',capture:i===0?'environment':undefined,multiple:i!==0,accept:i===2?accept:'image/*',onChange:e=>{const f=Array.from(e.target.files || []);e.target.value='';if(f.length)onFiles(f);}})),
     /*
      * 没有遮罩层：官方点 + 时对话区背景像素完全不变（对比官方点 + 前后截图，

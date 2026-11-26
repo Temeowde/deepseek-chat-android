@@ -49,7 +49,9 @@ const AttachmentItem = ({
 }) => {
   const t = useTranslate()
   const task = useUploads((state) => state.tasks[item.id] ?? UPLOADING)
-  const status = task.status
+  // 内联图片与纯文本附件都不上传，直接按完成态显示
+  const status =
+    task.status === 'inline' || task.status === 'inline-text' ? 'done' : task.status
   const error = task.status === 'error' ? t(task.error.key, task.error.params) : undefined
   // 过大、格式不支持等重试无效的失败只提示原因，需删除后再发送
   const retry = task.status === 'error' && task.retryable ? onRetry : undefined

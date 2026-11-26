@@ -156,11 +156,14 @@ window.bindChatDrawerDrag = function ({isOpen, change, blocked}) {
   document.addEventListener('visibilitychange', hidden);
   window.addEventListener('blur', cancel);
   window.cancelChatDrawerDrag = back;
+  /* 侧栏关闭/切换时外部可以直接把残留的 transform、CSS 变量清干净 */
+  window.resetChatDrawerDrag = clear;
   return () => {
     document.removeEventListener('touchstart', start); document.removeEventListener('touchmove', move);
     document.removeEventListener('touchend', end); document.removeEventListener('touchcancel', cancel);
     document.removeEventListener('visibilitychange', hidden); window.removeEventListener('blur', cancel);
     if (window.cancelChatDrawerDrag === back) delete window.cancelChatDrawerDrag;
+    if (window.resetChatDrawerDrag === clear) delete window.resetChatDrawerDrag;
     drag = null; clear();
   };
 };

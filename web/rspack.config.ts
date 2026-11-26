@@ -6,7 +6,19 @@ import { defineConfig } from '@rspack/cli'
 import { rspack, type Configuration } from '@rspack/core'
 
 const dev = process.env.NODE_ENV !== 'production'
-const targets = ['chrome >= 105', 'edge >= 105', 'safari >= 16', 'firefox >= 110']
+/* 兼容基线：华为/老机型系统 WebView 常见 Chromium 66(M99)；原 chrome>=105 会整包 SyntaxError 白屏 */
+const targets = ['chrome >= 66', 'safari >= 12', 'firefox >= 78']
+
+/*
+ * web/mobile/*.js 是给 procedure 用的独立脚本，原本由 CopyPlugin 原样拷贝，
+ * 不经过 swc —— 老内核（Chromium 66~79）会因其中的 ?. / ?? 解析失败，
+ * 文件整段不执行，导致 window.chatHistoryMetadata 等未定义、模块顶层 TypeError、白屏。
+ * 这里把它们改成独立入口，让它们也走 swc 降级。
+ */
+const mobileScripts = [
+  'system-font', 'attachments', 'voice-composer', 'read-aloud', 'drawer-perf', 'mobile-history',
+  'font-switch', 'fluid-blob', 'mobile-settings', 'message-share', 'message-actions', 'search', 'overscroll',
+]
 const root = path.dirname(fileURLToPath(import.meta.url))
 const { version } = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8')
@@ -30,12 +42,18 @@ export const createConfig = ({
   devServer,
 }: ConfigOptions = {}): Configuration => ({
   mode: dev ? 'development' : 'production',
-  entry: './src/main.tsx',
+  entry: {
+    main: './src/main.tsx',
+    ...Object.fromEntries(mobileScripts.map((name) => [name, './mobile/' + name + '.js'])),
+  },
   output: {
     path: path.resolve(root, 'dist'),
     // 运行时按当前脚本地址推导资源路径，file:// 下异步 chunk、字体都按相对位置加载
     publicPath: 'auto',
-    filename: 'static/js/[name].[contenthash:8].js',
+    filename: (pathData) =>
+      mobileScripts.includes(pathData.chunk?.name ?? '')
+        ? '[name].[contenthash:8].js'
+        : 'static/js/[name].[contenthash:8].js',
     chunkFilename: 'static/js/async/[name].[contenthash:8].js',
     cssFilename: 'static/css/[name].[contenthash:8].css',
     cssChunkFilename: 'static/css/async/[name].[contenthash:8].css',
@@ -58,8 +76,7 @@ export const createConfig = ({
       { test: /\.module\.css$/, type: 'css/module', use: [cssLoader] },
       { test: /\.css$/, exclude: /\.module\.css$/, type: 'css', use: [cssLoader] },
       {
-        test: /\.(j|t)sx?$/,
-        exclude: /[\\/]node_modules[\\/]/,
+        test: /\.[cm]?[jt]sx?$/,
         loader: 'builtin:swc-loader',
         options: {
           jsc: {
@@ -81,6 +98,11 @@ export const createConfig = ({
       template: './src/index.html',
       scriptLoading: 'defer',
       meta: { 'application-version': version },
+      /*
+       * mobile/*.js 现在是独立入口，如果不限定 chunks，
+       * HTML 插件会把它们自动注入一遍，和我们手写的 mobileAssets 注入重复。
+       */
+      chunks: ['main'],
     }),
     new rspack.DefinePlugin({ __API_ORIGIN__: JSON.stringify(apiOrigin) }),
     new rspack.CopyRspackPlugin({

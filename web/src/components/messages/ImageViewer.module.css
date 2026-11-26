@@ -1,0 +1,250 @@
+/* 全屏图片查看器：官方图片预览页的移动端还原（黑底 + 右下角两个圆形按钮） */
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  overscroll-behavior: contain;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* 内边距由组件内联设置（= 顶部/底部预留），让图片在"可用区域"里居中，
+     和 JS 里算的 area 完全一致 —— 否则框和图片会错开一截 */
+  box-sizing: border-box;
+}
+
+.image {
+  /* 尺寸由内联 style 精确指定；这里不要再加 max-* 约束，否则实际绘制盒
+     和 JS 算的 fit 尺寸不一致，裁切框会和图片错位 */
+  display: block;
+  object-fit: contain;
+  transform-origin: center center;
+  will-change: transform;
+  -webkit-user-drag: none;
+}
+
+.close {
+  z-index: 20;
+  position: absolute;
+  top: calc(12px + var(--ds-safe-top, 0px));
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 40%);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.actions {
+  z-index: 20;
+  position: absolute;
+  right: 20px;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 14px;
+}
+
+/* 官方：Ø56dp 圆形按钮，深灰底 + 白色图标，下载按钮略亮 */
+.action {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  /* 裁切 / 下载两个按钮颜色保持一致（官方同色） */
+  background: rgb(255 255 255 / 16%);
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.actionPrimary {
+  background: rgb(255 255 255 / 16%);
+}
+
+.action:disabled,
+.close:disabled {
+  opacity: 0.5;
+}
+
+/* 裁切：框外压暗，框内保持原亮度 */
+.cropBox {
+  position: absolute;
+  box-sizing: border-box;
+  touch-action: none;
+  z-index: 2;
+  outline: 1px solid rgb(255 255 255 / 85%);
+}
+
+/* 8 个控制点：4 角 + 4 边（官方裁切页同款） */
+.handle {
+  position: absolute;
+  /* 命中区 56px（官方 20dp 半径 + 余量），比视觉标记大得多，手指不用非常精准 */
+  width: 56px;
+  height: 56px;
+  background: transparent;
+  touch-action: none;
+  pointer-events: auto;
+  z-index: 6;
+}
+
+.handle_nw { left: -13px; top: -13px; cursor: nwse-resize; }
+.handle_n  { left: 50%; top: -13px; transform: translateX(-50%); cursor: ns-resize; }
+.handle_ne { right: -13px; top: -13px; cursor: nesw-resize; }
+.handle_e  { right: -13px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.handle_se { right: -13px; bottom: -13px; cursor: nwse-resize; }
+.handle_s  { left: 50%; bottom: -13px; transform: translateX(-50%); cursor: ns-resize; }
+.handle_sw { left: -13px; bottom: -13px; cursor: nesw-resize; }
+.handle_w  { left: -13px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+
+/* 角的视觉标记：白色 L 形（官方裁切页同款） */
+.handle_nw::after, .handle_ne::after, .handle_se::after, .handle_sw::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 0 solid #fff;
+}
+
+.handle_nw::after { left: 4px; top: 4px; border-left-width: 3px; border-top-width: 3px; }
+.handle_ne::after { right: 4px; top: 4px; border-right-width: 3px; border-top-width: 3px; }
+.handle_se::after { right: 4px; bottom: 4px; border-right-width: 3px; border-bottom-width: 3px; }
+.handle_sw::after { left: 4px; bottom: 4px; border-left-width: 3px; border-bottom-width: 3px; }
+
+.cropBar {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  left: 0;
+  right: 0;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+}
+
+.cropClose {
+  pointer-events: auto;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.cropConfirm {
+  pointer-events: auto;
+  flex: 1 1 auto;
+  height: 52px;
+  border: 0;
+  border-radius: 26px;
+  background: #4f7cff;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cropConfirm:disabled {
+  opacity: 0.6;
+}
+
+/* 裁切模式顶栏：还原 / 旋转 */
+.topBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(8px + var(--ds-safe-top, 0px));
+  z-index: 20;
+  pointer-events: none;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.topAction {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.topIcon {
+  display: inline-flex;
+  align-items: center;
+}
+
+/*
+ * 四条边的拖拽条（放在框内侧）。
+ * 之前只用「骑在框线上」的 40px 控制点，真机上上下边经常点不到，
+ * 这里再补 28px 的内侧条，命中率 100%。
+ */
+.edge {
+  position: absolute;
+  z-index: 5;
+  background: transparent;
+  touch-action: none;
+}
+/* 官方在四条边中点有白色提示块，这里用伪元素画出来 */
+.edge::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 2px;
+  background: #fff;
+  opacity: 0.95;
+}
+.edge_n::after, .edge_s::after { width: 30px; height: 4px; }
+.edge_w::after, .edge_e::after { width: 4px; height: 30px; }
+.edge_n { left: 24px; right: 24px; top: -22px; height: 44px; cursor: ns-resize; }
+.edge_s { left: 24px; right: 24px; bottom: -22px; height: 44px; cursor: ns-resize; }
+.edge_w { top: 24px; bottom: 24px; left: -22px; width: 44px; cursor: ew-resize; }
+.edge_e { top: 24px; bottom: 24px; right: -22px; width: 44px; cursor: ew-resize; }
+
+/* 裁切框外的压暗块（4 块，避免大阴影盖住顶栏/底栏按钮） */
+.shade {
+  position: absolute;
+  background: rgb(0 0 0 / 55%);
+  pointer-events: none;
+  z-index: 1;
+}

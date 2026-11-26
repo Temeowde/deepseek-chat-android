@@ -60,6 +60,16 @@
     left: 0;
     right: 0;
     bottom: auto;
+    /*
+     * 老 WebView（<108）不认 dvh，整条声明会被丢弃 → fixed 容器高度塌掉（输入栏贴顶/侧栏异常），
+     * 所以先用 100vh 兜底。
+     *
+     * 这里**不能**消费 --app-viewport-height：键盘弹起时 viewport.ts 会把该变量写成
+     * 「键盘后的可视高度」（约 372px），而原生 ChatWindowInsets 同时推 --ds-ime-bottom
+     * 给输入栏加内边距，两者叠加就是「让位算两遍」，.stage 被压成 0，输入栏顶到屏幕上沿。
+     * 旧机型（没有原生 IME 推送）的单独特判见文件末尾。
+     */
+    height: 100vh;
     height: 100dvh;
     box-sizing: border-box;
     /*
@@ -204,4 +214,33 @@
 @keyframes loadingIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+
+/*
+ * 老机型兜底：Android 10 及以下没有 ChatWindowInsets 推送 --ds-ime-bottom，
+ * 键盘会盖住输入栏。这时才用 viewport.ts 写入的 --app-viewport-height 跟随键盘；
+ * 新机型上 ChatWindowInsets 会给 <html> 打 data-ds-native-ime 标记，走原生让位，避免重复计算。
+ */
+@media not all and (min-width: 768px) {
+  html:not([data-ds-native-ime]) .frame {
+    height: var(--app-viewport-height, 100dvh);
+  }
+}
+
+
+/*
+ * 禁止双指拖动/缩放整页：
+ * 之前页面在横向有溢出时，WebView 会把双指拖动当成「平移网页」，主界面内容被拖来拖去。
+ * 这里只允许纵向滚动，横向手势一律不接管；overscroll-behavior 再挡掉边界联动。
+ */
+html,
+body {
+  overscroll-behavior: none;
+  touch-action: pan-y;
+}
+
+#root,
+.frame {
+  touch-action: pan-y;
 }

@@ -102,6 +102,84 @@ export const officialPasswordLogin = (account: string, password: string): Promis
     }
   })
 
+/** 官方接口失败类型：登录失效 / 被 WAF 拦截 / 其它 */
+export type OfficialFailureKind = 'auth' | 'blocked' | 'unknown'
+
+export class OfficialError extends Error {
+  readonly kind: OfficialFailureKind
+  readonly code: number
+  constructor(kind: OfficialFailureKind, message: string, code = 0) {
+    super(message)
+    this.name = 'OfficialError'
+    this.kind = kind
+    this.code = code
+  }
+}
+
+/**
+ * 把官方响应分成三类。
+ *
+ * 官方服务端对失效 token 的返回是 **HTTP 200 + JSON {"code":40002|40003}**；
+ * 而 HTML / 429 是 WAF 拦截（User-Agent/风控），跟登录无关 —— 以前把 HTML 当"登录失效"会误导用户重新登录。
+ */
+const classifyOfficialFailure = (response: OfficialResponse): OfficialError | null => {
+  const body = response.body ?? ''
+  const trimmed = body.trimStart()
+  if (trimmed.startsWith('<') || response.status === 429) {
+    return new OfficialError(
+      'blocked',
+      `官方接口被拦截/限流（HTTP ${response.status}），请稍后重试；如果一直这样，请更新 App 或换网络`
+    )
+  }
+  try {
+    const parsed = JSON.parse(body) as { code?: number; msg?: string }
+    const code = Number(parsed?.code ?? 0)
+    if (code === 40002 || code === 40003) {
+      const error = new OfficialError('auth', '官方登录已失效，请到「设置 → 账户」重新登录后再试', code)
+      try {
+        window.dispatchEvent(new CustomEvent('official-auth-invalid'))
+      } catch {
+        // 事件派发失败不影响抛错
+      }
+      return error
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** 以官方令牌发 POST（JSON body）；用于 TTS 票据、切换朗读音色等。 */
+export const officialPost = (path: string, body: unknown, timeout = 30000): Promise<OfficialResponse> =>
+  new Promise((resolve, reject) => {
+    const api = window.DeepSeekAndroid
+    if (typeof api?.officialPost !== 'function') {
+      reject(new Error('official post bridge unavailable'))
+      return
+    }
+    const id = `p${++sequence}`
+    const timer = setTimeout(() => {
+      pending.delete(id)
+      reject(new Error('official request timeout'))
+    }, timeout)
+    pending.set(id, (response) => {
+      clearTimeout(timer)
+      const classified = classifyOfficialFailure(response)
+      if (classified) {
+        reject(classified)
+        return
+      }
+      resolve(response)
+    })
+    try {
+      api.officialPost(id, path, JSON.stringify(body ?? {}))
+    } catch (error) {
+      clearTimeout(timer)
+      pending.delete(id)
+      reject(error instanceof Error ? error : new Error(String(error)))
+    }
+  })
+
 /** 请求一个 /api/v0/ 路径；超时或桥不可用时抛出。 */
 export const officialGet = (path: string, timeout = 30000): Promise<OfficialResponse> =>
   new Promise((resolve, reject) => {
@@ -117,6 +195,11 @@ export const officialGet = (path: string, timeout = 30000): Promise<OfficialResp
     }, timeout)
     pending.set(id, (response) => {
       clearTimeout(timer)
+      const classified = classifyOfficialFailure(response)
+      if (classified) {
+        reject(classified)
+        return
+      }
       resolve(response)
     })
     try {

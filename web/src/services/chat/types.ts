@@ -23,6 +23,25 @@ export type FileAttachment = {
   isImage: boolean
   /** 具体 MIME；导入时没有原件或无法识别的为空字符串，不影响图片身份。 */
   mimeType: string
+  /** 本地原件副本；仅发送过程中的内存快照带，不落库。 */
+  blob?: Blob
+  /** 内联图片：非 DeepSeek 通道直接放进请求，不经过 Files API。 */
+  inlineImage?: { mediaType: string; data: string }
+  /**
+   * 文本附件正文（发送过程中的内存快照，不落库）。
+   * DeepSeek 官方通道把它作为内联 document 块发送，避免拼进提问正文后撞 32,768 tokens 单条上限。
+   */
+  documentText?: string
+  /**
+   * 原件还在远端时可直接访问的地址（目前只有官方会话同步写入，来自官方文件的 signed_path）。
+   * 本地还没有原件时用作展示兜底，后台补下成功后仍以 IndexedDB 原件为准。
+   */
+  remoteUrl?: string
+  /**
+   * 缩略图地址（官方 CDN 的 ?ty=t）；列表展示优先用它，原图只在补下/发送时用。
+   * 与 remoteUrl 同样来自官方文件 signed_path。
+   */
+  remoteThumbUrl?: string
 }
 
 /** 本地消息的分支关系；字段缺省时按线性消息列表处理。 */
@@ -101,6 +120,13 @@ export type AssistantMessage = MessageBranch & {
     localMessage?: TranslationMessage
     /** 仅 upload：重新上传是否可能成功（网络、限流、服务端繁忙）；过大、格式不支持为 false */
     retryable?: boolean
+    /**
+     * 仅上下文/输入超限：区分"历史太长把总请求撑爆"还是"当前这条本身太大"。
+     * history → 压缩历史有用；input → 压历史没用，应截断本体重发。
+     */
+    overflow?: 'history' | 'input'
+    /** 仅上下文/输入超限：本轮提问（含附件注入文本）的估算 token，用于压缩时预留空间。 */
+    questionTokens?: number
   }
 }
 

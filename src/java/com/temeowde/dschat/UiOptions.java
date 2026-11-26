@@ -21,12 +21,15 @@ public final class UiOptions {
             // 字体选择：内置 id（follow/system/serif/mono）或设备字体 id（dev-xxx），见 web/mobile/font-switch.js
             case "typeface": return value.matches("[a-z][a-z0-9-]{0,39}");
             case "collapse": return value.equals("0") || value.equals("1");
+            // 聊天提供方与 WorkBuddy 模型；只允许安全字符，绝不存 token。
+            case "provider": return value.equals("deepseek") || value.equals("workbuddy") || value.equals("custom");
+            case "workbuddyModel": return value.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}");
             default: return false;
         }
     }
 
     public static String read(Context context, String key) {
-        if (key == null || !(key.equals("locale") || key.equals("theme") || key.equals("voice") || key.equals("font") || key.equals("collapse") || key.equals("typeface"))) return "";
+        if (key == null || !(key.equals("locale") || key.equals("theme") || key.equals("voice") || key.equals("font") || key.equals("collapse") || key.equals("typeface") || key.equals("provider") || key.equals("workbuddyModel"))) return "";
         String value = context.getSharedPreferences("chat_display", Context.MODE_PRIVATE).getString(key, "");
         return allowed(key, value) ? value : "";
     }

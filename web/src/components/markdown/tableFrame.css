@@ -1,5 +1,11 @@
-.ds-table-card { min-width: 0; max-width: 100%; margin: 12px 0; overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; }
-.ds-table-bar { display: flex; align-items: center; min-height: 42px; padding: 0 6px 0 14px; background: var(--dsw-alias-button-ghost-active-fill); color: var(--dsw-alias-brand-text); }
+/*
+ * 配色取自官方 App 真机截图（九九乘法口诀表那条回答）：
+ * 表格上方条 #FAFAFA、「表格」文字与图标 #7D7F85、边框 #DCDCDC、表头行 #FAFAFA。
+ * 表头仍走 --chat-table-head 变量（原作者的改法），这里把变量值改成官方实测值。
+ */
+.ds-table-card, .ds-table-full { --ds-table-bar-bg: #FAFAFA; --ds-table-bar-fg: #7D7F85; --ds-table-line: #DCDCDC; }
+.ds-table-card { min-width: 0; max-width: 100%; margin: 12px 0; overflow: hidden; border: 1px solid var(--ds-table-line); border-radius: 12px; }
+.ds-table-bar { display: flex; align-items: center; min-height: 42px; padding: 0 6px 0 14px; background: var(--ds-table-bar-bg); color: var(--ds-table-bar-fg); }
 .ds-table-bar > span { margin-right: auto; font: 500 13px/18px var(--dsw-font-family); }
 .ds-table-bar button { display: grid; place-items: center; width: 36px; height: 42px; padding: 0; border: 0; color: inherit; background: transparent; cursor: pointer; }
 .ds-table-bar svg { width: 16px; height: 16px; }
@@ -9,19 +15,67 @@
 .ds-table-expand svg + svg { transform: rotate(180deg); top: auto; right: auto; bottom: 0; left: 0; }
 .ds-table-card .markdown-table-wrapper { overflow-x: auto; overscroll-behavior-x: contain; }
 .ds-table-card table { margin: 0; width: max-content; min-width: 100%; }
-.ds-table-card :is(th,td) { box-sizing: border-box; min-width: 58px; max-width: 250px; padding: 9px 14px; border: 0; border-right: 1px solid var(--dsw-alias-border-l2); border-top: 1px solid var(--dsw-alias-border-l2); overflow-wrap: anywhere; }
+.ds-table-card :is(th,td) { box-sizing: border-box; min-width: 58px; max-width: 250px; padding: 7.5px 15px; border: 0; border-right: 1px solid var(--ds-table-line); border-top: 1px solid var(--ds-table-line); overflow-wrap: anywhere; }
 .ds-table-card :is(th,td):is(:first-child,:last-child) { padding-inline: 14px; }
 .ds-table-card :is(th,td):last-child { border-right: 0; }
-.ds-table-card th { background: var(--dsw-alias-markdown-code-block-banner); }
+.ds-table-card th { background: var(--chat-table-head, var(--dsw-alias-markdown-code-block-banner)); }
 .ds-table-full { inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; box-sizing: border-box; margin: 0; padding: 0; border: 0; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
-.ds-table-full[open] { display: flex; flex-direction: column; }
-.ds-table-full .ds-table-bar { flex: none; height: 56px; background: transparent; padding: 0 6px 0 4px; color: inherit; border-bottom: 1px solid var(--dsw-alias-border-l2); }
+/*
+ * 放大表格是全屏 dialog。官方 TablePreviewActivity 在页面根节点用
+ * windowInsetsPadding(safeContent.only(垂直)) 把整页内容下移。
+ * 注意本 WebView 里 env(safe-area-inset-top) 恒为 0，只能用 --ds-safe-top。
+ */
+.ds-table-full[open] { display: flex; flex-direction: column; padding-top: var(--ds-safe-top, 0px); }
+.ds-table-full .ds-table-bar { flex: none; box-sizing: border-box; height: 56px; background: transparent; padding: 0 6px 0 4px; color: var(--ds-table-bar-fg); border-bottom: 1px solid var(--ds-table-line); }
 .ds-table-full .ds-table-bar button { width: 44px; height: 44px; }
 .ds-table-full .ds-table-bar svg { width: 21px; height: 21px; }
 .ds-table-full .ds-table-back svg { transform: rotate(180deg); }
-.ds-table-page { min-height: 0; flex: 1; overflow-y: auto; padding: 0 12px 20px; }
+.ds-table-page { min-height: 0; flex: 1; overflow-y: auto; padding: 0 12px calc(20px + env(safe-area-inset-bottom, 0px)); }
 .ds-table-page .ds-table-card { margin-top: 8px; }
 @media (max-width: 767px) {
   .ds-markdown .md-code-block > pre { white-space: pre; word-break: normal; overflow-wrap: normal; overflow-x: auto; overscroll-behavior-x: contain; }
   html[data-chat-font] .ds-table-card :is(td,th) { font-size: var(--ds-chat-font,16px); }
+}
+
+/*
+ * 深色模式：官方 MarkdownColors 深色档（ColorSchemeV2 实测/推导）
+ * 表格条与表头 #1E1E1E、标题与图标 #B9BABB、边框 #3C3C3D
+ */
+body[data-ds-dark-theme] .ds-table-card,
+body[data-ds-dark-theme] .ds-table-full {
+  --ds-table-bar-bg: #1E1E1E;
+  --ds-table-bar-fg: #B9BABB;
+  --ds-table-line: #3C3C3D;
+}
+
+
+/* 官方矢量图标：统一给个盒子，内部 svg 填满，颜色跟按钮 currentColor */
+.ds-table-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: inherit;
+}
+
+.ds-table-icon > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 旋转按钮是 24dp 设计，视觉上比 16dp 图标略大，但按钮尺寸保持一致 */
+.ds-table-rotate .ds-table-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* 横屏时表格区域按真实屏幕尺寸铺满（原生切方向，这里只处理留白） */
+.ds-table-full[data-landscape='true'] .ds-table-page {
+  padding: 8px;
+}
+
+.ds-table-full[data-landscape='true'] .markdown-table-wrapper {
+  max-height: none;
 }

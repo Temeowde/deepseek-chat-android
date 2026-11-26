@@ -2,14 +2,17 @@ import path from 'node:path'
 import { rspack, type Compiler } from '@rspack/core'
 
 // The small standalone adapters must run before React initializes the Android preferences.
-const headScripts = ['attachments', 'voice-composer', 'read-aloud', 'drawer-perf', 'mobile-history', 'font-switch', 'mobile-settings', 'message-share', 'message-actions']
+const headScripts = ['system-font', 'attachments', 'voice-composer', 'read-aloud', 'drawer-perf', 'mobile-history', 'font-switch', 'fluid-blob', 'mobile-settings', 'message-share', 'message-actions', 'overscroll']
 const styles = ['drawer-perf', 'brand', 'attachments', 'voice-composer', 'mobile-history', 'mobile-settings', 'message-actions']
 const bodyScripts = ['search']
 
 export const mobileAssets = (root: string) => [
   new rspack.CopyRspackPlugin({ patterns: [
-    ...['js', 'css'].map(ext => ({ context: path.join(root, 'mobile'), from: `*.${ext}`, to: '[name].[contenthash:8][ext]' })),
+    /* .js 已改成 rspack 入口（走 swc 降级），这里只拷 CSS 与静态资源 */
+    { context: path.join(root, 'mobile'), from: '*.css', to: '[name].[contenthash:8][ext]' },
     { from: path.join(root, 'mobile/ui-icons'), to: 'ui-icons' },
+    /* 内置 MiSans（子集化 woff2）：打包进 assets/chat/fonts/，任何机型都能用 */
+    { from: path.join(root, 'mobile/fonts'), to: 'fonts' },
     ...['mobile/whale.svg', 'LICENSE.community', 'NOTICE'].map(file => ({ from: path.join(root, file), to: path.basename(file), toType: 'file' as const })),
   ] }),
   { apply(compiler: Compiler) {

@@ -378,3 +378,25 @@
   color: var(--dsw-alias-label-secondary);
   font-size: 14px;
 }
+
+
+/*
+ * display 公式：官方是居中整行显示。公式比屏幕宽时不能撑破布局，
+ * 让公式自己横向滚动，正文区域的宽度保持稳定。
+ */
+.ds-markdown-math {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-block: 2px;
+}
+
+.ds-markdown-math .katex-display {
+  margin: 0;
+}
+
+p > .ds-markdown-math {
+  margin-block: 8px;
+}

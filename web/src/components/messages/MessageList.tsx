@@ -1,8 +1,7 @@
 import { Surface } from './mobileActions.js'
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type UIEvent } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type UIEvent } from 'react'
 import { useIsMobile } from '../../app/viewport.js'
 import { useTranslate } from '../../i18n/index.js'
-import { IconChevronDownOutline14 } from '../base/icons.js'
 import {
   buildMessageVersions,
   getVisibleMessages,
@@ -476,6 +475,13 @@ export const MessageList = memo(function MessageList({
       <div ref={isMobile ? undefined : scrollRef} className={styles.container} {...!isMobile && scrollEvents}>
         <div ref={isMobile ? scrollRef : undefined} className={styles.scroll} data-chat-scroll {...isMobile && scrollEvents}>
           <div ref={contentRef} className={styles.column}>
+            {messages.length === 0 ? (
+              /* 备份/导入来的「空壳会话」：正文没在本地，给一句明确说明，而不是空白页 */
+              <div className={styles.emptySession} role="note">
+                <strong>{t('sessionBodyMissingTitle')}</strong>
+                <p>{t('sessionBodyMissingHint')}</p>
+              </div>
+            ) : null}
             {hasEarlier && historyButton('earlier')}
             {messages.slice(start, end).map((message, visibleIndex) => {
               const index = start + visibleIndex
@@ -511,8 +517,7 @@ export const MessageList = memo(function MessageList({
         </div>
         {isMobile && (away || hasLater) && !editId && <div className={styles.jumpAnchor}>
           <button type="button" className={styles.jump} aria-label={t('jumpToLatest')} title={t('jumpToLatest')} onClick={jumpToLatest}>
-            <IconChevronDownOutline14 />
-            {t('jumpToLatest')}
+            <span className="ds-ui-icon" aria-hidden style={{ '--ds-icon': 'url("ui-icons/chevron-down.svg")' } as CSSProperties} />
           </button>
         </div>}
         {footer}

@@ -4,10 +4,24 @@ import { create } from 'zustand'
 import { createId } from '../../utils/id.js'
 import { ApiError, streamMessage } from '../api/client.js'
 import type { ChatModel, CreateMessageRequest } from '../api/types.js'
+import { getCustomConfig } from '../custom/bridge.js'
+import { streamCustom } from '../custom/stream.js'
+import { streamWorkBuddy } from '../workbuddy/stream.js'
 import { extractFileIds, getFileErrorCode, isRetryableApiError } from '../api/errors.js'
 import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
+import { MAX_IMAGE_EDGE, blobToBase64, downscaleImage, INLINE_IMAGE_EDGE, isImageWithinLimit } from '../vision.js'
+import { isBinaryDocument, MAX_INLINE_TEXT_CHARS, readBlobText } from '../textfile.js'
+import { canParseLocally, localParseKind, parseDocument } from '../docparse/index.js'
 import { useSettings } from '../settings.js'
-import { appendBranch, getVisibleMessages, normalizeSession, selectPathToMessage, selectVersion } from './branches.js'
+import { appendBranch, getVisibleMessages, normalizeSession, repairVisibleTail, selectPathToMessage, selectVersion } from './branches.js'
+import {
+  readContextMemory,
+  estimateTokens,
+  CHARS_PER_TOKEN,
+  clearContextMemory,
+  clearAllContextMemories,
+} from './contextMemory.js'
+import { getContextLimit, isInputTooLong } from './describe.js'
 import * as db from './db.js'
 import { BackupError } from './history/errors.js'
 import {
@@ -22,6 +36,7 @@ import {
   applyEvent,
   canContinueReply,
   getContextRounds,
+  selectRequestImageIds,
   settleReply,
   toRequestMessages,
 } from './reply.js'
@@ -41,6 +56,8 @@ import {
 const MODEL: ChatModel = 'deepseek-flash'
 /** 所有生成请求统一携带的助手身份说明 */
 const SYSTEM_PROMPT = '该助手为DeepSeek，由深度求索公司创造。'
+/** WorkBuddy 不是 DeepSeek 官方通道，用中性身份，避免网关按客户端指纹误判 */
+const WORKBUDDY_SYSTEM_PROMPT = 'You are a helpful assistant.'
 /** 保留最近打开的详情；当前会话、生成中及尚未成功保存的会话不淘汰。 */
 const SESSION_CACHE_LIMIT = 5
 /** 用户开启安全审核时发送 high；关闭时省略 safety_check */
@@ -63,6 +80,12 @@ const serverTools = (search: boolean): CreateMessageRequest['tools'] => {
 
 /** 允许自动补标题的请求；手动重命名后取消本轮标题写入，包含主动清空标题的情况。 */
 const titleRequests = new Set<AbortController>()
+
+/** WorkBuddy 通道没有独立的标题模型，用首轮提问截一段作为会话标题。 */
+const titleFromQuestion = (question: UserMessage): string => {
+  const text = question.content.replace(/\s+/g, ' ').trim()
+  return text.length > 24 ? `${text.slice(0, 24)}…` : text
+}
 
 type ChatState = {
   ready: boolean
@@ -114,6 +137,49 @@ const sortSessions = (sessions: SessionSummary[]) =>
 const getSession = (id: string) => {
   const cache = get().sessionCache
   return Object.hasOwn(cache, id) ? cache[id] : undefined
+}
+
+/**
+ * 官方会话的后台刷新。
+ *
+ * 之前是在打开会话时 await 官方接口：即使本地已有缓存也一定要等网络回来，
+ * 于是每次点开都要等、还会和正在进行的滚动/渲染抢 CPU（感觉「特别卡」）。
+ * 现在缓存秒开，只有在服务端看得出更新时才后台拉一次，回来再静默替换。
+ */
+const refreshOfficialInBackground = (id: string, force = false): void => {
+  const epoch = historyEpoch
+  void (async () => {
+    try {
+      const remote = await officialLoader?.(id)
+      if (!remote || epoch !== historyEpoch) {
+        return
+      }
+      const current = getSession(id)
+      const summary = get().sessions.find((session) => session.id === id)
+      // 服务端没有比本地更新时不动，避免覆盖本地刚发的消息；
+      // 但附件结构过期时必须强制重拉，否则升级前的旧会话永远补不出图片。
+      if (!force && current && remote.updatedAt < current.updatedAt) {
+        return
+      }
+      if (remote.messages.length === 0 && current && current.messages.length > 0) {
+        return
+      }
+      const settled = repairVisibleTail(settleInterrupted(normalizeSession(remote)))
+      /*
+       * 摘要覆盖会话时，updatedAt 不能被旧值盖回去：
+       * 本地 API 续聊的时间官方服务器不认，用 ...summary 直接展开会把
+       * 「今天」的会话打回「7 天内」。其它字段（标题/置顶/创建时间）仍以摘要为准。
+       */
+      const session =
+        summary && !sameSummary(settled, summary)
+          ? { ...settled, ...summary, updatedAt: Math.max(settled.updatedAt, summary.updatedAt) }
+          : settled
+      set((state) => ({ sessionCache: { ...state.sessionCache, [id]: session } }))
+      await db.saveSession(session)
+    } catch {
+      // 后台刷新失败就继续用缓存，不打扰用户
+    }
+  })()
 }
 
 const getStreamController = (id: string) => {
@@ -369,16 +435,38 @@ const ensureSessionLoaded = (id: string): Promise<void> => {
   load.promise = (async () => {
     try {
       let stored = await db.loadSession(id)
-      // 官方会话：先用手上的缓存秒开，再从服务器刷新。
-      if (stored && id.startsWith('off_') && epoch === historyEpoch) {
-        const cached = settleInterrupted(normalizeSession(stored))
+      const isOfficial = id.startsWith('off_')
+      /*
+       * 旧缓存的会话可能还是「图片字段缺失/URL 拼错」的旧结构（升级前同步的）。
+       * 用 schema 版本标记：缓存里没有任何 of_ 前缀附件、但会话又是官方来源时，
+       * 无法判断是"真的没图"还是"旧结构"，一律强制重拉一次。
+       * 否则用户必须删除会话重新同步才能修好（这正是上一版的问题）。
+       */
+      const staleAttachmentSchema =
+        stored !== undefined &&
+        isOfficial &&
+        !stored.messages.some(
+          (message) =>
+            message.role === 'user' &&
+            message.files.some((file) => file.remoteUrl !== undefined || file.id.startsWith('of_'))
+        )
+      // 官方会话：先用手上的缓存秒开。
+      if (stored && isOfficial && epoch === historyEpoch) {
+        const cached = repairVisibleTail(settleInterrupted(normalizeSession(stored)))
         set((state) => ({ sessionCache: { ...state.sessionCache, [id]: cached } }))
       }
-      // 官方会话每次都重新拉取，本地缓存只作为网络失败时的兜底。
-      if (officialLoader && id.startsWith('off_')) {
-        const remote = await officialLoader(id)
-        if (remote) {
-          stored = remote
+      if (officialLoader && isOfficial) {
+        const summary = get().sessions.find((session) => session.id === id)
+        const cachedIsCurrent = !stored || (summary ? summary.updatedAt <= stored.updatedAt : false)
+        if (!stored) {
+          // 本地完全没有内容，只能等网络拉一次
+          const remote = await officialLoader(id)
+          if (remote) {
+            stored = remote
+          }
+        } else if (!cachedIsCurrent || staleAttachmentSchema) {
+          // 有缓存但服务端可能更新（或缓存还是旧附件结构）：后台刷新，不阻塞打开和滚动
+          refreshOfficialInBackground(id, staleAttachmentSchema)
         }
       }
       if (epoch !== historyEpoch || sessionLoads.get(id) !== load) {
@@ -391,7 +479,7 @@ const ensureSessionLoaded = (id: string): Promise<void> => {
       if (!stored) {
         throw new Error(`Session ${id} is missing from local storage`)
       }
-      const settled = settleInterrupted(normalizeSession(stored))
+      const settled = repairVisibleTail(settleInterrupted(normalizeSession(stored)))
       // 读取期间可能已在列表重命名，保留最新元数据，不能让旧读取覆盖它。
       const session = sameSummary(settled, summary) ? settled : { ...settled, ...summary }
       touchSession(id)
@@ -467,6 +555,8 @@ export const applyHistory = async (write: () => Promise<void>, mode: HistoryImpo
       await write()
       if (mode === 'merge') {
         const { summaries, loaded, added, updated } = await db.mergeStaging(new Set(Object.keys(get().sessionCache)))
+        // 合并/替换历史后，旧摘要可能对不上新历史：全部丢弃，等下次爆满再压。
+        clearAllContextMemories()
         set((current) => ({
           ready: true,
           initError: false,
@@ -477,6 +567,7 @@ export const applyHistory = async (write: () => Promise<void>, mode: HistoryImpo
       }
 
       const summaries = await db.commitStaging()
+      clearAllContextMemories()
       sessionAccess.clear()
       unsavedSessions.clear()
       pendingFiles.clear()
@@ -614,6 +705,7 @@ const removeSessionData = async (id: string): Promise<boolean> => {
       return false
     }
     await db.deleteSession(id)
+    clearContextMemory(id)
     if (epoch !== historyEpoch) {
       return true
     }
@@ -755,7 +847,62 @@ export const regenerateReply = (sessionId: string, messageId?: string) => {
   void streamReply(sessionId, reply, { history, question })
 }
 
-/** 编辑提问后新增同父版本，保留原文件；旧问题的所有回答与后续对话仍可切回。 */
+/**
+ * 「截断后发送」：当前这条提问本身太大（单条超限）时，用户点一下，
+ * 只把文本截到安全长度重新发一次，原消息和附件不动，不改历史。
+ * 只在"当前这条太大"的错误上使用；历史太长请用压缩上下文。
+ */
+export const retryWithTruncatedQuestion = (sessionId: string, messageId: string): boolean => {
+  if (get().importingHistory || deletingSessions.has(sessionId) || getStreamController(sessionId)) {
+    return false
+  }
+  const session = getSession(sessionId)
+  if (!session) {
+    return false
+  }
+  const path = getVisibleMessages(session)
+  const index = path.findIndex((message) => message.id === messageId)
+  const failed = path[index]
+  const question = path[index - 1]
+  if (failed?.role !== 'assistant' || question?.role !== 'user') {
+    return false
+  }
+  const limit = getContextLimit(failed.error?.message) ?? 32768
+  // 留一半余量给历史与输出；写死范围，避免"截了还是超"
+  const maxChars = Math.max(2000, Math.floor(limit * 0.5 * CHARS_PER_TOKEN))
+  if (question.content.length <= maxChars) {
+    return false
+  }
+  const truncated: UserMessage = {
+    id: createId(),
+    role: 'user',
+    content: `${question.content.slice(0, maxChars)}\n\n（内容过长，已截断后重发）`,
+    files: [],
+    createdAt: Date.now(),
+  }
+  const reply = createReply()
+  updateSession(sessionId, (s) => ({
+    ...appendBranch(s, path[index - 2]?.id ?? null, [truncated, reply]),
+    updatedAt: Date.now(),
+  }))
+  persist(sessionId)
+  void streamReply(sessionId, reply, {
+    history: path.slice(0, index - 1),
+    question: truncated,
+  })
+  return true
+}
+
+/**
+ * 编辑提问后新增同父版本，保留原文件；旧问题的所有回答与后续对话仍可切回。
+ *
+ * 这是官方行为，不是 bug：官方 web 客户端的编辑用例（EditMessage.initFakeMessages）
+ * 取被编辑消息的父节点，新建一条用户消息通过 addMessageIdToParent 追加进父节点的 childIds
+ * 并切换过去；父节点为空时走 addMessageIdToRootBranch（会话根分支）。
+ * 旧消息只清掉 isEditing 标记、不删不改，所以官方编辑后同样会出现「1 / 2」分支切换器
+ * （官方在用户消息的操作栏用 getMessageBranchCount > 1 决定是否渲染这个切换器）。
+ * 另外官方端点是 /api/v0/chat/edit_message，与我们这里发一次普通 completion 等价。
+ */
 export const editMessage = (sessionId: string, messageId: string, content: string): boolean => {
   if (get().importingHistory || deletingSessions.has(sessionId)) {
     return false
@@ -899,15 +1046,76 @@ const saveServerIds = (sessionId: string, serverIds: Map<string, string>) => {
  * 附件的服务端 id：已有直接用；正在上传的等待同一任务；否则读取本地原件补传。
  * 本地也没有原件（导入的文档附件只有元数据）时返回 null，该附件只展示、不进入请求。
  */
+/** 已经确认过尺寸合规的图片，避免每次发送都读一遍原件 */
+const verifiedImages = new Set<string>()
+
 const ensureServerId = async (apiKey: string, file: FileAttachment): Promise<string | null> => {
   if (file.serverId) {
+    /*
+     * 旧版本上传的图片可能是原图（手机照片 4000~8000px），file_id 指向的文件本身超限，
+     * 服务端在推理时才拒绝（400 image too large），报错会一路显示到消息气泡上。
+     * 这里对这些历史 serverId 做一次性体检：本地有原件且超限就重传压缩版；
+     * 本地没有原件时先从 remoteUrl 取回；连原件都无法确认尺寸的本次不发送（文字占位），
+     * 避免整条消息因为一张老图而 400。
+     */
+    if (file.isImage && !verifiedImages.has(file.id)) {
+      verifiedImages.add(file.id)
+      try {
+        let blob = await db.loadFile(file.id)
+        if (!blob && file.remoteUrl) {
+          try {
+            const response = await fetch(file.remoteUrl)
+            if (response.ok) {
+              const fetched = await response.blob()
+              if (fetched.size > 0) {
+                blob = fetched
+                await db.saveFiles([{ id: file.id, blob: fetched }])
+              }
+            }
+          } catch {
+            // 取不回来，按"无法确认尺寸"处理
+          }
+        }
+        if (blob) {
+          if (!(await isImageWithinLimit(blob, MAX_IMAGE_EDGE))) {
+            return uploadAttachment(apiKey, file.id, blob, file.name, true)
+          }
+        } else {
+          return null
+        }
+      } catch {
+        // 读不到原件就沿用原 file_id，按服务端行为收尾
+      }
+    }
     return file.serverId
+  }
+  // 纯文本附件本地读取拼进正文，永远不进 Files API。
+  if (!file.isImage && !isBinaryDocument(file.name)) {
+    return null
   }
   const task = useUploads.getState().tasks[file.id]
   if (task?.status === 'done') {
     return task.serverId
   }
-  const blob = await db.loadFile(file.id)
+  let blob = await db.loadFile(file.id)
+  if (!blob && file.remoteUrl) {
+    /*
+     * 官方会话同步过来的图片：原件还在 CDN 上（signed_path），本地只有地址。
+     * 先取回原件入库，再走上传 —— 否则这张历史图片永远不会进入请求。
+     */
+    try {
+      const response = await fetch(file.remoteUrl)
+      if (response.ok) {
+        const fetched = await response.blob()
+        if (fetched.size > 0) {
+          blob = fetched
+          await db.saveFiles([{ id: file.id, blob: fetched }])
+        }
+      }
+    } catch {
+      // 取不到就按"没有原件"处理，该附件不进入请求
+    }
+  }
   if (!blob) {
     return null
   }
@@ -936,24 +1144,260 @@ const refreshRequest = (sessionId: string, request: Request): Request => {
  * - 历史轮次（仅进入上下文的）中没有 serverId 的附件，多为导入的图片：从最新的消息往前逐张补传，
  *   失败静默跳过，该附件不进入本次请求，下次发送时再试。
  */
+/**
+ * 把附件转成内联图片：读本地原件转 base64，供 WorkBuddy / 自定义通道直接发送。
+ * 没有本地原件（导入的旧附件且从未下载）时返回 null。
+ */
+const toInlineImage = async (
+  file: FileAttachment
+): Promise<{ mediaType: string; data: string } | null> => {
+  try {
+    const blob = await db.loadFile(file.id)
+    if (!blob) {
+      return null
+    }
+    /*
+     * 内联图片先缩到长边 2048：base64 会把体积放大 4/3，
+     * 历史里几十张大图原样内联会让整个请求体爆掉（服务端也会因 4096px 限制 400）。
+     */
+    const scaled = await downscaleImage(blob, INLINE_IMAGE_EDGE)
+    const mediaType = scaled.type || file.mimeType || blob.type || 'image/png'
+    return { mediaType, data: await blobToBase64(scaled) }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 把纯文本附件读成消息正文：本地读原件，拼成「文件名 + 内容」的文本块，
+ * 供任意通道当普通文本发送。优先用内存里的原件，落库尚未完成时也能读到。
+ */
+const toInlineText = async (
+  file: FileAttachment,
+  blobs: Map<string, Blob>
+): Promise<string | null> => {
+  try {
+    const blob = blobs.get(file.id) ?? (await db.loadFile(file.id))
+    if (!blob) {
+      return null
+    }
+    const { text, totalChars, truncated } = await readBlobText(blob)
+    const head = truncated
+      ? `【文件：${file.name}】（原 ${totalChars} 字符，截断至前 ${text.length} 字符）`
+      : `【文件：${file.name}】`
+    return `${head}\n\n${text}`
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 把 PDF / Word / PPT 在本地解析成文本（仅非 DeepSeek 通道走这条，
+ * 因为那些供应商没有 Files API，文档根本发不出去）。
+ * 解析失败返回 null，由调用方提示用户；明确标注「图片图表未包含」，
+ * 避免模型和用户误以为看全了原件。
+ */
+const toInlineDocument = async (
+  file: FileAttachment,
+  blobs: Map<string, Blob>
+): Promise<string | null> => {
+  try {
+    const blob = blobs.get(file.id) ?? (await db.loadFile(file.id))
+    if (!blob) {
+      return null
+    }
+    const parsed = await parseDocument(blob, file.name, MAX_INLINE_TEXT_CHARS)
+    if (!parsed) {
+      return null
+    }
+    const kind = localParseKind(file.name)
+    const head = parsed.truncated
+      ? `【文件：${file.name}】（${kind} 本地解析，原 ${parsed.totalChars} 字符，截断至前 ${parsed.text.length} 字符；图片与图表未包含）`
+      : `【文件：${file.name}】（${kind} 本地解析；图片与图表未包含）`
+    return `${head}\n\n${parsed.text}`
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 把纯文本附件读成正文拼进消息：DeepSeek 通道也走这条，避免为 txt/md 花钱解析。
+ * 返回替换过 content 的历史与提问；没有纯文本附件时原样返回。
+ */
+const injectInlineTexts = async (
+  history: Message[],
+  question: UserMessage,
+  signal: AbortSignal,
+  blobs: Map<string, Blob>,
+  /** DeepSeek 官方通道：不拼进正文，改为挂到附件上由 reply 层生成内联 document 块 */
+  asDocument = false
+): Promise<{ history: Message[]; question: UserMessage }> => {
+  const targets = new Map<string, FileAttachment>()
+  for (const [user] of getContextRounds(history)) {
+    for (const file of user.files) {
+      targets.set(file.id, file)
+    }
+  }
+  for (const file of question.files) {
+    targets.set(file.id, file)
+  }
+  const texts = new Map<string, string>()
+  for (const file of targets.values()) {
+    if (file.isImage || isBinaryDocument(file.name)) {
+      continue
+    }
+    signal.throwIfAborted()
+    const text = await toInlineText(file, blobs)
+    if (text) {
+      texts.set(file.id, text)
+    }
+  }
+  if (texts.size === 0) {
+    return { history, question }
+  }
+  const apply = <T extends Message>(message: T): T => {
+    if (message.role !== 'user') {
+      return message
+    }
+    const extra = message.files
+      .map((file) => texts.get(file.id))
+      .filter((value): value is string => typeof value === 'string')
+    if (extra.length === 0) {
+      return message
+    }
+    if (asDocument) {
+      // 文本附件正文挂到附件上，由 reply.ts 生成内联 document 块：不占单条 32K 文本上限。
+      const files = message.files.map((file) => {
+        const text = texts.get(file.id)
+        return text === undefined ? file : { ...file, documentText: text }
+      })
+      return { ...message, files }
+    }
+    const content = [message.content, ...extra].filter(Boolean).join('\n\n')
+    return content === message.content ? message : { ...message, content }
+  }
+  return { history: history.map(apply), question: apply(question) }
+}
+
 const prepareFiles = async (sessionId: string, request: Request, signal: AbortSignal) => {
   const epoch = historyEpoch
   // 服务端判定 file_id 失效时会清掉会话里的 serverId，先用最新消息替换请求快照，
   // 否则快照里仍是旧 id，补传会直接复用它。
   request = refreshRequest(sessionId, request)
-  const apiKey = useSettings.getState().apiKey ?? ''
+  const settings = useSettings.getState()
+  const apiKey = settings.apiKey ?? ''
+  /**
+   * 纯文本附件在任意通道都本地读取，不进上传；
+   * 图片在非 DeepSeek 通道 base64 内联；
+   * PDF / Word / PPT 在非 DeepSeek 通道本地解析成文本（它们没有 Files API）；
+   * 只有 Excel 与 .doc / .ppt / .xls 老格式必须走 DeepSeek。
+   */
+  const inlineImages = settings.provider !== 'deepseek' && settings.search !== true
   const serverIds = new Map<string, string>()
+  // 刚发送的附件原件可能还没落库，优先用内存里的 pendingFiles
+  const recentBlobs = new Map<string, Blob>()
+  for (const stored of pendingFiles.get(sessionId) ?? []) {
+    recentBlobs.set(stored.id, stored.blob)
+  }
+
+  if (inlineImages) {
+    const targets = new Map<string, FileAttachment>()
+    const collect = (files: FileAttachment[]) => {
+      for (const file of files) {
+        targets.set(file.id, file)
+      }
+    }
+    collect(request.question.files)
+    for (const [user] of getContextRounds(request.history)) {
+      collect(user.files)
+    }
+    const documents = [...targets.values()].filter(
+      (file) => !file.isImage && isBinaryDocument(file.name)
+    )
+    // .doc / .ppt / .xls / .xlsx 没有可用的浏览器端解析器，只能走 DeepSeek
+    const unsupported = documents.filter((file) => !canParseLocally(file.name))
+    if (unsupported.length > 0) {
+      const names = unsupported.map((file) => file.name).join('、')
+      throw new ApiError(
+        'protocol',
+        `${names} 目前只能发到 DeepSeek 通道（Excel 和 .doc / .ppt / .xls 老格式暂不支持本地解析），请删除或切换到 DeepSeek`
+      )
+    }
+    const inline = new Map<string, { mediaType: string; data: string }>()
+    const texts = new Map<string, string>()
+    const parseFailed: string[] = []
+    for (const file of targets.values()) {
+      signal.throwIfAborted()
+      if (file.isImage) {
+        const image = await toInlineImage(file)
+        if (image) {
+          inline.set(file.id, image)
+        }
+      } else if (canParseLocally(file.name)) {
+        // PDF / Word / PPT 本地解析成文本，这些供应商没有 Files API
+        const text = await toInlineDocument(file, recentBlobs)
+        if (text) {
+          texts.set(file.id, text)
+        } else {
+          parseFailed.push(file.name)
+        }
+      } else {
+        const text = await toInlineText(file, recentBlobs)
+        if (text) {
+          texts.set(file.id, text)
+        }
+      }
+    }
+    if (parseFailed.length > 0) {
+      throw new ApiError(
+        'protocol',
+        `${parseFailed.join('、')} 没能读取出文字（可能是扫描件、加密文件或体积过大），请换一份文件，或切换到 DeepSeek 通道让它来解析`
+      )
+    }
+    const attach = <T extends Message>(message: T): T => {
+      if (message.role !== 'user') {
+        return message
+      }
+      const files = message.files.map((file) =>
+        inline.has(file.id) ? { ...file, serverId: null, inlineImage: inline.get(file.id) } : file
+      )
+      const extra = message.files
+        .map((file) => texts.get(file.id))
+        .filter((value): value is string => typeof value === 'string')
+      const content = extra.length > 0 ? [message.content, ...extra].filter(Boolean).join('\n\n') : message.content
+      const filesChanged = files.some((file, index) => file !== message.files[index])
+      return filesChanged || content !== message.content
+        ? { ...message, files, content }
+        : message
+    }
+    return {
+      history: request.history.map(attach),
+      question: attach(request.question),
+      prefix: request.prefix,
+    }
+  }
+
   // 停止生成立即生效；上传本身不取消（输入框与其他消息可能共用同一任务），完成后照常写回 serverId
   const aborted = new Promise<never>((_, reject) => {
     signal.addEventListener('abort', () => reject(signal.reason), { once: true })
   })
+  /**
+   * 只上传本次请求真正会发送的图片（最多 20 张，从最新往旧）。
+   * 导入的历史会话可能有几百张图片；全部补传会等几分钟甚至超时，而且超出的图片最终也不会发。
+   */
+  const keptImageIds = selectRequestImageIds([
+    ...getContextRounds(request.history).map(([user]) => user),
+    request.question,
+  ])
   const uploads = Promise.allSettled(
-    request.question.files.map(async (file) => {
-      const serverId = await ensureServerId(apiKey, file)
-      if (serverId) {
-        serverIds.set(file.id, serverId)
-      }
-    })
+    request.question.files
+      .filter((file) => !file.isImage || keptImageIds.has(file.id))
+      .map(async (file) => {
+        const serverId = await ensureServerId(apiKey, file)
+        if (serverId) {
+          serverIds.set(file.id, serverId)
+        }
+      })
   )
   void uploads.then(() => {
     if (epoch === historyEpoch) {
@@ -967,33 +1411,60 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
   }
 
   const pending = new Map<string, FileAttachment>()
-  for (const [user] of getContextRounds(request.history).toReversed()) {
+  for (const [user] of [...getContextRounds(request.history)].reverse()) {
     for (const file of user.files) {
-      if (!file.serverId && !serverIds.has(file.id) && !pending.has(file.id)) {
+      if (serverIds.has(file.id) || pending.has(file.id)) {
+        continue
+      }
+      if (file.isImage) {
+        // 只补传会进入本次请求的图片；更早的图片本次不发送（用文字占位）
+        if (!keptImageIds.has(file.id)) {
+          continue
+        }
+        // 已有 serverId 的图片只需体检一次（超限会重传压缩版）
+        if (file.serverId && verifiedImages.has(file.id)) {
+          continue
+        }
+        pending.set(file.id, file)
+      } else if (!file.serverId) {
         pending.set(file.id, file)
       }
     }
   }
-  for (const file of pending.values()) {
+  /**
+   * 历史图片补传并行化：上传队列本身限制最多 3 张同时传，这里一次把它们排进去，
+   * 首次发送不用再"一张等一张"。失败仍静默跳过（该图本次不发送，用文字占位）。
+   */
+  const historyUploads = [...pending.values()].map(async (file) => {
     signal.throwIfAborted()
     try {
-      const serverId = await Promise.race([ensureServerId(apiKey, file), aborted])
+      const serverId = await ensureServerId(apiKey, file)
       if (serverId) {
         serverIds.set(file.id, serverId)
-        saveServerIds(sessionId, new Map([[file.id, serverId]]))
       }
     } catch {
       signal.throwIfAborted()
     }
-  }
+  })
+  await Promise.race([Promise.all(historyUploads), aborted])
+  saveServerIds(sessionId, serverIds)
 
   // 用补齐后的会话重新取历史与提问，保证请求里都是 serverId
   const session = getSession(sessionId)
   const resolve = <T extends Message>(message: T): T =>
     (session?.messages.find((m) => m.id === message.id) as T | undefined) ?? message
+  const resolvedHistory = request.history.map(resolve)
+  const resolvedQuestion = resolve(request.question)
+  const withText = await injectInlineTexts(
+    [...resolvedHistory],
+    resolvedQuestion,
+    signal,
+    recentBlobs,
+    !inlineImages
+  )
   return {
-    history: request.history.map(resolve),
-    question: resolve(request.question),
+    history: withText.history,
+    question: withText.question,
     prefix: request.prefix,
   }
 }
@@ -1103,6 +1574,12 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
   set((state) => ({ streaming: { ...state.streaming, [sessionId]: controller } }))
   let reply = initial
   let frame = 0
+  /**
+   * 附件在 prepareFiles 里才把正文注入提问；超限分类要用"真正发出去的那份"，
+   * 所以单独保存，不能再用外边传进来的 request.question（它看不到附件正文）。
+   */
+  let preparedQuestion: UserMessage = request.question
+  let lastQuestionHasFiles = (request.question.files?.length ?? 0) > 0
   const flush = () => {
     cancelAnimationFrame(frame)
     frame = 0
@@ -1116,8 +1593,33 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
       let preparing = true
       let receivedContent = false
       try {
+        // 聊天供应商只负责聊天/深度思考；联网搜索走 DeepSeek 官方能力。
+        // 图片在非 DeepSeek 通道改为内联，不需要 DeepSeek Key；文档仍需 DeepSeek。
+        const settings = useSettings.getState()
+        const provider = settings.provider
+        const historyHasFiles = request.history.some((message) => {
+          const files = (message as { files?: unknown[] }).files
+          return Array.isArray(files) && files.length > 0
+        })
+        const questionHasFiles = (request.question.files?.length ?? 0) > 0
+        const hasAttachments = questionHasFiles || historyHasFiles
+        const inlineImages = provider !== 'deepseek' && settings.search !== true
+        if (hasAttachments && !inlineImages && !settings.apiKey) {
+          throw new ApiError(
+            'protocol',
+            '附件/识图需要 DeepSeek API Key，请到设置 → 数据管理填写'
+          )
+        }
+        if (settings.search && !settings.apiKey) {
+          throw new ApiError(
+            'protocol',
+            '联网搜索需要 DeepSeek API Key，请到设置 → 数据管理填写'
+          )
+        }
         const prepared = await prepareFiles(sessionId, request, controller.signal)
         preparing = false
+        preparedQuestion = prepared.question
+        lastQuestionHasFiles = (prepared.question.files?.length ?? 0) > 0
         // 附件就绪后获取本轮信息；续写沿用原回答快照，重新生成的快照独立保存。
         const latestReminder = prepared.prefix
           ? prepared.prefix.latestReminder
@@ -1125,26 +1627,62 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         reply = { ...reply, latestReminder }
         updateReply(sessionId, reply)
         persist(sessionId)
+        // 联网搜索只能由 DeepSeek 官方 API 执行；图片已在 prepareFiles 里内联，不需要切通道。
+        const needsDeepSeek = provider === 'deepseek' || settings.search === true
         const messages = toRequestMessages(
           prepared.history,
           prepared.question,
           prepared.prefix,
           initial.thinking ?? false,
-          latestReminder
+          latestReminder,
+          readContextMemory(sessionId),
+          // 官方通道：超长用户文本/文本附件正文改用内联 document 块，绕开单条 32K 上限。
+          needsDeepSeek
         )
-        const events = streamMessage(
-          useSettings.getState().apiKey ?? '',
-          {
-            model: initial.model ?? MODEL,
-            system: SYSTEM_PROMPT,
-            messages,
-            thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
-            ...(useSettings.getState().safetyCheck ? { safety_check: SAFETY_CHECK } : {}),
-            tools: serverTools(initial.search ?? false),
-            ...(titleRequests.has(controller) ? { title: { enabled: true } } : {}),
-          },
-          controller.signal
-        )
+        const wantsTitle = titleRequests.has(controller)
+        const customConfig =
+          provider === 'custom' && !needsDeepSeek ? getCustomConfig() : null
+        if (!needsDeepSeek && provider === 'custom' && (!customConfig?.baseUrl || !customConfig.model)) {
+          throw new ApiError('protocol', '请先在设置里配置自定义 API（Base URL 和模型）')
+        }
+        const title = wantsTitle ? titleFromQuestion(prepared.question) : undefined
+        const events = needsDeepSeek
+          ? streamMessage(
+              settings.apiKey ?? '',
+              {
+                // 附件/搜索切到 DeepSeek 时不能用 WorkBuddy/自定义的模型名。
+                model: provider === 'deepseek' ? initial.model ?? MODEL : MODEL,
+                system: SYSTEM_PROMPT,
+                messages,
+                thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
+                /* 内容安全：用户开启时才发送 high（关闭则不发送，回落到 API 默认的 low 检查） */
+        ...(settings.safetyCheck ? { safety_check: SAFETY_CHECK } : {}),
+                tools: serverTools(initial.search ?? false),
+                ...(title ? { title: { enabled: true } } : {}),
+              },
+              controller.signal
+            )
+          : provider === 'workbuddy'
+            ? streamWorkBuddy(
+                {
+                  model: settings.workbuddyModel,
+                  system: WORKBUDDY_SYSTEM_PROMPT,
+                  messages,
+                  thinking: initial.thinking ?? false,
+                  ...(title ? { title } : {}),
+                },
+                controller.signal
+              )
+            : streamCustom(
+                {
+                  model: customConfig?.model ?? '',
+                  system: WORKBUDDY_SYSTEM_PROMPT,
+                  messages,
+                  thinking: initial.thinking ?? false,
+                  ...(title ? { title } : {}),
+                },
+                controller.signal
+              )
         const blockIndexes = new Map<number, number>()
         for await (const event of events) {
           receivedContent ||= event.type === 'content_block_start'
@@ -1200,11 +1738,29 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           // 已收到 message_delta 的结束原因，只是缺了结尾的 message_stop
           reply = settleReply(reply, 'done', Date.now())
         } else if (error instanceof ApiError) {
+          /**
+           * 上下文/输入超限时区分原因：
+           * - 当前这条本身太大 → overflow='input'，提示截断重发；
+           * - 历史太长把总请求撑爆 → overflow='history'，提示压缩历史。
+           * 只在报错这一刻计算，正常聊天没有任何额外开销。
+           */
+          const limit = getContextLimit(error.message)
+          const questionTokens = estimateTokens(preparedQuestion.content)
+          const overflow =
+            limit === null
+              ? undefined
+              : lastQuestionHasFiles && (isInputTooLong(error.message) || questionTokens > limit * 0.5)
+                ? ('input' as const)
+                : questionTokens > limit * 0.8
+                  ? ('input' as const)
+                  : ('history' as const)
           reply = settleReply(reply, 'error', Date.now(), {
             kind: error.kind,
             message: error.message,
             status: error.status,
             localMessage: error.localMessage,
+            overflow,
+            ...(limit !== null ? { questionTokens } : {}),
           })
         } else {
           reply = settleReply(reply, 'error', Date.now(), {

@@ -1,11 +1,14 @@
 import { Tool } from './mobileActions.js'
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
-import { memo } from 'react'
-import { IconRefreshOutline16, IconWarningOutline16 } from '../base/icons.js'
-import { describeReply } from '../../services/chat/describe.js'
+import { memo, useState } from 'react'
+import { IconWarningOutline16 } from '../base/icons.js'
+import { MaskIcon } from '../base/MaskIcon.js'
+import { describeReply, getContextLimit } from '../../services/chat/describe.js'
+import { compressSessionContext } from '../../services/chat/contextCompression.js'
 import { canContinueReply } from '../../services/chat/reply.js'
-import { continueReply, regenerateReply } from '../../services/chat/store.js'
+import { continueReply, regenerateReply, retryWithTruncatedQuestion } from '../../services/chat/store.js'
+import { showToast } from '../base/toastState.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
 import type { AssistantMessage as AssistantMessageType } from '../../services/chat/types.js'
 import { ensureApiKey, openSettings } from '../settings/settingsDialogState.js'
@@ -48,6 +51,64 @@ export const AssistantMessage = memo(function AssistantMessage({
   const view = useReplyView(message, streaming)
   const panelEntry = useSearchPanel((state) => state.entry)
   const notice = streaming ? null : describeReply(message)
+  /** 压缩按钮的进行中状态（仅"上下文爆满"这条错误提示会用到） */
+  const [compressing, setCompressing] = useState(false)
+  /** 截断重发按钮的进行中状态（仅"当前这条太大"这条错误提示会用到） */
+  const [trimming, setTrimming] = useState(false)
+  const zhText = !document.documentElement.lang.startsWith('en')
+  /**
+   * 用户主动点「截断后发送」：只把当前这条文本截到安全长度重新发一次。
+   * 只在"当前这条本身太大"的错误上出现；历史太长的场景给的是压缩按钮。
+   */
+  const trimAndResend = () => {
+    if (trimming || busy) {
+      return
+    }
+    setTrimming(true)
+    try {
+      const done = retryWithTruncatedQuestion(sessionId, message.id)
+      if (!done) {
+        showToast(
+          zhText
+            ? '这条内容过长且无法自动截断（可能来自附件），请减少内容后重试'
+            : 'Too long to trim automatically (maybe from attachments); please reduce the content and retry.'
+        )
+      }
+    } finally {
+      setTrimming(false)
+    }
+  }
+
+  /**
+   * 把早期轮次压成摘要存到本地，然后重新生成这条失败的回答。
+   * 平时聊天不会走到这里。
+   */
+  const compressContext = async () => {
+    if (compressing || busy) {
+      return
+    }
+    setCompressing(true)
+    try {
+      const result = await compressSessionContext(
+        sessionId,
+        getContextLimit(message.error?.message),
+        message.error?.questionTokens ?? 0
+      )
+      showToast(
+        zhText
+          ? `已把前 ${result.coveredRounds} 轮对话压缩成记忆，正在继续回答…`
+          : `Compressed ${result.coveredRounds} earlier turns; retrying…`
+      )
+      regenerateReply(sessionId, message.id)
+    } catch (error) {
+      showToast(
+        (zhText ? '压缩失败：' : 'Compression failed: ') +
+          (error instanceof Error ? error.message : String(error))
+      )
+    } finally {
+      setCompressing(false)
+    }
+  }
   // 安全拒绝：已下发的思考与正文按协议丢弃，只显示模板答复。
   const refused = message.stopReason === 'refusal'
   const answer = refused ? null : view.answer
@@ -123,6 +184,44 @@ export const AssistantMessage = memo(function AssistantMessage({
                 </a>
               </>
             ) : null}
+            {notice.action === 'compressContext' ? (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className={styles.noticeAction}
+                  disabled={compressing || busy}
+                  onClick={() => void compressContext()}
+                >
+                  {compressing
+                    ? zhText
+                      ? '正在压缩…'
+                      : 'Compressing…'
+                    : zhText
+                      ? '压缩上下文并继续'
+                      : 'Compress context & continue'}
+                </button>
+              </>
+            ) : null}
+            {notice.action === 'trimInput' ? (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className={styles.noticeAction}
+                  disabled={trimming || busy}
+                  onClick={() => trimAndResend()}
+                >
+                  {trimming
+                    ? zhText
+                      ? '正在发送…'
+                      : 'Sending…'
+                    : zhText
+                      ? '截断后发送'
+                      : 'Trim & send'}
+                </button>
+              </>
+            ) : null}
           </span>
         </div>
       ) : null}
@@ -145,15 +244,13 @@ export const AssistantMessage = memo(function AssistantMessage({
           <BranchSwitcher versions={versions} disabled={busy} onSelect={onSelectVersion} />
           <div className={clsx(styles.actions, isLast && styles.alwaysShow)} data-inline={inlineActions}>
             {copyText ? <CopyButton text={copyText} /> : null}
-            {responseText && !refused && <Tool kind="like" message={message} />}
-            {responseText && !refused && <Tool kind="dislike" message={message} />}
-            {responseText && !refused ? (
+                                    {responseText && !refused ? (
               <ReadAloudButton messageId={message.id} text={responseText} />
             ) : null}
             {responseText && !refused && <Tool kind="share" message={message} />}
             <IconButton
               data-msg-action="regenerate"
-              icon={<IconRefreshOutline16 />}
+              icon={<MaskIcon name="rotate-cw" />}
               tooltip={t('regenerate')}
               tooltipPlacement="bottom"
               disabled={busy || refused}

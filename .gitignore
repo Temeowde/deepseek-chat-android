@@ -27,3 +27,18 @@ Thumbs.db
 
 # Python 测试缓存
 __pycache__/
+
+# 依赖与构建产物
+node_modules/
+web/node_modules/
+web/dist/
+.build/
+.tmp-fonts/
+*.idsig
+*.log
+*.tmp
+
+# 系统/编辑器
+.vs/
+.idea/
+.vscode/

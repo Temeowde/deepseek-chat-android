@@ -63,11 +63,15 @@ export const useMobileViewport = (enabled: boolean) => {
       if (viewport && viewport.scale !== 1) {
         return
       }
-      // 失焦时键盘仍可能在做退场动画，继续采用实际可见高度。
-      rootStyle.setProperty(
-        '--app-viewport-height',
-        `${viewport?.height ?? window.innerHeight}px`
-      )
+      const height = viewport?.height ?? window.innerHeight
+      /*
+       * 防御：面板/键盘切换过程中可能读到异常小的视口高度（0、几十像素等）。
+       * 这个值一旦写进 CSS 变量，主布局就会被压塌，所以直接丢弃这类读数。
+       */
+      if (!(height >= 120)) {
+        return
+      }
+      rootStyle.setProperty('--app-viewport-height', `${height}px`)
       rootStyle.setProperty('--app-viewport-top', `${viewport?.offsetTop ?? 0}px`)
     }
     const scheduleFrame = () => {
@@ -84,15 +88,26 @@ export const useMobileViewport = (enabled: boolean) => {
     viewport?.addEventListener('scroll', schedule)
     window.addEventListener('resize', schedule)
     document.addEventListener('focusin', schedule)
-    // 等点击和焦点切换完成，避免按钮移动、或切换输入框时短暂恢复全高。
-    document.addEventListener('focusout', scheduleFrame)
+    /*
+     * 等点击和焦点切换完成，避免按钮移动、或切换输入框时短暂恢复全高。
+     * 键盘退场动画期间 visualViewport 的读数会滞后，所以 350ms 后再收敛一次，
+     * 保证变量不会停在一个中间值上。
+     */
+    let blurTimer = 0
+    const settleAfterBlur = () => {
+      scheduleFrame()
+      window.clearTimeout(blurTimer)
+      blurTimer = window.setTimeout(update, 350)
+    }
+    document.addEventListener('focusout', settleAfterBlur)
     return () => {
       cancelAnimationFrame(animationFrame)
       viewport?.removeEventListener('resize', schedule)
       viewport?.removeEventListener('scroll', schedule)
       window.removeEventListener('resize', schedule)
       document.removeEventListener('focusin', schedule)
-      document.removeEventListener('focusout', scheduleFrame)
+      document.removeEventListener('focusout', settleAfterBlur)
+      window.clearTimeout(blurTimer)
       reset()
     }
   }, [enabled])

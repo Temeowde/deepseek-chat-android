@@ -395,8 +395,29 @@
     0 1px 2px rgba(16, 24, 40, 0.05),
     0 6px 18px rgba(16, 24, 40, 0.07);
 
+  /*
+   * 深色输入栏（官方实测）：底 #242424 + 四周 1dp 实色 #333333 亮边，
+   * 不是渐变也不是外发光；外侧再叠一层很淡的投影。
+   */
   [data-ds-dark-theme] & {
-    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.18);
+    background: var(--chat-input, #242424);
+    /*
+     * 高光用伪元素画，并抬到子元素之上：
+     * inset shadow 会被子元素背景盖住（只看得见下沿），outline 同样被子元素压住上沿，
+     * 只有绝对定位的覆盖层能保证四周一圈都可见。
+     */
+    position: relative;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1px solid var(--chat-input-line, #333333);
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 3;
+    }
   }
 }
 
@@ -410,8 +431,9 @@
     color 180ms var(--ds-ease-in-out),
     transform 100ms ease;
 
+  /* 深色下必须也用 !important：浅色那条是 !important，否则会被它压住变黑 */
   [data-ds-dark-theme] & {
-    color: #f8f8f8;
+    color: #f8f8f8 !important;
   }
 
   &:active:not(:disabled) {
@@ -424,7 +446,7 @@
     border-color: #d3e2ff;
 
     [data-ds-dark-theme] & {
-      color: #6799fe;
+      color: #6799fe !important;
       border-color: #33436b;
     }
   }

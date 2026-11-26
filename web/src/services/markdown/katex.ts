@@ -11,7 +11,9 @@ export const ensureKatex = (): Katex | Promise<Katex> => {
   katexPromise ??= Promise.all([
     import('katex'),
     import('katex/contrib/mhchem'),
-    import('katex/dist/katex.min.css'),
+    // 本地改写的样式：@font-face 只保留 woff2，去掉 woff/ttf 后备，
+    // APK 体积少 0.58 MiB（Chromium 36+ / Safari 12+ / Firefox 78+ 都支持 woff2）。
+    import('./katex.min.css'),
   ]).then(([module]) => (katex = module.default))
   return katexPromise
 }

@@ -1,15 +1,1 @@
-<!-- @license lucide-static v0.468.0 - ISC -->
-<svg
-  class="lucide lucide-chevron-right"
-  xmlns="http://www.w3.org/2000/svg"
-  width="24"
-  height="24"
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="2"
-  stroke-linecap="round"
-  stroke-linejoin="round"
->
-  <path d="m9 18 6-6-6-6" />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20.0000 20.0000" width="20.0000" height="20.0000"><path d="M13.252,4.764L17.215,8.727C17.745,9.257 18.011,9.523 18.061,9.843C18.078,9.947 18.078,10.053 18.061,10.156C18.011,10.477 17.745,10.742 17.215,11.273L13.252,15.236" fill="none" stroke="#8e9094" stroke-width="1.6"/></svg>

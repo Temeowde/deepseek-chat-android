@@ -1,12 +1,8 @@
 .switcher {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   height: 28px;
-}
-
-.previous svg {
-  transform: rotate(180deg);
 }
 
 .count {

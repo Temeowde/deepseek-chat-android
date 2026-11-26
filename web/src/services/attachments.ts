@@ -4,6 +4,7 @@ import { uploadFile } from './api/client.js'
 import { classifyApiError, getUploadErrorInfo, isRetryableApiError } from './api/errors.js'
 import type { FilePurpose } from './api/types.js'
 import { ACCEPT_FILE_EXTS } from './uploadExts.js'
+import { prepareImageForUpload } from './vision.js'
 
 /** 允许上传的扩展名，按扩展名白名单过滤，清单见 uploadExts.ts */
 export const ACCEPTED_EXTS = ACCEPT_FILE_EXTS
@@ -25,15 +26,20 @@ export const getFileExt = (name: string) => {
 
 export const isAcceptedExt = (name: string) => ACCEPTED_EXTS.includes(getFileExt(name))
 
-/** 需要服务端做版面解析的文档；其余非图片文件（纯文本、代码、表格、电子书）无需解析 */
-const LAYOUT_RECOGNITION_EXTS = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx'])
+/**
+ * 需要服务端解析的文档；其余非图片文件（纯文本、代码、表格、电子书）无需解析。
+ *
+ * 解析用途用更便宜的 `text_recognition`（只取文字），不用 `rich_layout_recognition`
+ * （文字 + 裁图）。同一个 Key 下前者按页计费更低，普通问答场景不需要文档里的插图。
+ */
+const TEXT_RECOGNITION_EXTS = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx'])
 
-/** 上传时的 purpose：图片不传，PDF 与 Word、PPT 做版面解析，其余按 user_data 上传 */
+/** 上传时的 purpose：图片不传，PDF 与 Word、PPT 只取文字，其余按 user_data 上传 */
 export const getUploadPurpose = (name: string, isImage: boolean): FilePurpose | null => {
   if (isImage) {
     return null
   }
-  return LAYOUT_RECOGNITION_EXTS.has(getFileExt(name)) ? 'rich_layout_recognition' : 'user_data'
+  return TEXT_RECOGNITION_EXTS.has(getFileExt(name)) ? 'text_recognition' : 'user_data'
 }
 
 /** 文件允许的最大体积（MB），按上传时的 purpose 区分 */
@@ -131,8 +137,14 @@ const enqueueUpload = (
         return
       }
       try {
-        const body = file instanceof File ? file : new File([file], name, { type: file.type })
-        resolve((await uploadFile(apiKey, body, getUploadPurpose(name, isImage), signal)).id)
+        const original = file instanceof File ? file : new File([file], name, { type: file.type })
+        /*
+         * 上传前压到 4096px 以内：服务端对超过 4096px 的图片直接 400（image too large），
+         * 导入的历史图片多是手机原图（4000~8000px），不压就必然失败。
+         */
+        const prepared = isImage ? await prepareImageForUpload(original, name) : { blob: original, name }
+        const body = prepared.blob instanceof File ? prepared.blob : new File([prepared.blob], prepared.name, { type: prepared.blob.type })
+        resolve((await uploadFile(apiKey, body, getUploadPurpose(prepared.name, isImage), signal)).id)
       } catch (error) {
         reject(error)
       }
@@ -144,10 +156,15 @@ const enqueueUpload = (
  * 上传任务按附件的本地 id 登记：输入框选中即开始上传，全部成功后携带 serverId 发送，
  * 不会重复上传；导入的历史附件没有任务，发送前按本地原件补传。
  * 任务只在内存里，历史附件补传未完成时，刷新后会在下次请求前重新上传。
+ *
+ * `inline` 是第三种终态：非 DeepSeek 通道（WorkBuddy / 自定义）的图片不上传，
+ * 直接用本地原件转 base64 内联进请求。
  */
 export type UploadTask =
   | { status: 'uploading' }
   | { status: 'done'; serverId: string }
+  | { status: 'inline' }
+  | { status: 'inline-text' }
   | { status: 'error'; error: TranslationMessage; retryable: boolean }
 
 type UploadState = { tasks: Record<string, UploadTask> }
@@ -208,6 +225,22 @@ export const uploadAttachment = (
 export const cancelUpload = (id: string) => {
   pending.get(id)?.controller.abort()
   setTask(id, null)
+}
+
+/**
+ * 内联图片：标记为 inline 终态，不发起上传。
+ * 之后发送时由 isInlineTask 判定，交给当前供应商直接内联发送。
+ */
+export const markInlineImage = (id: string) => {
+  setTask(id, { status: 'inline' })
+}
+
+export const isInlineTask = (task: UploadTask | undefined): boolean =>
+  task?.status === 'inline'
+
+/** 纯文本附件：本地读取，不发起上传 */
+export const markInlineText = (id: string) => {
+  setTask(id, { status: 'inline-text' })
 }
 
 /** 各扩展名对应的 MIME：部分系统（如 Windows）给不出 file.type，按扩展名补齐 */

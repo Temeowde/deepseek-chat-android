@@ -1,25 +1,33 @@
+﻿.ds-mobile-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 929;
+  background: #f8f8f8;
+  pointer-events: none;
+}
+body[data-ds-dark-theme] .ds-mobile-settings-backdrop {
+  background: rgb(30, 30, 30);
+}
 .ds-mobile-settings {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
   position: fixed;
   /*
-   * 设置页是全屏覆盖层。注意这里必须从 y=0 开始（不能写 top: safe-top），
-   * 否则状态栏那 96px 露出的是下层 .frame 的白色，和设置页的 #f8f8f8 有色差。
-   * 安全区改成内部 padding-top 让给页头，背景色就能真正铺满整屏。
-   */
+   * 璁剧疆椤垫槸鍏ㄥ睆瑕嗙洊灞傘€傛敞鎰忚繖閲屽繀椤讳粠 y=0 寮€濮嬶紙涓嶈兘鍐?top: safe-top锛夛紝
+   * 鍚﹀垯鐘舵€佹爮閭?96px 闇插嚭鐨勬槸涓嬪眰 .frame 鐨勭櫧鑹诧紝鍜岃缃〉鐨?#f8f8f8 鏈夎壊宸€?   * 瀹夊叏鍖烘敼鎴愬唴閮?padding-top 璁╃粰椤靛ご锛岃儗鏅壊灏辫兘鐪熸閾烘弧鏁村睆銆?   */
   inset: var(--app-viewport-top,0px) 0 auto;
   z-index: 930;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  /*
+   * 璺熼殢 visualViewport锛岄敭鐩樺脊璧锋椂璁剧疆椤电缉鍒伴敭鐩樹笂鏂癸紝杈撳叆妗嗕笉浼氳鐩栦綇銆?   * 浣?visualViewport 浼氭瘮閿洏鍔ㄧ敾鏃╀竴甯х缉灏忥紝涓嬮潰杩欏眰澶ч槾褰辫礋璐ｈˉ浣?   * 楂樺害鐨勭┖妗ｏ紝閬垮厤闇插嚭涓嬪眰瀵硅瘽椤碉紙閿洏鑳屾櫙闂竴涓嬶級銆?   */
   height: var(--app-viewport-height,100dvh);
   padding-top: var(--ds-safe-top, 0px);
   overflow: hidden;
   /*
-   * 设置页配色统一走这几个局部变量（对齐官方 2.8.0 实测值）。
-   * 指标：页面底 #f8f8f8、白卡、灰色分组标题、浅灰 chevron、红色危险项。
-   */
+   * 璁剧疆椤甸厤鑹茬粺涓€璧拌繖鍑犱釜灞€閮ㄥ彉閲忥紙瀵归綈瀹樻柟 2.8.0 瀹炴祴鍊硷級銆?   * 鎸囨爣锛氶〉闈㈠簳 #f8f8f8銆佺櫧鍗°€佺伆鑹插垎缁勬爣棰樸€佹祬鐏?chevron銆佺孩鑹插嵄闄╅」銆?   */
   --ds-set-bg: #f8f8f8;
   --ds-set-card: #fff;
   --ds-set-text: #0f0f0f;
@@ -33,6 +41,18 @@
   --ds-set-switch-on: #34c759;
   --ds-set-bubble: #e8f0ff;
   --ds-set-field: #f4f5f7;
+  /* 瀛椾綋澶у皬椤碉紙瀹樻柟 2.8.0锛夛細棰勮姘旀场 / 婊戝潡杞ㄩ亾 / 銆岃窡闅忕郴缁熴€嶅紑鍏?*/
+  --ds-font-bubble-bg: #EDF3FE;
+  --ds-font-bubble-fg: #191B23;
+  --ds-font-track: #B9BABB;
+  /* 瀹樻柟銆岃窡闅忕郴缁熴€嶅紑鍏虫槸 M3 primary锛氭祬 #426EFE / 娣?#507BF2銆?   * 鏈簲鐢ㄨ缃〉鍏跺畠寮€鍏崇粺涓€鐢?--ds-set-switch-on锛堢豢锛夛紝涓洪伩鍏嶅悓涓€椤靛嚭鐜颁袱绉嶅紑鍏宠壊锛?   * 杩欓噷鍏堣窡闅忓叏绔?token锛涜 1:1 瀹樻柟钃濆氨鎶婅繖涓€琛屾敼鎴?#426EFE锛堟繁鑹插潡閲屽啓 #507BF2锛夈€?*/
+  --ds-font-switch-on: var(--ds-set-switch-on);
+  /*
+   * 浜岀骇椤佃浆鍦烘椂闀匡紙瀵归綈瀹樻柟 Navigation Compose 鍙傛暟锛岃 20-璁剧疆浜岀骇椤甸潰-杞満鍔ㄧ敾.md锛夈€?   * 鍗曠嫭寮€鍙橀噺鏄负浜嗚兘璺熼殢 prefers-reduced-motion 褰掗浂锛屼笉瑕佹妸 300ms 鍐欐鍦?animation 閲屻€?   */
+  --ds-pref-move-duration: 300ms;
+  --ds-pref-fade-in-duration: 195ms;
+  --ds-pref-fade-in-delay: 105ms;
+  --ds-pref-fade-out-duration: 105ms;
   background: var(--ds-set-bg);
   color: var(--ds-set-text);
   font-family: var(--dsw-font-family,system-ui);
@@ -46,7 +66,7 @@
   position: relative;
   flex: none;
   display: grid;
-  min-height: 52px;
+  min-height: 40px;
   place-items: center;
   padding: 0 56px;
   border-bottom: 0;
@@ -82,6 +102,8 @@
 .ds-mobile-settings > header > button > .ds-ui-icon {
   position: relative;
   z-index: 1;
+  /* chevron 的视觉重心偏左，圆底按钮里要往右挪一点才居中 */
+  transform: translateX(5px);
 }
 .ds-pref-pages {
   position: relative;
@@ -100,19 +122,37 @@
   background: var(--ds-set-bg);
 }
 .ds-pref-body[data-transition=outgoing] { pointer-events: none; }
+/*
+ * 璁剧疆浜岀骇椤佃浆鍦?鈥斺€?鍙傛暟鍙栬嚜瀹樻柟 APK 2.8.0锛堣 DSCHAT-HANDOFF/20-璁剧疆浜岀骇椤甸潰-杞満鍔ㄧ敾.md锛? *
+ * 瀹樻柟鏄?Navigation Compose锛屾瘡涓?destination 鏄惧紡澹版槑锛? *   enter = slideInHorizontally(initialOffsetX = +width/5)  tween(300, FastOutSlowIn)
+ *         + fadeIn(tween(195, delay=105, cubic(0,0,0.2,1)))
+ *   exit  = slideOutHorizontally(targetOffsetX = 鈭抴idth/5)  tween(300, FastOutSlowIn)
+ *         + fadeOut(tween(105, delay=0, cubic(0.4,0,1,1)))
+ *
+ * 鍏抽敭鐐癸細
+ *   1) 浣嶇Щ鏄€屽鍣ㄥ鐨?20%銆嶏紝涓嶆槸鏁村睆 鈥斺€?涓ら〉涓€璧峰線鍚屾柟鍚戞尓锛屾槸瑙嗗樊鎰熶笉鏄鐩? *   2) 娣″叆娣″嚭鏄袱濂楀弬鏁帮細杩?195ms(寤惰繜105) / 鍑?105ms(鏃犲欢杩?锛屾墍浠?鍏堟粦涓€鐐瑰啀鏄惧嚭鏉?
+ *   3) 杩斿洖鏄弗鏍奸暅鍍? */
 .ds-pref-pages[data-direction=forward] .ds-pref-body[data-transition=incoming] {
   z-index: 1;
-  animation: ds-pref-page-push var(--ds-motion-base) var(--ds-ease-out) both;
+  animation:
+    ds-pref-page-push var(--ds-pref-move-duration) cubic-bezier(0.4, 0, 0.2, 1) both,
+    ds-pref-page-fade-in var(--ds-pref-fade-in-duration) cubic-bezier(0, 0, 0.2, 1) var(--ds-pref-fade-in-delay) both;
 }
 .ds-pref-pages[data-direction=forward] .ds-pref-body[data-transition=outgoing] {
-  animation: ds-pref-page-cover var(--ds-motion-base) var(--ds-ease-out) both;
+  animation:
+    ds-pref-page-cover var(--ds-pref-move-duration) cubic-bezier(0.4, 0, 0.2, 1) both,
+    ds-pref-page-fade-out var(--ds-pref-fade-out-duration) cubic-bezier(0.4, 0, 1, 1) both;
 }
 .ds-pref-pages[data-direction=back] .ds-pref-body[data-transition=incoming] {
-  animation: ds-pref-page-reveal var(--ds-motion-base) var(--ds-ease-out) both;
+  animation:
+    ds-pref-page-reveal var(--ds-pref-move-duration) cubic-bezier(0.4, 0, 0.2, 1) both,
+    ds-pref-page-fade-in var(--ds-pref-fade-in-duration) cubic-bezier(0, 0, 0.2, 1) var(--ds-pref-fade-in-delay) both;
 }
 .ds-pref-pages[data-direction=back] .ds-pref-body[data-transition=outgoing] {
   z-index: 1;
-  animation: ds-pref-page-pop var(--ds-motion-base) var(--ds-ease-out) both;
+  animation:
+    ds-pref-page-pop var(--ds-pref-move-duration) cubic-bezier(0.4, 0, 0.2, 1) both,
+    ds-pref-page-fade-out var(--ds-pref-fade-out-duration) cubic-bezier(0.4, 0, 1, 1) both;
 }
 .ds-pref-content {
   box-sizing: border-box;
@@ -121,9 +161,9 @@
   width: min(100%, 620px);
   min-height: 100%;
   margin-inline: auto;
-  padding: 14px 0 max(28px, env(safe-area-inset-bottom));
+  padding: 11px 0 max(28px, env(safe-area-inset-bottom));
 }
-.ds-pref-content > * { margin-inline: 14px; }
+.ds-pref-content > * { margin-inline: 16px; }
 .ds-mobile-settings h1[data-direction=forward] {
   --ds-settings-offset: 16px;
   animation: ds-pref-step var(--ds-motion-base) var(--ds-ease-out) both;
@@ -132,7 +172,7 @@
   --ds-settings-offset: -12px;
   animation: ds-pref-step var(--ds-motion-base) var(--ds-ease-out) both;
 }
-/* ── 分组卡片（对齐官方：22px 组间距 / 9px 标题下间距 / 12px 圆角） ── */
+/* 鈹€鈹€ 鍒嗙粍鍗＄墖锛堝榻愬畼鏂癸細22px 缁勯棿璺?/ 9px 鏍囬涓嬮棿璺?/ 12px 鍦嗚锛?鈹€鈹€ */
 .ds-pref-block { margin-bottom: 22px; }
 .ds-pref-group {
   border: 0;
@@ -145,7 +185,7 @@
   color: var(--ds-set-sub);
   font: 400 12px/18px var(--dsw-font-family,system-ui);
 }
-.ds-pref-caption-alone { margin: 0 14px 9px; padding: 0 8px; }
+.ds-pref-caption-alone { margin: 0 16px 9px; padding: 0 8px; }
 .ds-pref-row,.ds-pref-link {
   display: flex;
   align-items: center;
@@ -164,17 +204,12 @@
   text-decoration: none;
   transition: background var(--ds-motion-quick) ease;
 }
-/* 图标 20px：官方图标框虽然也是 21dp，但 Material Symbols 图形在字框里留白更大，
-   20px 下的墨迹大小和线宽才和官方实测（4~5 物理px）对得上 */
+/* 鍥炬爣 20px锛氬畼鏂瑰浘鏍囨铏界劧涔熸槸 21dp锛屼絾 Material Symbols 鍥惧舰鍦ㄥ瓧妗嗛噷鐣欑櫧鏇村ぇ锛?   20px 涓嬬殑澧ㄨ抗澶у皬鍜岀嚎瀹芥墠鍜屽畼鏂瑰疄娴嬶紙4~5 鐗╃悊px锛夊寰椾笂 */
 .ds-pref-row > .ds-ui-icon:first-child {
   /*
    * 图标来自官方 APK 的矢量资源（aapt2 dump xmltree -> SVG），
-   * 图形在 24 视口里有留白，所以盒子保持官方设计值 21dp 才能对上墨迹大小。
-   *
-   * 这里用 em 而不是 px：行字号是 14.5px，1.45em = 21.03px，正好等于官方 21dp；
-   * 好处是以后调行字号时图标会**自动跟着缩放**，图标与文字的视觉比例保持不变
-   * （1.45 这个比例是从官方实测反推的：图标框 21dp / 正文 14.67px ≈ 1.43）。
-   */
+   * 鍥惧舰鍦?24 瑙嗗彛閲屾湁鐣欑櫧锛屾墍浠ョ洅瀛愪繚鎸佸畼鏂硅璁″€?21dp 鎵嶈兘瀵逛笂澧ㄨ抗澶у皬銆?   *
+   * 杩欓噷鐢?em 鑰屼笉鏄?px锛氳瀛楀彿鏄?14.5px锛?.45em = 21.03px锛屾濂界瓑浜庡畼鏂?21dp锛?   * 濂藉鏄互鍚庤皟琛屽瓧鍙锋椂鍥炬爣浼?*鑷姩璺熺潃缂╂斁**锛屽浘鏍囦笌鏂囧瓧鐨勮瑙夋瘮渚嬩繚鎸佷笉鍙?   * 锛?.45 杩欎釜姣斾緥鏄粠瀹樻柟瀹炴祴鍙嶆帹鐨勶細鍥炬爣妗?21dp / 姝ｆ枃 14.67px 鈮?1.43锛夈€?   */
   width: 1.45em;height: 1.45em;color: var(--ds-set-text);
 }
 .ds-pref-row>span:not(.ds-ui-icon) { flex:1;min-width:0; }
@@ -192,10 +227,10 @@
   margin: 34px 20px 4px;
   text-align: center;
   color: var(--ds-set-sub);
-  font: 400 13px/21px var(--dsw-font-family,system-ui);
+  font: 400 13px/18.5px var(--dsw-font-family,system-ui);
 }
 .ds-pref-legal p { margin: 0; }
-/* ── 账号卡 ── */
+/* 鈹€鈹€ 璐﹀彿鍗?鈹€鈹€ */
 .ds-account-card {
   display: flex;
   align-items: center;
@@ -248,7 +283,7 @@
 }
 .ds-pref-toggle[aria-checked=true] .ds-pref-switch { background: var(--ds-set-switch-on); }
 .ds-pref-toggle[aria-checked=true] .ds-pref-switch:after { transform: translateX(19px); }
-/* ── 说明文字（官方放在卡片下方、左缩进对齐卡内文字） ── */
+/* 鈹€鈹€ 璇存槑鏂囧瓧锛堝畼鏂规斁鍦ㄥ崱鐗囦笅鏂广€佸乏缂╄繘瀵归綈鍗″唴鏂囧瓧锛?鈹€鈹€ */
 .ds-pref-note {
   margin: 9px 22px 0;
   padding: 0;
@@ -294,7 +329,7 @@
 .ds-pref-legacy [class*="locationCell"] { flex-wrap: wrap; }
 .ds-pref-legacy [class*="locationSelectors"] { width: 100%; }
 .ds-pref-legacy [class*="Select"] { min-width: 0; }
-/* ── 登录页 ── */
+/* 鈹€鈹€ 鐧诲綍椤?鈹€鈹€ */
 .ds-login-hero { display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px 12px 22px;text-align:center; }
 .ds-login-logo { display:grid;place-items:center;width:76px;height:76px; }
 .ds-login-logo img { width:76px;height:76px;display:block; }
@@ -361,8 +396,7 @@
 }
 .ds-login-submit:disabled { opacity:.5;box-shadow:none; }
 .ds-login-alt {
-  /* 次级入口：不再做成和主按钮一样大的一整块，
-     改成描边/无底色的轻量样式，并且和主按钮拉开间距 */
+  /* 娆＄骇鍏ュ彛锛氫笉鍐嶅仛鎴愬拰涓绘寜閽竴鏍峰ぇ鐨勪竴鏁村潡锛?     鏀规垚鎻忚竟/鏃犲簳鑹茬殑杞婚噺鏍峰紡锛屽苟涓斿拰涓绘寜閽媺寮€闂磋窛 */
   display:flex;
   align-items:center;
   justify-content:center;
@@ -380,77 +414,154 @@
 .ds-login-hint { text-align:center;color:var(--ds-set-sub);font-size:13px;line-height:19px; }
 .ds-login-terms { margin-top:6px !important;text-align:center;color:var(--ds-set-chevron);font-size:12px;line-height:18px;padding:0 12px; }
 .ds-login-terms a { color:var(--dsw-alias-brand-text,#426efe);text-decoration:none; }
-/* ── 字体大小页（官方：顶部气泡预览 + 说明 + 底部面板滑块） ── */
-.ds-pref-body[data-view=font] .ds-pref-content { padding-bottom:0; }
-.ds-pref-body[data-view=font] .ds-pref-content > * { margin-inline:14px; }
-.ds-font-bubble-wrap { display:flex;justify-content:flex-end;padding-top:18px; }
-.ds-font-bubble {
-  max-width:80%;
+/* 鈹€鈹€ 瀛椾綋澶у皬椤碉紙瀹樻柟 2.8.0锛氬彲婊氬姩棰勮鍖?+ 璐村簳闈㈡澘婊戝潡锛?鈹€鈹€
+ * 渚濇嵁 DSCHAT-HANDOFF/40-瀹樻柟瀛椾綋澶у皬椤甸潰閫嗗悜涓庢敼閫犳柟妗?md锛歐ebView 360px 瀹姐€乨p鈮坧x锛? * 涓嬮潰鐨勫昂瀵稿叏閮ㄦ槸瀹樻柟 dp 1:1銆備笌鏂囨。鐨勫樊寮傦紙A 鍥炬爣鎸夎嚜鐒跺昂瀵?16脳26 / 寮€鍏宠壊娌跨敤鍏ㄧ珯 token /
+ * 搴曢儴瀹夊叏鍖虹敤 --ds-safe-bottom / 鍘熺敓瀛樺偍鍥為€€锛夎 45-瀛椾綋澶у皬椤甸潰鏀归€犲疄鐜?md銆? */
+.ds-pref-body[data-view=font] { overflow:hidden; }
+/* 椤甸潰 = Scaffold锛氶瑙堝尯 weight(1f) 鍙嫭绔嬫粴鍔?+ 闈㈡澘璐村簳锛屾暣椤典笉婊?*/
+.ds-pref-body[data-view=font] .ds-pref-content {
+  height:100%;
+  min-height:0;
+  padding:0;
+  overflow:hidden;
+}
+.ds-pref-body[data-view=font] .ds-pref-content > * { margin-inline:0; }
+/* 棰勮鍖猴細瀹樻柟棰勮鍒?= weight(1f) + verticalScroll + 涓婁笅 Spacer(24dp)锛岄《閮ㄧ暀鐧?30dp */
+.ds-font-preview {
+  flex:1 1 auto;
+  min-height:0;
   box-sizing:border-box;
-  padding:11px 17px;
-  border-radius:20px 20px 6px 20px;
-  background:var(--ds-set-bubble);
-  color:var(--ds-set-text);
-  line-height:1.45;
+  padding:31px 16px 24px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+.ds-font-bubble-wrap { display:flex;justify-content:flex-end; }
+/* 瀹樻柟鐢ㄦ埛姘旀场锛?33.8脳46.5dp 鑳跺泭锛坮 = 楂?2锛夈€佹棤灏惧反銆佹棤杈规銆佹棤闃村奖锛宲adding 11/16 */
+.ds-font-bubble {
+  box-sizing:border-box;
+  max-width:80%;
+  padding:11px 16px;
+  border-radius:999px;
+  background:var(--ds-font-bubble-bg);
+  color:var(--ds-font-bubble-fg);
+  /* 预览区所有文字都跟随全局字号变量（--ds-chat-font 由 pref.font() 直接写在 html 上），
+     不依赖组件重渲染，改档位时整块预览一起变（官方行为） */
+  font-size:var(--ds-chat-font,16px);
+  line-height:1.5;
   overflow-wrap:anywhere;
 }
-.ds-font-desc { margin:22px 22px 0 !important;color:var(--ds-set-text);font-size:16px;line-height:25px; }
-.ds-font-desc + .ds-font-desc { margin-top:16px !important; }
+/* 璇存槑鏂囧瓧锛氬乏鍐呰窛 24dp锛堥瑙?16 + 杩欓噷 8锛夈€佽楂?26dp銆佹璺?24dp */
+.ds-font-msg { margin:24px 0 0;padding-left:8px;color:var(--ds-set-text);font-size:calc(var(--ds-chat-font,16px) * 0.875);line-height:1.55; }
+.ds-font-msg + .ds-font-msg { margin-top:24px; }
+/* 闈㈡澘锛氭暣瀹姐€?6dp 涓婂渾瑙掋€佹棤闃村奖锛堝畼鏂规繁鑹插疄娴?1E1E1E 鈫?292929 纭垏锛夛紱
+ * 鍐呴儴鑺傚 20 鈫?琛?8 鈫?24 鈫?鍒诲害琛?6 鈫?婊戝潡48 鈫?16 + 绯荤粺鎵嬪娍鍖?*/
 .ds-font-panel {
-  margin-top:auto !important;
-  margin-inline:0 !important;
+  flex:none;
   box-sizing:border-box;
   width:100%;
-  padding:8px 18px max(14px, env(safe-area-inset-bottom));
-  border-radius:22px 22px 0 0;
+  padding:20px 16px calc(16px + var(--ds-safe-bottom,0px));
+  border-radius:16px 16px 0 0;
   background:var(--ds-set-card);
-  box-shadow:0 -1px 0 rgb(0 0 0 / 4%);
+  box-shadow:none;
 }
-.ds-font-slider { display:flex;align-items:flex-end;gap:14px;padding:6px 2px 2px; }
-.ds-font-a { flex:none;color:var(--ds-set-text);font-weight:500;line-height:1;padding-bottom:6px; }
-.ds-font-a-sm { font-size:15px; }
-.ds-font-a-lg { font-size:26px; }
-.ds-font-range { position:relative;flex:1;min-width:0;padding-top:26px; }
+/* 銆岃窡闅忕郴缁熴€嶈 48dp锛?6sp 鏂囨湰 + 鍙充晶 M3 寮€鍏?52脳32銆? * 鏂囧瓧姣旈潰鏉垮唴璺濆啀缂╄繘 12dp 鈥斺€?瀹樻柟瀹炴祴 ink x鈮?8.4dp锛屼笌婊戝潡杞ㄩ亾宸︾鐐癸紙13dp锛夊榻愩€?*/
+.ds-font-row { display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px; }
+.ds-font-row > span { padding-left:12px;color:var(--ds-set-text);font-size:16px;line-height:24px; }
+/* M3 寮€鍏筹細鍏?= 16dp 鎷囨寚銆佸唴璺?8dp锛涘紑 = 24dp 鎷囨寚銆佸唴璺?4dp */
+.ds-font-switch {
+  position:relative;
+  flex:none;
+  box-sizing:border-box;
+  width:52px;
+  height:32px;
+  padding:0;
+  border:0;
+  -webkit-appearance:none;
+  appearance:none;
+  border-radius:16px;
+  background:var(--ds-set-switch-off);
+  transition:background var(--ds-motion-quick) var(--ds-ease-out);
+}
+.ds-font-switch::after {
+  content:'';
+  position:absolute;
+  /* 关态圆点：M3 规范是 16dp，但 52×32 里显得过小；与 App 其它开关统一成 20dp/6px 内距 */
+  top:6px;
+  left:6px;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 3px rgb(0 0 0 / 20%);
+  transition:top var(--ds-motion-quick) var(--ds-ease-out),left var(--ds-motion-quick) var(--ds-ease-out),width var(--ds-motion-quick) var(--ds-ease-out),height var(--ds-motion-quick) var(--ds-ease-out);
+}
+.ds-font-switch[aria-checked=true] { background:var(--ds-font-switch-on,var(--ds-set-switch-on)); }
+.ds-font-switch[aria-checked=true]::after { top:4px;left:24px;width:24px;height:24px; }
+/* 鍒诲害鏍囩琛?26dp锛欰 鍥炬爣鏄畼鏂?16脳26dp 鐭㈤噺锛堣嚜鐒跺昂瀵搞€佸～婊¤楂橈級锛屽€兼爣绛?14sp 璺熼殢鎷囨寚涓績 */
+.ds-font-scale { position:relative;height:26px;margin-top:24px; }
+.ds-font-a { position:absolute;top:0;display:block;width:16px;height:26px;color:var(--ds-set-text); }
+.ds-font-a svg { display:block;width:16px;height:26px; }
+.ds-font-a-sm { left:5px; }
+.ds-font-a-lg { right:5px; }
 .ds-font-value {
   position:absolute;
-  top:0;
-  left:var(--ds-font-pos,50%);
+  top:6px;
+  left:calc(13px + (100% - 26px) * var(--ds-font-frac,.3333));
   transform:translateX(-50%);
   color:var(--ds-set-text);
-  font-size:13px;
-  line-height:18px;
+  font-size:14px;
+  line-height:20px;
   white-space:nowrap;
+  pointer-events:none;
   transition:left var(--ds-motion-quick) var(--ds-ease-out);
 }
+/* 婊戝潡 48dp锛氳建閬?2dp銆佸乏鍙冲悇鍐呯缉 13dp锛?鎷囨寚鍗婂緞锛夈€佸凡濉厖/鏈～鍏呭悓鑹诧紙瀹樻柟鏃犺繘搴﹁壊锛夛紱
+ * 7 涓?2脳10dp 鍒诲害鏉′笌杞ㄩ亾鍚岃酱鍚岃壊锛涙媷鎸?26dp 绾櫧 + 8dp 鎶曞奖 */
+.ds-font-range { position:relative;height:48px; }
+.ds-font-track { position:absolute;top:50%;left:13px;right:13px;height:2px;margin-top:-1px;border-radius:1px;background:var(--ds-font-track); }
+.ds-font-ticks { position:absolute;top:50%;left:13px;right:13px;height:10px;margin-top:-5px;display:flex;justify-content:space-between;pointer-events:none; }
+.ds-font-ticks i { width:2px;height:10px;border-radius:1px;background:var(--ds-font-track); }
+.ds-font-thumb {
+  position:absolute;
+  top:50%;
+  left:calc(13px + (100% - 26px) * var(--ds-font-frac,.3333));
+  width:26px;
+  height:26px;
+  margin:-13px 0 0 -13px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 2px 6px rgb(0 0 0 / 20%),0 6px 16px rgb(0 0 0 / 14%);
+  pointer-events:none;
+  transition:left var(--ds-motion-quick) var(--ds-ease-out);
+}
+/* 閫忔槑 range 鍙礋璐ｆ嫋鍔?閿洏锛氶摵婊?48dp 琛?+ 26px 鎷囨寚锛屼繚璇?value鈫抶 涓庤嚜瀹氫箟鎷囨寚鍚岃酱 */
 .ds-font-range input[type=range] {
-  position:relative;
-  z-index:1;
-  display:block;
+  position:absolute;
+  inset:0;
   width:100%;
-  height:28px;
+  height:48px;
   margin:0;
   background:transparent;
   -webkit-appearance:none;
   appearance:none;
+  opacity:0;
+  cursor:pointer;
+  z-index:2;
 }
-.ds-font-range input[type=range]::-webkit-slider-runnable-track {
-  height:4px;
-  border-radius:2px;
-  background:#d3d4d7;
-}
+.ds-font-range input[type=range]::-webkit-slider-runnable-track { height:2px; }
 .ds-font-range input[type=range]::-webkit-slider-thumb {
   -webkit-appearance:none;
   appearance:none;
   width:26px;
   height:26px;
-  margin-top:-11px;
   border-radius:50%;
-  background:#fff;
-  box-shadow:0 2px 6px rgb(0 0 0 / 22%), 0 0 0 0.5px rgb(0 0 0 / 6%);
 }
-.ds-font-ticks { position:absolute;left:0;right:0;bottom:2px;display:flex;justify-content:space-between;height:8px;pointer-events:none; }
-.ds-font-ticks i { width:1px;height:8px;background:#cfd0d3; }
-/* ── 字体选择页 ── */
+/* 璺熼殢绯荤粺寮€鍚椂婊戝潡澶辨晥锛堝畼鏂?M3 鐢ㄩ檷浣庝笉閫忔槑搴﹁〃杈撅級 */
+.ds-font-panel[data-disabled=true] .ds-font-track,
+.ds-font-panel[data-disabled=true] .ds-font-ticks i,
+.ds-font-panel[data-disabled=true] .ds-font-thumb,
+.ds-font-panel[data-disabled=true] .ds-font-value { opacity:.45; }
+/* 鈹€鈹€ 瀛椾綋閫夋嫨椤?鈹€鈹€ */
 .ds-type-preview { box-sizing:border-box;padding:22px 18px;border-radius:12px;background:var(--ds-set-card); }
 .ds-type-preview strong { display:block;font-size:22px;line-height:32px;font-weight:600; }
 .ds-type-preview-sample { display:block;margin-top:10px;color:var(--ds-set-sub);font-size:16px;line-height:24px;overflow-wrap:anywhere; }
@@ -478,7 +589,7 @@
 .ds-pref-font-name { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .ds-pref-font-info small { color:var(--ds-set-sub);font-size:12.5px;line-height:18px; }
 .ds-pref-font-row > .ds-ui-icon { width:18px;height:18px;color:var(--dsw-alias-brand-text,#426efe); }
-/* ── 居中弹窗（语言/外观，照官方 2.8.0 的语言选择） ── */
+/* 鈹€鈹€ 灞呬腑寮圭獥锛堣瑷€/澶栬锛岀収瀹樻柟 2.8.0 鐨勮瑷€閫夋嫨锛?鈹€鈹€ */
 .ds-pref-scrim {
   position:absolute;
   inset:0;
@@ -544,7 +655,7 @@
 .ds-pref-confirm-body { padding:22px 20px 18px;text-align:center; }
 .ds-pref-confirm-body strong { display:block;font-size:17px;line-height:24px;font-weight:600; }
 .ds-pref-confirm-body p { margin-top:8px !important;color:var(--ds-set-sub);font-size:14px;line-height:21px; }
-/* ── 底部面板（朗读音色，照官方：标题+X / 大预览 / 圆点 / 蓝色确认 ── */
+/* 鈹€鈹€ 搴曢儴闈㈡澘锛堟湕璇婚煶鑹诧紝鐓у畼鏂癸細鏍囬+X / 澶ч瑙?/ 鍦嗙偣 / 钃濊壊纭 鈹€鈹€ */
 .ds-pref-sheet {
   position:absolute;
   left:0;
@@ -558,44 +669,129 @@
   padding:0 20px max(16px,env(safe-area-inset-bottom));
   border-radius:24px 24px 0 0;
   background:var(--ds-set-card);
-  animation:ds-sheet-in var(--ds-motion-base) var(--ds-ease-out) both;
+  /* 官方底部面板是弹簧滑入，观感偏慢；这里用时更长、减速更柔的曲线 */
+  animation:ds-sheet-in var(--ds-sheet-in-duration,380ms) cubic-bezier(.32,.72,0,1) both;
 }
-.ds-pref-scrim[data-leaving=true] .ds-pref-sheet { animation:ds-pref-sheet-out var(--ds-motion-base) var(--ds-ease-out) both; }
+.ds-pref-scrim[data-leaving=true] .ds-pref-sheet { animation:ds-pref-sheet-out var(--ds-sheet-out-duration,260ms) cubic-bezier(.4,0,1,1) both; }
 .ds-pref-sheet-head { position:relative;display:grid;place-items:center;min-height:60px; }
 .ds-pref-sheet-head h2 { font-size:17px;line-height:24px;font-weight:600; }
 .ds-pref-sheet-close { position:absolute;right:-4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:50%;background:var(--ds-set-icon-btn);color:var(--ds-set-text); }
 .ds-pref-sheet-close .ds-ui-icon { width:17px;height:17px; }
-.ds-voice-preview { display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px 0 4px; }
+/*
+ * 鏈楄闊宠壊闈㈡澘锛堝榻愬畼鏂?VoiceSelectContent.kt / VoiceBlobPreview.kt锛? *   闈㈡澘鎬婚珮 586dp锛堝皬灞忕敤 min 鏀剁獎锛? *   鑹插潡 180脳100dp銆佸渾瑙?50dp锛? 楂樼殑涓€鍗婏紝鑳跺泭锛? *   鑹插潡澶栨槸銆岀幆鐘舵ā绯婂厜鏅曘€嶈€岄潪鎶曞奖锛歴pread 20dp / offset(1,2)dp / blur 3dp / black 6%
+ *   鑹插潡鈫斿渾鐐?40dp锛涘渾鐐?6dp銆侀棿璺?8dp锛涢€変腑 #426EFE銆佹湭閫変腑 #D4D4D4
+ */
+/*
+ * 鏈楄闊宠壊闈㈡澘 鈥斺€?灏哄鍙栬嚜瀹樻柟 2.8.0 鐪熸満瀹炴祴锛?080脳2412 / dpr3锛夛細
+ *   闈㈡澘楂?537dp銆佹爣棰樻爮 56dp銆佽壊鍧?180脳100dp銆? *   鑹插潡鈫掑悕瀛?20dp銆佸悕瀛椻啋鎻忚堪 7dp銆佹弿杩扳啋鍦嗙偣 41dp銆? *   鍦嗙偣 6dp 闂磋窛 8dp銆佺‘璁ゆ寜閽?44dp銆佸簳閮ㄧ暀鐧?24dp
+ * 缁撴瀯锛氭í鍚?Pager锛岃壊鍧楄窡鎵嬩綅绉伙紝鐩搁偦闊宠壊浠庝袱渚ф粦鍏ャ€? */
+.ds-pref-voice-sheet {
+  display:flex;
+  flex-direction:column;
+  height:min(537px, 78vh);
+  padding-bottom:max(24px, env(safe-area-inset-bottom));
+  overflow:hidden;
+}
+.ds-pref-voice-sheet .ds-pref-sheet-head { min-height:56px; flex:0 0 auto; }
+/* 瀹樻柟鏍囬鏍忛噷鐨勫叧闂寜閽害 28dp锛堝疄娴嬫爣棰樺甫 27.7dp锛?*/
+.ds-pref-voice-sheet .ds-pref-sheet-close { width:28px; height:28px; right:0; }
+.ds-pref-voice-sheet .ds-pref-sheet-close .ds-ui-icon { width:15px; height:15px; }
+.ds-pref-voice-sheet .ds-pref-sheet-confirm {
+  flex:0 0 auto;
+  height:44px;
+  margin-top:auto;
+  font-size:17px;
+  /* 瀹樻柟鎸夐挳娌℃湁鏄庢樉鎶曞奖锛屽疄娴嬪僵鑹插尯鍩熼珮搴︽濂?44dp */
+  box-shadow:none;
+}
+/* 色块固定在原地（官方不随页面滑动），只有内部图案跟手 */
+/*
+ * 鏈楄闊宠壊闈㈡澘 鈥斺€?鑹插潡鍥哄畾涓嶅姩锛屽彧鏈夋鍐?shader 鍥炬璺熸墜 + 鏂囧瓧妯悜婊戝姩
+ * 灏哄鍙栬嚜瀹樻柟鐪熸満锛氳壊鍧?180脳100dp銆佸渾鐐?6dp/8dp銆佺‘璁?44dp
+ */
+.ds-voice-preview {
+  display:flex;
+  flex:0 0 auto;
+  flex-direction:column;
+  align-items:center;
+  margin-top:127px;
+  overflow:hidden;
+  /* 鏁村潡棰勮鍖洪兘鍙嫋鍔紙瀹樻柟婊戝姩鑼冨洿鏄暣涓唴瀹瑰尯锛?*/
+  touch-action:pan-y;
+  -webkit-tap-highlight-color:transparent;
+}
 .ds-voice-blob {
-  width:204px;
-  height:120px;
-  margin:0;
+  position:relative;
+  flex:0 0 auto;
+  width:180px;
+  height:100px;
+  border-radius:50px;
+  touch-action:pan-y;
+  -webkit-tap-highlight-color:transparent;
+  background:linear-gradient(135deg, var(--c1) 0%, var(--c2) 50%, var(--c3) 100%);
+}
+.ds-voice-blob-canvas {
+  position:relative;
+  z-index:1;
+  display:block;
+  width:100%;
+  height:100%;
+  border-radius:50px;
+}
+/* 鏂囧瓧杞ㄩ亾锛? 鏍硷紙涓婁竴涓?/ 褰撳墠 / 涓嬩竴涓級锛屽彧杩欎竴灞傝窡鐫€鎵嬫寚浣嶇Щ */
+/* 鏂囧瓧绐楀彛锛氬搴?瀹瑰櫒瀹斤紝瑁佹帀涓や晶 */
+.ds-voice-text {
+  flex:0 0 auto;
+  width:100%;
+  margin-top:20px;
+  overflow:hidden;
+}
+.ds-voice-text-track {
+  display:flex;
+  width:300%;
+  will-change:transform;
+}
+.ds-voice-text-cell {
+  display:flex;
+  flex:0 0 33.3333%;
+  flex-direction:column;
+  align-items:center;
+}
+.ds-voice-name {
+  color:var(--ds-set-text);
+  /* 瀹樻柟瀹炴祴瀛楀舰楂?14.3dp 鈫?16px锛?7px 浼氶珮绾?0.7dp锛?*/
+  font-size:16px;
+  line-height:22px;
+  font-weight:600;
+}
+.ds-voice-desc {
+  margin-top:7px;
+  color:var(--ds-set-sub);
+  font-size:14px;
+  line-height:20px;
+}
+.ds-voice-dots {
+  display:flex;
+  flex:0 0 auto;
+  gap:8px;
+  margin-top:41px;
+  justify-content:center;
+}
+.ds-voice-dot {
+  width:6px;
+  height:6px;
   padding:0;
   border:0;
-  border-radius:60px;
-  -webkit-appearance:none;
-  appearance:none;
-  background:
-    radial-gradient(120% 120% at 30% 20%, #fff6de 0%, transparent 55%),
-    linear-gradient(135deg, #ffdf9e 0%, #ffd076 48%, #fff0c9 100%);
-  transition:filter var(--ds-motion-quick) ease, transform var(--ds-motion-quick) var(--ds-ease-out);
+  border-radius:50%;
+  background:#d4d4d4;
+  cursor:pointer;
+  transition:background-color 250ms cubic-bezier(.4, 0, .2, 1);
+  -webkit-tap-highlight-color:transparent;
 }
-.ds-voice-blob:active { transform:scale(.98); }
-.ds-voice-blob[data-voice=tide] {
-  background:
-    radial-gradient(120% 120% at 30% 20%, #eef4ff 0%, transparent 55%),
-    linear-gradient(135deg, #b8cbff 0%, #7f9dfb 50%, #dfe8ff 100%);
-}
-.ds-voice-name { font-size:20px;line-height:28px;font-weight:600; }
-.ds-voice-desc { color:var(--ds-set-sub);font-size:14px;line-height:20px; }
-.ds-voice-dots { display:flex;gap:9px;padding:14px 0 6px; }
-.ds-voice-dot { width:8px;height:8px;padding:0;border:0;border-radius:50%;background:#dcdcde;transition:background var(--ds-motion-quick) ease; }
-.ds-voice-dot.on { background:var(--dsw-alias-brand-text,#426efe); }
+.ds-voice-dot.on { background:#426efe; }
 
 /*
- * 朗读音色：朴素单选列表（不再做官方那种色块 + 圆点动效）。
- * 每行 = 单选圆点 + 名字 + 一句描述，点击即选中，底部「确认」保存。
- */
+ * 鏈楄闊宠壊锛氭湸绱犲崟閫夊垪琛紙涓嶅啀鍋氬畼鏂归偅绉嶈壊鍧?+ 鍦嗙偣鍔ㄦ晥锛夈€? * 姣忚 = 鍗曢€夊渾鐐?+ 鍚嶅瓧 + 涓€鍙ユ弿杩帮紝鐐瑰嚮鍗抽€変腑锛屽簳閮ㄣ€岀‘璁ゃ€嶄繚瀛樸€? */
 .ds-voice-list { display:flex;flex-direction:column;padding:4px 0 8px; }
 .ds-voice-option {
   display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;
@@ -616,28 +812,215 @@
 @keyframes ds-settings-in { from { transform:translateX(20px);opacity:.25; } to { transform:none;opacity:1; } }
 @keyframes ds-settings-out { to { transform:translateX(14px);opacity:0; } }
 @keyframes ds-pref-step { from { transform:translateX(var(--ds-settings-offset));opacity:.65; } to { transform:none;opacity:1; } }
-@keyframes ds-pref-page-push { from { transform:translateX(100%); } to { transform:none; } }
-@keyframes ds-pref-page-cover { to { transform:translateX(-12%); } }
-@keyframes ds-pref-page-reveal { from { transform:translateX(-12%); } to { transform:none; } }
-@keyframes ds-pref-page-pop { to { transform:translateX(100%); } }
+/* 鍑忓急鍔ㄦ晥锛氭墍鏈夎浆鍦烘椂闀垮綊闆讹紙璺熼殢绯荤粺璁剧疆锛?/
+@media (prefers-reduced-motion: reduce) {
+  .ds-mobile-settings {
+    --ds-pref-move-duration: 0ms;
+    --ds-pref-fade-in-duration: 0ms;
+    --ds-pref-fade-in-delay: 0ms;
+    --ds-pref-fade-out-duration: 0ms;
+  }
+}
+
+/* 浣嶇Щ锛氬鍣ㄥ鐨?20%锛堝畼鏂?width/5锛?/
+@keyframes ds-pref-page-push { from { transform:translateX(20%); } to { transform:translateX(0); } }
+@keyframes ds-pref-page-cover { from { transform:translateX(0); } to { transform:translateX(-20%); } }
+@keyframes ds-pref-page-reveal { from { transform:translateX(-20%); } to { transform:translateX(0); } }
+@keyframes ds-pref-page-pop { from { transform:translateX(0); } to { transform:translateX(20%); } }
+/* 透明度：进入慢且带延迟，退出快且无延迟（官方两套参数）*/
+@keyframes ds-pref-page-fade-in { from { opacity:0; } to { opacity:1; } }
+@keyframes ds-pref-page-fade-out { from { opacity:1; } to { opacity:0; } }
 @keyframes ds-pref-fade { from { opacity:0; } to { opacity:1; } }
 @keyframes ds-pref-fade-out { to { opacity:0; } }
 @keyframes ds-sheet-in { from { transform:translateY(100%); } to { transform:none; } }
 @keyframes ds-pref-sheet-out { to { transform:translateY(100%); } }
-@keyframes ds-pref-dialog-in { from { transform:scale(.92);opacity:0; } to { transform:none;opacity:1; } }
-@keyframes ds-pref-dialog-out { to { transform:scale(.95);opacity:0; } }
-/* ── 暗色主题（对齐 theme.css 的暗色别名） ── */
+/*
+ * 语言 / 外观：官方是居中弹窗，但出现动画是「在中间位置短距离从下往上浮 + 淡入」，
+ * 涓嶆槸缂╂斁寮瑰嚭銆傝窛绂诲皬銆佹椂闂寸煭锛屾墍浠ユ樉寰楄交銆? */
+@keyframes ds-pref-dialog-in { from { transform:translateY(18px);opacity:0; } to { transform:none;opacity:1; } }
+@keyframes ds-pref-dialog-out { to { transform:translateY(8px);opacity:0; } }
+/* 鈹€鈹€ 鏆楄壊涓婚锛堝榻?theme.css 鐨勬殫鑹插埆鍚嶏級 鈹€鈹€ */
 body[data-ds-dark-theme] .ds-mobile-settings {
-  --ds-set-bg: rgb(18, 19, 22);
-  --ds-set-card: rgb(27, 28, 32);
-  --ds-set-text: rgb(243, 245, 242);
-  --ds-set-sub: rgb(170, 179, 167);
-  --ds-set-chevron: rgb(133, 138, 151);
-  --ds-set-icon-btn: rgb(44, 46, 52);
-  --ds-set-icon-btn-active: rgb(56, 58, 64);
-  --ds-set-line: rgb(43, 45, 50);
+  /*
+   * 瀹樻柟 2.8.0 娣辫壊瀹炴祴锛堥€愬儚绱狅級锛氳缃〉搴?#1E1E1E銆佸崱鐗?#292929銆?   * 涓绘枃鏈?#F8F8F8銆佹绾?#8E9094銆乧hevron #7D7F85銆佽繑鍥炲渾搴?#3C3C3D銆?   * 涔嬪墠杩欏鍊煎亸钃濅笖甯︾豢鍋忥紙涓绘枃鏈?娆＄骇鏂囧瓧閮芥槸缁跨殑锛夛紝姝ｆ槸鐢ㄦ埛璇寸殑銆岀函榛戙€佷笉濂界湅銆嶃€?   */
+  --ds-set-bg: rgb(30, 30, 30);
+  --ds-set-card: rgb(41, 41, 41);
+  --ds-set-text: rgb(248, 248, 248);
+  --ds-set-sub: rgb(142, 144, 148);
+  --ds-set-chevron: rgb(125, 127, 133);
+  --ds-set-icon-btn: rgb(60, 60, 61);
+  --ds-set-icon-btn-active: rgb(71, 72, 73);
+  --ds-set-line: rgb(60, 60, 61);
   --ds-set-danger: rgb(255, 116, 108);
   --ds-set-switch-off: rgb(58, 60, 66);
   --ds-set-bubble: rgb(35, 47, 74);
-  --ds-set-field: rgb(34, 35, 40);
+  --ds-set-field: rgb(41, 41, 41);
+  /* 字体大小页：官方深色实测 气泡 #333333 / 文字 #F8F8F8 / 轨道 #7D7F85 */
+  --ds-font-bubble-bg: rgb(51, 51, 51);
+  --ds-font-bubble-fg: rgb(248, 248, 248);
+  --ds-font-track: rgb(125, 127, 133);
+}
+
+/* 娣辫壊妯″紡锛氭湭閫変腑鍦嗙偣瀹樻柟鐢ㄤ腑鎬х伆锛屾祬鑹?#D4D4D4 鍦ㄦ繁搴曚笂澶埡鐪?*/
+body[data-ds-dark-theme] .ds-voice-dot { background: #5E6063; }
+body[data-ds-dark-theme] .ds-voice-dot.on { background: #507BF2; }
+
+/* 深色模式：未选中圆点官方用中性灰 */
+body[data-ds-dark-theme] .ds-voice-dot { background: #5E6063; }
+body[data-ds-dark-theme] .ds-voice-dot.on { background: #507BF2; }
+
+
+/*
+ * 澶栬鍥炬爣璺熼殢娣辨祬鑹诧細瀹樻柟璧勬簮閲屾湁 ic_sun_regular / ic_moon_regular 涓や釜鍥炬爣锛? * 娴呰壊鏄剧ず澶槼銆佹繁鑹叉樉绀烘湀浜€傦紙inline style 閲屽凡缁忓啓浜?--ds-icon锛屾墍浠ヨ繖閲岃 !important 鎵嶈兘瑕嗙洊锛? */
+body[data-ds-dark-theme] .ds-icon-ds-sun {
+  --ds-icon: url("ui-icons/ds-moon.svg") !important;
+}
+
+
+/*
+ * 銆岃鏄庛€嶆姌鍙犲潡锛氶粯璁ゆ敹璧凤紝鐐瑰紑鎵嶆樉绀虹伆鑹插皬瀛椼€? * 璁╅〉闈㈡瘡寮犲崱鐗囬兘鍙湁涓€琛屼富淇℃伅锛岃鏄庝笉鍗犵増闈€? */
+.ds-pref-detail {
+  margin: 6px 4px 0;
+  color: var(--ds-set-sub);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.ds-pref-detail > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  color: var(--dsw-alias-brand-text, #426efe);
+  font-size: 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ds-pref-detail > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ds-pref-detail > summary::before {
+  content: '?';
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.ds-pref-detail[open] > summary {
+  margin-bottom: 2px;
+}
+
+.ds-pref-detail > p {
+  margin: 4px 0;
+}
+
+
+/*
+ * 銆岃鏄庛€嶅尯鍩燂細鐩存帴灞曞紑鏄剧ず锛屽乏缂樺拰涓婇潰鐨勫崱鐗囨鏂囧榻愩€? * 涔嬪墠鐢?details + 4px 澶栬竟璺濓紝鐪嬭捣鏉ユ槸姝殑銆? */
+.ds-pref-notes {
+  /*
+   * 说明是上面卡片的附注，不是独立一栏：
+   * 涓婅竟璺濆彧鐣欎竴鐐圭偣锛岀揣璐村崱鐗囷紱宸︾紭鍜屽崱鐗囨鏂囧榻愩€?   */
+  margin: 4px 28px 4px;
+  color: var(--ds-set-sub);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* 銆岃鏄庛€嶆寜閽細鍜屽崱鐗囨鏂囧乏缂樺榻愶紝鐐逛竴涓嬪睍寮€涓嬮潰鐨勫皬瀛?*/
+/*
+ * 鍗＄墖鏈韩鏈?22px 涓嬭竟璺濓紝浼氭妸銆岃鏄庛€嶆帹寰楀緢杩滐紙鐢ㄦ埛鍙嶉銆岀鑰佽繙銆嶏級銆? * 杩欓噷鎶婁笂杈硅窛鍚冩帀锛岃璇存槑绱ц创鍗＄墖涓嬫部銆? */
+.ds-pref-block + .ds-pref-notes {
+  margin-top: -18px;
+}
+
+.ds-pref-notes > summary {
+  display: inline-block;
+  padding: 0;
+  color: var(--dsw-alias-brand-text, #426efe);
+  font-size: 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ds-pref-notes > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ds-pref-notes[open] > summary {
+  margin-bottom: 4px;
+}
+
+.ds-pref-notes > p {
+  margin: 4px 0;
+}
+
+/* 鍐呯疆瀛椾綋缃插悕锛圡iSans 璁稿彲瑕佹眰锛夛細灏忓瓧銆佸眳涓€佸急鍖?*/
+.ds-font-credit {
+  margin: 12px 16px 4px;
+  color: var(--ds-set-sub);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* 数据管理二级页的顶部块：返回 + 标题 + 一句话说明。
+   .ds-pref-legacy 把每个直接子元素都变成一张横向卡片，这里单独还原成竖排、无卡片。 */
+.ds-pref-legacy > .ds-data-top {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 0;
+  padding: 2px 4px 4px !important;
+  border-radius: 0;
+  background: transparent !important;
+}
+
+.ds-pref-legacy > .ds-data-top > .ds-data-back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 2px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: var(--ds-set-accent, #4d6bfe) !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+}
+
+.ds-data-back svg {
+  transform: rotate(180deg);
+}
+
+.ds-data-title {
+  color: var(--ds-set-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.ds-data-note {
+  color: var(--ds-set-sub);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+/* 第三方字体/开源许可声明（服务协议页底部小字） */
+.ds-pref-license {
+  margin: 12px 16px 0;
+  color: var(--ds-set-sub);
+  font-size: 12px;
+  line-height: 18px;
 }

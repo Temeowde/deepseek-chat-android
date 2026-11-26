@@ -3,7 +3,7 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--chat-canvas);
+  background: transparent;
 }
 
 .stage {
@@ -15,6 +15,28 @@
   min-height: 0;
 }
 
+/*
+ * 【修复】消息区底部渐隐，避免「半截字被白底压着」。
+ *
+ * 事实来源（真机 repro 逐像素量的）：消息列表的裁剪线上沿就是 .dock 的上沿
+ * （.stage 是 flex:1 + min-height:0，.dock 是 flex:none，两者边界重合，y≈671css）。
+ * 滚到任意位置时，最后一行会被这条边**硬切**——只露出字头几个像素，
+ * 下面紧接着 6px 的 dock padding + 输入卡投到画布上的柔光，
+ * 看上去就像"一小截字被一块白底压住"。
+ *
+ * 之前 .dock 加的 background: var(--chat-canvas) 完全无效，原因见 handoff 42：
+ * 那块区域本来就只会画两种东西——canvas 色（stage 背景）和输入卡本身，
+ * 给 dock 再铺一层同色不透明的底，不可能改变任何一个像素。
+ *
+ * 这里补的不是"底色"而是"渐变遮罩"：把 .stage 最后 28px 从透明渐变到 canvas 色，
+ * 让文字在到达输入栏前自然消失，而不是留一条硬切口。
+ *   - 纯绘制层：不参与布局，不动 flex / 高度 / 安全区 / --ds-ime-*，
+ *     键盘弹起、附件面板展开时 .stage 收缩，本层自动跟随 .dock 上沿。
+ *   - 颜色走 --chat-canvas：浅色 #ffffff、深色 #0F0F0F 各自正确。
+ *   - z-index:0 低于 MessageList 里 .jumpAnchor 的 z-index:1，
+ *     「回到底部」圆钮不会被淡掉（它正好落在这条带里）。
+ *   - 静止态无感：.column 底部有 28px padding，滚到底时最后一行恰好在渐变区外。
+ */
 .welcome {
   position: absolute;
   inset: 0 min(9vw, 52px) 19px;
@@ -60,6 +82,27 @@
   position: relative;
   z-index: 1;
   flex: none;
+  /*
+   * 注意：这条 background 是**防御性底色，视觉上是 0 效果**（handoff 42 已证）：
+   * .stage 是 flex:1 + min-height:0、.dock 是 flex:none，消息列表的裁剪线
+   * 本来就正好落在 dock 上沿，dock 里根本不会有消息内容漏进来；
+   * 而 dock 铺的又是 canvas 色，和它身后的 .screen 背景同色 —— 不可能改变任何像素。
+   *
+   * 说明：试过在 .stage 上加底部渐隐，用户反馈反而挡住更多文字，已移除；
+   * 这条保留只是为了将来某些机型出现 1px 级亚像素漏色时兜底。
+   */
+  /*
+   * 必须透明：上移 26px 之后，dock 的盒子盖住了输入卡上方的圆角缺口，
+   * 铺画布色会把"圆角外、卡片内"那一点点区域也涂白 —— 文字于是在圆角处被直线切断。
+   * 遮挡交给输入卡自己（它是不透明的圆角矩形），dock 不能有底色。
+   */
+  background: transparent;
+  /*
+   * 上移 26px（= 输入卡圆角半径 26dp）：让滚动内容能到达卡片圆角以内，
+   * 圆角缺口处（卡片没盖住的地方）文字自然可见、由卡片圆弧遮挡 ——
+   * 这样裁切边界和卡片圆角完全一致，不会出现"圆角处被直线切掉"。
+   */
+  margin-top: -26px;
   box-sizing: border-box;
   width: min(100%, 680px);
   margin-inline: auto;
@@ -79,7 +122,11 @@
    * 中间那段 7px 用 --ds-ime-ratio 连续插值，不能等键盘收完再一次性跳
    * （一次性跳的后果：收键盘时输入栏先沉到 8px 压住手势条，再突然弹回）。
    */
-  padding: 6px var(--ds-mobile-gutter)
+  /*
+   * 顶部不留 padding：消息滚动区的裁剪线要和输入卡上沿重合，
+   * 否则文字会在距离卡片还有 6px 的地方就被裁掉（看起来像被一层东西盖住）。
+   */
+  padding: 0 var(--ds-mobile-gutter)
     calc(var(--ds-ime-bottom, 0px) + 8px + 7px * (1 - var(--ds-ime-ratio, 0)));
 }
 
@@ -101,19 +148,24 @@
  */
 .caveat {
   --ds-caveat-open: calc(1 - var(--ds-ime-ratio, 0));
-  height: calc(16px * var(--ds-caveat-open));
+  height: calc(17px * var(--ds-caveat-open));
   padding-top: calc(4px * var(--ds-caveat-open));
   overflow: hidden;
   opacity: var(--ds-caveat-open);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 10px;
-  line-height: 16px;
+  color: var(--chat-caveat, var(--dsw-alias-label-secondary));
+  font-size: 11px;
+  line-height: 17px;
   text-align: center;
   user-select: none;
   visibility: hidden;
 }
 .dock[data-has-session="true"] .caveat {
   visibility: visible;
+}
+/* 官方：点“+”打开附件面板时，免责声明那行自动消失（否则面板会压在字上） */
+body:global(.ds-attach-open) .dock .caveat {
+  opacity: 0;
+  visibility: hidden;
 }
 
 /*
@@ -132,4 +184,10 @@
   .welcome {
     transform: none;
   }
+}
+
+/* 录音期间隐藏输入栏：官方按住说话时输入卡片整体让位给光幕 + 声纹面板 */
+:global(body)[data-ds-voice-hold='1'] .dock {
+  opacity: 0;
+  transition: opacity 120ms linear;
 }
