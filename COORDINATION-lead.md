@@ -1081,7 +1081,7 @@
 ## 验证记录（lead / 模拟器复现老机型白屏&闪退）
 
 - 时间：2026-11-28 20:3x
-- 版本：**4.6.22 / androidVersionCode 295**
+- 版本：**4.6.22 / androidVersionCode 295（未发布，等待用户找外部测试；GitHub release v4.6.22 与 tag 已撤回，公开版仍为 4.6.21）**
 - 模拟器：`D:\AndroidToolchain\sdk` 下新增 emulator + `system-images;android-28;google_apis;x86_64`，AVD `api28`（1.5GB RAM / 2 核，WHPX）。启动命令：`emulator -avd api28 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 1536 -cores 2`；本机 adb 自动识别 `emulator-5554`。
 - 复现到的真实白屏/闪退：
   · Chrome 69：`Uncaught ReferenceError: globalThis is not defined`（bundle 第一行）→ 已加内联 polyfill；
