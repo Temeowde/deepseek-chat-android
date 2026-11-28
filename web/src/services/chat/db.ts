@@ -59,8 +59,8 @@ const abortTransaction = (tx: { abort(): void }) => {
 }
 
 // 每个操作拿到连接后立即创建事务；IndexedDB 按创建顺序执行范围重叠的事务，读取总能看到之前发起的写入。
-const getDB = () =>
-  (dbPromise ??= openDB<ChatDB>('chat-demo', DB_VERSION, {
+const openDatabase = () =>
+  openDB<ChatDB>('chat-demo', DB_VERSION, {
     upgrade(db, _oldVersion, _newVersion, tx) {
       // 初始化当前格式需要的存储与索引，不迁移旧消息。
       for (const name of ['sessions', 'files', 'sessionsStaging', 'filesStaging'] as const) {
@@ -75,11 +75,37 @@ const getDB = () =>
         summaries.createIndex('fileIds', 'fileIds', { multiEntry: true })
       }
     },
-  }).catch((error: unknown) => {
-    // 打开失败后允许界面重试，避免一直复用已拒绝的 Promise。
-    dbPromise = null
-    throw error
-  }))
+    blocked() {
+      // 旧页面/另一个 WebView 还占着数据库：open 会一直等下去，必须有超时兜底
+      console.warn('[db] IndexedDB open blocked by another page')
+    },
+    blocking() {
+      console.warn('[db] IndexedDB close requested by an upgrade in another page')
+    },
+  })
+
+/**
+ * 打开本地数据库。
+ *
+ * IndexedDB 的 open 在「被另一个页面占用 / 存储损坏 / 版本升级被卡住」时可能永远不
+ * resolve，旧版就一直停在加载界面。这里加 15 秒超时：失败后允许界面重试，不再无限白屏。
+ */
+const getDB = () =>
+  (dbPromise ??= (() => {
+    let timer = 0
+    const timeout = new Promise<never>((_, reject) => {
+      timer = window.setTimeout(() => {
+        dbPromise = null
+        reject(new Error('本地数据库打开超时（可能被旧页面占用或存储异常）'))
+      }, 15_000)
+    })
+    return Promise.race([openDatabase(), timeout])
+      .finally(() => window.clearTimeout(timer))
+      .catch((error: unknown) => {
+        dbPromise = null
+        throw error
+      })
+  })())
 
 export const loadSessionSummaries = async (): Promise<SessionSummary[]> =>
   (await (await getDB()).getAll('sessionSummaries')).map(toSessionSummary)

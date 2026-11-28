@@ -1062,3 +1062,16 @@
 - 截图：`.build/backup-permission-prompt.png`。
 - 其他线从 **294** 起用。
 - APK：`C:\Users\zzzy\DS-Chat-APK\DS-Chat-4.6.20.apk`
+
+---
+
+## 验证记录（lead / 启动白屏&卡死&闪退排查）
+
+- 时间：2026-11-28 19:5x
+- 版本：**4.6.21 / androidVersionCode 294**（构建+安装+真机验证）
+- 真机：启动正常、启动遮罩正常隐藏；隐藏开关 `chat-demo:boot-test=1` 可复现兜底页（截图 `.build/startup-fatal.png`）；旧 WebView UA（Chrome/60）会提示版本过低而不是白屏；`chat-demo:official-dedupe-v1` 启动 5 秒后写入=1（一次性清理生效）；
+- 历史证据：系统 dropbox 里有 3 条旧版本（v4.0.2/v4.1.1）闪退，均为导出/备份时 `Base64.decode` 一次性分配 119MB OOM；4.5 起已改分块读写，但说明「闪退」里有一部分确实是内存问题；
+- 真机无法复现用户白屏（当前 WebView 150），所以本版重点是兜底+诊断收集；原生 onRenderProcessGone 已接入，无法在真机模拟回收；
+- 单测：startup-safety 6/6 PASS；tsc 无新增错误。
+- 其他线从 **295** 起用。
+- APK：`C:\Users\zzzy\DS-Chat-APK\DS-Chat-4.6.21.apk`

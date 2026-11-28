@@ -6,8 +6,162 @@
     <meta name="theme-color" content="#ffffff" />
     <meta name="color-scheme" content="light dark" />
     <title>DeepSeek</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #fff; }
+      @media (prefers-color-scheme: dark) { html, body { background: #17181a; } }
+      #boot-splash {
+        position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 2147483600; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px; color: #8a8f98;
+        font: 14px -apple-system, "system-ui", "Segoe UI", "Microsoft YaHei", sans-serif;
+        background: #fff; transition: opacity .22s ease;
+      }
+      #boot-splash.is-hide { opacity: 0; pointer-events: none; }
+      @media (prefers-color-scheme: dark) {
+        #boot-splash { background: #17181a; color: #858a93; }
+        #boot-fatal { background: #17181a; color: #e8eaed; }
+        #boot-fatal .boot-card { background: #232427; border-color: #303136; }
+        #boot-fatal p, #boot-fatal pre { color: #b7bcc5; }
+        #boot-fatal pre { background: #191a1d; border-color: #303136; }
+        #boot-fatal button { background: #2e3035; border-color: #3a3c42; color: #e8eaed; }
+        #boot-fatal button.primary { background: #4d6bfe; border-color: #4d6bfe; color: #fff; }
+      }
+      .boot-spinner {
+        width: 22px; height: 22px; border-radius: 50%;
+        border: 2px solid rgba(128, 138, 156, .22); border-top-color: #4d6bfe;
+        animation: boot-spin .8s linear infinite;
+      }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .boot-spinner { animation: none; } }
+      #boot-fatal {
+        position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 2147483640; display: flex; align-items: center;
+        justify-content: center; padding: 24px; box-sizing: border-box; background: #f7f8fa; color: #1f2328;
+        font: 14px/1.6 -apple-system, "system-ui", "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+      #boot-fatal[hidden] { display: none; }
+      #boot-fatal .boot-card {
+        width: 100%; max-width: 460px; background: #fff; border: 1px solid #e6e8eb;
+        border-radius: 16px; padding: 20px; box-sizing: border-box;
+      }
+      #boot-fatal h1 { font-size: 18px; margin: 0 0 8px; font-weight: 600; }
+      #boot-fatal p { margin: 0 0 12px; color: #57606a; white-space: pre-wrap; word-break: break-word; }
+      #boot-fatal pre {
+        margin: 0 0 14px; padding: 10px; max-height: 180px; overflow: auto;
+        background: #f6f8fa; border: 1px solid #eaeef2; border-radius: 8px;
+        color: #57606a; font: 11px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-all;
+      }
+      #boot-fatal .boot-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      #boot-fatal button {
+        flex: 1; min-width: 120px; height: 38px; border-radius: 10px; border: 1px solid #e0e3e7;
+        background: #fff; color: #1f2328; font: inherit; font-weight: 500;
+      }
+      #boot-fatal button.primary { background: #4d6bfe; border-color: #4d6bfe; color: #fff; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="boot-splash" aria-live="polite">
+      <div class="boot-spinner"></div>
+      <div id="boot-status">正在启动…</div>
+    </div>
+    <div id="boot-fatal" hidden>
+      <div class="boot-card">
+        <h1 id="boot-fatal-title">启动失败</h1>
+        <p id="boot-fatal-detail"></p>
+        <pre id="boot-fatal-stack"></pre>
+        <div class="boot-actions">
+          <button id="boot-reload" class="primary" type="button">重新加载</button>
+          <button id="boot-copy" type="button">复制诊断信息</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      /* 启动兜底：写在 bundle 之前、只用 ES5，保证 React 挂载失败/脚本解析失败时不是白屏。 */
+      (function () {
+        var booted = false;
+        var failed = false;
+        var lastDetail = "";
+        var splash = document.getElementById("boot-splash");
+        var fatal = document.getElementById("boot-fatal");
+        var detailEl = document.getElementById("boot-fatal-detail");
+        var stackEl = document.getElementById("boot-fatal-stack");
+        var statusEl = document.getElementById("boot-status");
+        var chrome = /Chrome\/(\d+)/.exec(navigator.userAgent || "");
+        var chromeMajor = chrome ? parseInt(chrome[1], 10) : 0;
+        function diagnostics() {
+          return [
+            "UA: " + (navigator.userAgent || ""),
+            "WebView: " + (chromeMajor || "unknown"),
+            "URL: " + location.href,
+            "Time: " + new Date().toISOString(),
+            "Storage: " + (function () { try { return typeof localStorage === "object" ? "ok" : "missing"; } catch (e) { return "blocked"; } })()
+          ].join("\n");
+        }
+        function describe(error) {
+          if (!error) return "";
+          if (typeof error === "string") return error;
+          if (error.stack) return String(error.stack);
+          if (error.message) return String(error.message);
+          try { return JSON.stringify(error); } catch (e) { return String(error); }
+        }
+        function showFatal(title, message, detail) {
+          if (failed) return;
+          failed = true;
+          if (splash) splash.style.display = "none";
+          lastDetail = [diagnostics(), detail ? "\n---\n" + detail : ""].join("");
+          document.getElementById("boot-fatal-title").textContent = title || "启动失败";
+          detailEl.textContent = message || "界面没有正常启动，可以重新加载试试。";
+          stackEl.textContent = detail || lastDetail;
+          fatal.hidden = false;
+        }
+        function ready() {
+          if (booted || failed) return;
+          booted = true;
+          if (splash) {
+            splash.className = "is-hide";
+            setTimeout(function () { if (splash.parentNode) splash.parentNode.removeChild(splash); }, 260);
+          }
+        }
+        window.__dsBootReady = ready;
+        window.__dsBootFail = function (error, detail) { showFatal("启动失败", "界面没有正常启动，可以重新加载试试。", describe(error) + (detail ? "\n" + detail : "")); };
+        window.__dsBoot = { diagnostics: diagnostics };
+        window.addEventListener("error", function (event) {
+          if (booted) return;
+          var detail = describe(event.error) || event.message || "";
+          if (!detail && event.target && event.target.src) detail = "Failed to load: " + event.target.src;
+          showFatal("启动失败", "加载界面脚本时出错，可以重新加载试试。", detail);
+        });
+        window.addEventListener("unhandledrejection", function (event) {
+          if (booted) return;
+          showFatal("启动失败", "初始化过程中发生异常。", describe(event.reason));
+        });
+        document.getElementById("boot-reload").onclick = function () { location.reload(); };
+        document.getElementById("boot-copy").onclick = function () {
+          var text = lastDetail || diagnostics();
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text);
+            } else {
+              var area = document.createElement("textarea");
+              area.value = text; area.style.position = "fixed"; area.style.opacity = "0";
+              document.body.appendChild(area); area.select(); document.execCommand("copy"); document.body.removeChild(area);
+            }
+            this.textContent = "已复制";
+          } catch (e) {
+            this.textContent = "复制失败，请手动截图";
+          }
+        };
+        if (chromeMajor && chromeMajor < 66) {
+          showFatal("系统 WebView 版本过低", "当前 WebView 版本是 " + chromeMajor + "，最低需要 66。请在应用商店更新「Android System WebView」或系统「WebView」组件后再打开。", diagnostics());
+        }
+        try {
+          if (localStorage.getItem("chat-demo:boot-test") === "1") {
+            showFatal("启动失败（测试）", "这是用于检查启动兜底页的测试提示。", diagnostics());
+          }
+        } catch (e) {}
+        setTimeout(function () {
+          if (!booted && !failed) showFatal("启动超时", "12 秒内没有完成界面初始化。可能是本地数据较大或系统 WebView 异常，重新加载通常能恢复。", "没有收到界面就绪信号");
+        }, 12000);
+      })();
+    </script>
   </body>
 </html>

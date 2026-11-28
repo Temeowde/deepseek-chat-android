@@ -1255,32 +1255,45 @@ export const registerVoiceDemoWatcher = () => {
  * 用本地已有的 o_ 官方消息做基准，把同内容的非官方副本去掉。
  */
 export const dedupeStoredOfficialSessions = async (): Promise<number> => {
+  const flagKey = 'chat-demo:official-dedupe-v1'
+  try {
+    if (localStorage.getItem(flagKey) === '1') {
+      return 0
+    }
+  } catch {
+    // localStorage 不可用时每次都尝试，代价可控
+  }
   const { dedupeOfficialSessionMessages } = await import('../chat/officialMerge.js')
   const summaries = await db.loadSessionSummaries()
-  /*
-   * 不能只取前 N 个：会话是按 id 乱的，真正有正文的可能排在很后面。
-   * 这里遍历全部摘要、逐个 loadSession（没有正文的会话只是一次空读，开销很小）。
-   */
   let total = 0
+  let visited = 0
   for (const summary of summaries) {
     if (!summary.id.startsWith(OFFICIAL_PREFIX)) {
       continue
     }
     try {
       const session = await db.loadSession(summary.id)
-      if (!session) {
-        continue
+      if (session) {
+        const result = dedupeOfficialSessionMessages(session.messages)
+        if (result.deduped > 0) {
+          await db.saveSession({ ...session, messages: result.messages })
+          total += result.deduped
+          console.info('[official] cleaned duplicate messages:', result.deduped, 'session:', summary.id)
+        }
       }
-      const result = dedupeOfficialSessionMessages(session.messages)
-      if (result.deduped <= 0) {
-        continue
-      }
-      await db.saveSession({ ...session, messages: result.messages })
-      total += result.deduped
-      console.info('[official] cleaned duplicate messages:', result.deduped, 'session:', summary.id)
     } catch {
       // 单条会话失败不影响其它
     }
+    visited += 1
+    // 每 6 个会话让出一次主线程：旧手机上七百个会话不会一口气卡住界面
+    if (visited % 6 === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 24))
+    }
+  }
+  try {
+    localStorage.setItem(flagKey, '1')
+  } catch {
+    // ignore
   }
   return total
 }
@@ -1288,9 +1301,11 @@ export const dedupeStoredOfficialSessions = async (): Promise<number> => {
 /** 绑定官方会话加载器；返回注销函数。 */
 export const registerOfficialSync = () => {
   useChatStore.getState().setOfficialLoader(loadOfficialSession)
-  void dedupeStoredOfficialSessions()
   if (officialHasToken()) {
-    void syncOfficialSummaries()
-    void syncOfficialProfile()
+    // 冷启动先让首屏和本地数据读出来，网络同步晚 1.2 秒再开始
+    window.setTimeout(() => {
+      void syncOfficialSummaries()
+      void syncOfficialProfile()
+    }, 1200)
   }
 }

@@ -41,6 +41,28 @@
 
 
 # virtual methods
+
+.method public onRenderProcessGone(Landroid/webkit/WebView;Landroid/webkit/RenderProcessGoneDetail;)Z
+    .locals 2
+
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$1;->this$0:Lcom/temeowde/dschat/MainActivity;
+
+    invoke-static {v0, p1, p2}, Lcom/temeowde/dschat/ChatRecovery;->onRenderProcessGone(Landroid/app/Activity;Landroid/webkit/WebView;Landroid/webkit/RenderProcessGoneDetail;)Z
+
+    move-result v0
+
+    return v0
+.end method
+
+.method public onReceivedError(Landroid/webkit/WebView;Landroid/webkit/WebResourceRequest;Landroid/webkit/WebResourceError;)V
+    .locals 2
+
+    iget-object v0, p0, Lcom/temeowde/dschat/MainActivity$1;->this$0:Lcom/temeowde/dschat/MainActivity;
+
+    invoke-static {v0, p1, p2, p3}, Lcom/temeowde/dschat/ChatRecovery;->onReceivedError(Landroid/app/Activity;Landroid/webkit/WebView;Landroid/webkit/WebResourceRequest;Landroid/webkit/WebResourceError;)V
+
+    return-void
+.end method
 .method public shouldOverrideUrlLoading(Landroid/webkit/WebView;Landroid/webkit/WebResourceRequest;)Z
     .locals 3
     .param p1, "view"    # Landroid/webkit/WebView;

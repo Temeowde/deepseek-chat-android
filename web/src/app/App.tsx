@@ -34,6 +34,7 @@ import { closeMobileSider, useMobileSider } from '../components/sider/mobileSide
 import { MobileSider, Sider } from '../components/sider/Sider.js'
 import { bindMobileGestures, bindNativeBack } from './mobileGestures.js'
 import { registerOfficialSync, registerVoiceDemoWatcher, syncOfficialSummaries } from '../services/official/sync.js'
+import { scheduleStartupMaintenance } from '../services/startup.js'
 import { maybeAutoCheckin } from '../services/workbuddy/billing.js'
 import styles from './App.module.css'
 
@@ -44,7 +45,7 @@ import styles from './App.module.css'
  * 所以可以把间隔压短，接近"聊完就备份"；以前是完整导出几分钟，只能 10 分钟一次。
  */
 const LOCAL_BACKUP_INTERVAL = 2 * 60_000
-const LOCAL_BACKUP_FIRST_DELAY = 30_000
+const LOCAL_BACKUP_FIRST_DELAY = 90_000
 
 const useLocalBackupSchedule = () => {
   /*
@@ -160,14 +161,14 @@ export const App = () => {
   useEffect(closeMobileSider, [activeId, isMobile])
 
   useEffect(() => {
+    // 启动兜底页：React 真正挂载后再隐藏原生白底/启动遮罩
+    window.__dsBootReady?.()
     registerOfficialSync()
     // 切换朗读音色时自动播放官方试听句（和官方 App 一样）
     registerVoiceDemoWatcher()
     void initChat().then(() => {
-      // 启动后补齐「只有摘要没有正文」的官方会话，导出/离线也能拿到完整内容
-      void import('../services/official/sync.js')
-        .then(({ backfillMissingBodies }) => backfillMissingBodies())
-        .catch(() => {})
+      // 首屏稳定后再做官方补正文/重复清理等重活，避免启动瞬间卡死
+      scheduleStartupMaintenance()
     })
   }, [])
 

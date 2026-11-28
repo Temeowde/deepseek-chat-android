@@ -4,7 +4,7 @@ DeepSeek Chat 是一款非官方 DeepSeek Android 客户端。可以登录自己
 
 ## 下载
 
-**[下载 v4.6.20 APK](https://github.com/Temeowde/deepseek-chat-android/releases/download/v4.6.20/DeepSeek-Chat-4.6.20.apk)** · [所有版本](https://github.com/Temeowde/deepseek-chat-android/releases) · [更新记录](CHANGELOG.md)
+**[下载 v4.6.21 APK](https://github.com/Temeowde/deepseek-chat-android/releases/download/v4.6.21/DeepSeek-Chat-4.6.21.apk)** · [所有版本](https://github.com/Temeowde/deepseek-chat-android/releases) · [更新记录](CHANGELOG.md)
 
 支持 Android 8.0 及以上。在侧栏底部打开设置，填写在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 创建的 API Key；也可以在侧栏底部的账号行登录官方账号，同步官方会话。
 
@@ -20,6 +20,7 @@ DeepSeek Chat 是一款非官方 DeepSeek Android 客户端。可以登录自己
 - **用量与上下文**。每轮回答后可查看「本轮消耗额度」：缓存命中/未命中、输入与输出 token、金额估算，以及截止本轮的上下文占用率（按 API 实际上限 1,048,576 计算）。
 - **搜索与整理**。按标题、提问或回答搜索历史，直接定位到匹配消息。置顶、重命名和批量整理会话；修改提问或重新生成时可切换回答分支，也可停止生成后继续回答。
 - **阅读与分享**。切换会话时保留阅读位置。查看联网搜索引用、展开表格和导出 CSV，也可将选中的问答分享为文本或长图。
+- **启动保护**。启动失败/超时/WebView 版本过低/渲染进程崩溃时显示可操作的错误卡片（重新加载、复制诊断信息），不再只剩白屏；启动阶段的后台同步、补正文、重复清理和首次备份都做了延后与分片，旧手机不会一进界面就卡死。
 - **输入与设置**。支持相册最近图片、拍照、文件和语音输入。可调节主题、界面语言、字体、正文大小、思考内容折叠和朗读音色。
 
 ## 构建
@@ -37,12 +38,12 @@ $env:ANDROID_SDK = 'D:\AndroidToolchain\sdk'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-产物：`DeepSeek-Chat-4.6.20.apk`
+产物：`DeepSeek-Chat-4.6.21.apk`
 
 安装：
 
 ```bash
-adb install -r DeepSeek-Chat-4.6.20.apk
+adb install -r DeepSeek-Chat-4.6.21.apk
 ```
 
 Linux / macOS 下可以继续使用 `assemble.sh`（需要 python3）。

@@ -57,6 +57,12 @@ interface AvatarAndroidBridge {
 }
 
 interface Window {
+  /** 启动兜底页（index.html 内联脚本）：界面挂载成功后调用，隐藏启动遮罩 */
+  __dsBootReady?: () => void
+  /** 启动兜底页：启动失败时展示错误信息和「重新加载」 */
+  __dsBootFail?: (error: unknown, detail?: string) => void
+  /** 启动兜底页：复制诊断信息用 */
+  __dsBoot?: { diagnostics: () => string }
   AvatarAndroid?: AvatarAndroidBridge
   ScreenAndroid?: ScreenAndroidBridge
   BackupAndroid?: BackupAndroidBridge
