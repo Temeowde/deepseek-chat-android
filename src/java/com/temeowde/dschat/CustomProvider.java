@@ -73,6 +73,11 @@ public final class CustomProvider {
             out.put("model", config.optString("model", ""));
             String apiKey = config.optString("apiKey", "");
             out.put("hasKey", !apiKey.isEmpty());
+        try {
+            out.put("local", isPrivateHost(new URL(config.optString("baseUrl", ""))));
+        } catch (Exception ignored) {
+            out.put("local", false);
+        }
             out.put("keyLength", apiKey.length());
         } catch (Exception ignored) {
         }
@@ -97,9 +102,16 @@ public final class CustomProvider {
             } catch (Exception malformed) {
                 throw new Exception("Base URL 格式不正确");
             }
+            String scheme = parsed.getProtocol() == null ? "" : parsed.getProtocol().toLowerCase(Locale.ROOT);
+            if (!"http".equals(scheme) && !"https".equals(scheme)) {
+                throw new Exception("Base URL 只支持 http:// 或 https://");
+            }
             if (!"https".equalsIgnoreCase(parsed.getProtocol())
-                    || parsed.getHost() == null || parsed.getHost().isEmpty()) {
-                throw new Exception("Base URL 需要以 https:// 开头并包含域名（当前版本不支持明文 HTTP）");
+                    && !isPrivateHost(parsed)) {
+                throw new Exception("Base URL 需要以 https:// 开头（只有 127.0.0.1 / 局域网地址允许 http://）");
+            }
+            if ((parsed.getHost() == null || parsed.getHost().isEmpty())) {
+                throw new Exception("Base URL 需要包含域名或 IP");
             }
             if (parsed.getQuery() != null || parsed.getRef() != null) {
                 throw new Exception("Base URL 不能带查询参数或锚点");
@@ -108,6 +120,9 @@ public final class CustomProvider {
                 throw new Exception("请填写模型名");
             }
             JSONObject existing = getConfig(context);
+            if (apiKey.isEmpty() && existing == null && !isPrivateHost(parsed)) {
+                throw new Exception("请填写 API Key");
+            }
             if (apiKey.isEmpty() && existing != null) {
                 String oldBase = existing.optString("baseUrl", "");
                 if (sameHost(oldBase, baseUrl)) {
@@ -208,6 +223,206 @@ public final class CustomProvider {
     // ---------------------------------------------------------------------
     // 聊天
 
+    /**
+     * 供应商忽略 stream=true、直接返回一整段 JSON 时，把正文翻译成「一条 chunk + done」。
+     * 返回 true 表示已经处理完毕。
+     */
+    private static boolean emitJsonReply(WebView view, String id, String body) {
+        try {
+            JSONObject document = new JSONObject(body == null ? "" : body);
+            JSONObject error = document.optJSONObject("error");
+            if (error != null) {
+                String message = error.optString("message", error.toString());
+                deliverError(view, id, 0, message);
+                return true;
+            }
+            JSONArray choices = document.optJSONArray("choices");
+            if (choices == null || choices.length() == 0) {
+                return false;
+            }
+            JSONObject choice = choices.getJSONObject(0);
+            String finish = choice.optString("finish_reason", "");
+            JSONObject delta = new JSONObject();
+            JSONObject message = choice.optJSONObject("message");
+            JSONObject upstreamDelta = choice.optJSONObject("delta");
+            String content = "";
+            String reasoning = "";
+            if (message != null) {
+                content = textOf(message.opt("content"));
+                reasoning = message.optString("reasoning_content", "");
+                if (reasoning.isEmpty()) {
+                    reasoning = message.optString("reasoning", "");
+                }
+            } else if (upstreamDelta != null) {
+                content = textOf(upstreamDelta.opt("content"));
+                reasoning = upstreamDelta.optString("reasoning_content", "");
+                if (reasoning.isEmpty()) {
+                    reasoning = upstreamDelta.optString("reasoning", "");
+                }
+            } else {
+                content = choice.optString("text", "");
+            }
+            if (!content.isEmpty()) {
+                delta.put("content", content);
+            }
+            if (!reasoning.isEmpty()) {
+                delta.put("reasoning_content", reasoning);
+            }
+            if (delta.length() > 0 || !finish.isEmpty()) {
+                emitSyntheticChunk(view, id, delta, document.optJSONObject("usage"), finish);
+            }
+            JSONObject done = new JSONObject();
+            done.put("type", "done");
+            done.put("status", 200);
+            deliver(view, id, done);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** content 既可能是字符串，也可能是 [{type:text,text:...}] 数组 */
+    private static String textOf(Object content) {
+        if (content == null) {
+            return "";
+        }
+        if (content instanceof String) {
+            return (String) content;
+        }
+        if (content instanceof JSONArray) {
+            StringBuilder builder = new StringBuilder();
+            JSONArray parts = (JSONArray) content;
+            for (int index = 0; index < parts.length(); index += 1) {
+                Object part = parts.opt(index);
+                if (part instanceof JSONObject) {
+                    String text = ((JSONObject) part).optString("text", "");
+                    if (!text.isEmpty()) {
+                        builder.append(text);
+                    }
+                } else if (part instanceof String) {
+                    builder.append((String) part);
+                }
+            }
+            return builder.toString();
+        }
+        return "";
+    }
+    private static void emitSyntheticChunk(WebView view, String id, JSONObject delta, JSONObject usage, String finishReason) {
+        try {
+            JSONObject choice = new JSONObject();
+            choice.put("delta", delta);
+            if (finishReason != null && !finishReason.isEmpty()) {
+                choice.put("finish_reason", finishReason);
+            }
+            JSONArray choices = new JSONArray();
+            choices.put(choice);
+            JSONObject chunk = new JSONObject();
+            chunk.put("choices", choices);
+            if (usage != null) {
+                chunk.put("usage", usage);
+            }
+            JSONObject payload = new JSONObject();
+            payload.put("type", "chunk");
+            payload.put("data", chunk.toString());
+            deliver(view, id, payload);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** 处理一行 SSE / NDJSON；返回是否识别为数据行 */
+    private static boolean handleStreamLine(WebView view, String id, String line) {
+        String trimmed = line == null ? "" : line.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+        if (trimmed.startsWith("\uFEFF")) {
+            trimmed = trimmed.substring(1).trim();
+        }
+        String data;
+        if (trimmed.startsWith("data:")) {
+            data = trimmed.substring(5).trim();
+            if (data.isEmpty() || "[DONE]".equals(data)) {
+                return false;
+            }
+        } else if (trimmed.startsWith("{")) {
+            data = trimmed;
+        } else {
+            return false;
+        }
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("type", "chunk");
+            payload.put("data", data);
+            deliver(view, id, payload);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** 把整段文本按行喂给 handleStreamLine（text/plain 兜底路径用） */
+    private static boolean emitStreamLines(WebView view, String id, String whole) {
+        if (whole == null || whole.isEmpty()) {
+            return false;
+        }
+        boolean any = false;
+        for (String line : whole.split("\\r?\\n")) {
+            any |= handleStreamLine(view, id, line);
+        }
+        return any;
+    }
+
+    /** [DONE] 的各种写法（大小写、多空格） */
+    private static boolean isDoneLine(String trimmed) {
+        if (trimmed == null) {
+            return false;
+        }
+        String compact = trimmed.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+        return "[done]".equals(compact) || "data:[done]".equals(compact);
+    }
+
+    /** 这段文本是否已经是一个完整 JSON（用于判断「无空行 SSE」的一条事件是否结束） */
+    private static boolean isCompleteJson(String text) {
+        try {
+            new JSONObject(text);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** 投递一条上游数据；返回是否包含 finish_reason（用于判断回答是否完整） */
+    private static boolean deliverDataChunk(WebView view, String id, String data) {
+        if (data == null || data.isEmpty()) {
+            return false;
+        }
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("type", "chunk");
+            payload.put("data", data);
+            deliver(view, id, payload);
+        } catch (Exception ignored) {
+            return false;
+        }
+        try {
+            JSONObject document = new JSONObject(data);
+            JSONArray choices = document.optJSONArray("choices");
+            if (choices != null && choices.length() > 0) {
+                JSONObject choice = choices.getJSONObject(0);
+                if (choice.isNull("finish_reason")) {
+                    return false;
+                }
+                Object finish = choice.opt("finish_reason");
+                return finish != null
+                        && finish != JSONObject.NULL
+                        && !String.valueOf(finish).trim().isEmpty();
+            }
+        } catch (Exception ignored) {
+            // 不是单个合法 JSON（例如多段拼接），交给前端报空流
+        }
+        return false;
+    }
+
     static void chat(final WebView view, final String id, final String bodyJson) {
         final Context context = view.getContext();
         IO.execute(() -> {
@@ -228,41 +443,169 @@ public final class CustomProvider {
                     return;
                 }
                 int status = connection.getResponseCode();
-                if (status != 200) {
+                if (status < 200 || status >= 300) {
                     String body = readAll(connection.getErrorStream());
-                    deliverError(view, id, status, clip(body, 600));
+                    deliverError(view, id, status, clip(body, 1200));
                     return;
                 }
                 String contentType = connection.getContentType();
+                String htmlType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+                if (htmlType.startsWith("text/html")) {
+                    // 不只看 Content-Type：有些网关把 JSON/SSE 错标成 text/html，只有 body 真是网页才拦。
+                    String page = readAll(connection.getInputStream());
+                    String raw = page == null ? "" : page.replace("\uFEFF", "").trim();
+                    String head = raw;
+                    String headLower = head.toLowerCase(Locale.ROOT);
+                    if (head.startsWith("<") || headLower.contains("<!doctype") || headLower.contains("<html")) {
+                        deliverError(view, id, 0,
+                                "供应商返回的是网页而不是接口数据（可能是网关/防火墙/WAF 拦截或 Base URL 填成了官网）：" + clip(page, 300));
+                        return;
+                    }
+                    if (head.startsWith("{") && emitJsonReply(view, id, page)) {
+                        return;
+                    }
+                    if (emitStreamLines(view, id, page)) {
+                        JSONObject htmlDone = new JSONObject();
+                        htmlDone.put("type", "done");
+                        htmlDone.put("status", 200);
+                        deliver(view, id, htmlDone);
+                        return;
+                    }
+                    deliverError(view, id, 0, "该供应商返回了无法识别的内容：" + clip(page, 300));
+                    return;
+                }
+                // 有的供应商忽略 stream=true，直接回一段 JSON 回复：当成「只有一个 chunk」处理，
+                // 而不是报「没有返回流式响应」。
                 if (contentType != null
                         && contentType.toLowerCase(Locale.ROOT).startsWith("application/json")) {
                     String body = readAll(connection.getInputStream());
-                    deliverError(view, id, 200,
-                            "该供应商没有返回流式响应：" + clip(body, 500));
+                    if (emitJsonReply(view, id, body)) {
+                        return;
+                    }
+                    deliverError(view, id, 200, "该供应商返回了无法识别的内容：" + clip(body, 800));
+                    return;
+                }
+                String lowerType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+                // 有些网关/自建服务把非流式 JSON 标成 text/plain 甚至不带 Content-Type：
+                // 先把整段读出来试解析，不是 JSON 再按行当 SSE 处理。
+                if (lowerType.isEmpty() || lowerType.startsWith("text/plain")) {
+                    String whole = readAll(connection.getInputStream());
+                    if (whole != null && !whole.trim().isEmpty() && whole.trim().startsWith("{")) {
+                        if (emitJsonReply(view, id, whole)) {
+                            return;
+                        }
+                    }
+                    if (whole == null || whole.trim().isEmpty()) {
+                        deliverError(view, id, 0, "供应商返回了空响应，请检查 Base URL 或稍后重试");
+                        return;
+                    }
+                    // 与流式分支一致：累积多行 data:，兼容 NDJSON
+                    StringBuilder pending = new StringBuilder();
+                    boolean anyChunk = false;
+                    boolean sawFinish = false;
+                    boolean sawDone = false;
+                    for (String rawLine : whole.split("\\r?\\n")) {
+                        String trimmed = rawLine == null ? "" : rawLine.trim();
+                        if (trimmed.startsWith("\uFEFF")) {
+                            trimmed = trimmed.substring(1).trim();
+                        }
+                        if (trimmed.isEmpty()) {
+                            if (pending.length() > 0) {
+                                String data = pending.toString();
+                                pending.setLength(0);
+                                anyChunk = true;
+                                sawFinish |= deliverDataChunk(view, id, data);
+                            }
+                            continue;
+                        }
+                        if (isDoneLine(trimmed)) {
+                            sawDone = true;
+                            continue;
+                        }
+                        if (trimmed.startsWith("data:")) {
+                            String piece = trimmed.substring(5).trim();
+                            if (piece.isEmpty()) {
+                                continue;
+                            }
+                            // SSE 允许多行 data:；但很多自建网关每条事件之间不空行，
+                            // 所以 pending 已经是合法 JSON 时先投递，再开始下一条。
+                            if (pending.length() > 0 && isCompleteJson(pending.toString())) {
+                                sawFinish |= deliverDataChunk(view, id, pending.toString());
+                                pending.setLength(0);
+                            }
+                            pending.append(piece);
+                            continue;
+                        }
+                        if (trimmed.startsWith("{")) {
+                            anyChunk = true;
+                            sawFinish |= deliverDataChunk(view, id, trimmed);
+                        }
+                    }
+                    if (pending.length() > 0) {
+                        anyChunk = true;
+                        sawFinish |= deliverDataChunk(view, id, pending.toString());
+                    }
+                    if (!anyChunk) {
+                        deliverError(view, id, 0, "该供应商返回了无法识别的内容：" + clip(whole, 300));
+                        return;
+                    }
+                    JSONObject plainDone = new JSONObject();
+                    plainDone.put("type", "done");
+                    plainDone.put("status", 200);
+                    plainDone.put("complete", sawDone || sawFinish);
+                    deliver(view, id, plainDone);
                     return;
                 }
                 BufferedReader reader = new BufferedReader(new InputStreamReader(
                         connection.getInputStream(), StandardCharsets.UTF_8));
+                StringBuilder pending = new StringBuilder();
+                boolean sawDone = false;
+                boolean sawFinish = false;
                 try {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         if (CANCELLED.contains(id)) {
                             break;
                         }
-                        if (line.isEmpty() || !line.startsWith("data:")) {
+                        String trimmed = line == null ? "" : line.trim();
+                        if (trimmed.startsWith("\uFEFF")) {
+                            trimmed = trimmed.substring(1).trim();
+                        }
+                        if (trimmed.isEmpty()) {
+                            if (pending.length() > 0) {
+                                String data = pending.toString();
+                                pending.setLength(0);
+                                sawFinish |= deliverDataChunk(view, id, data);
+                            }
                             continue;
                         }
-                        String data = line.substring(5).trim();
-                        if (data.isEmpty()) {
-                            continue;
-                        }
-                        if ("[DONE]".equals(data)) {
+                        if (isDoneLine(trimmed)) {
+                            sawDone = true;
                             break;
                         }
-                        JSONObject payload = new JSONObject();
-                        payload.put("type", "chunk");
-                        payload.put("data", data);
-                        deliver(view, id, payload);
+                        if (trimmed.startsWith("data:")) {
+                            String piece = trimmed.substring(5).trim();
+                            if (piece.isEmpty()) {
+                                continue;
+                            }
+                            // SSE 允许多行 data:；但很多自建网关每条事件之间不空行，
+                            // 所以 pending 已经是合法 JSON 时先投递，再开始下一条。
+                            if (pending.length() > 0 && isCompleteJson(pending.toString())) {
+                                sawFinish |= deliverDataChunk(view, id, pending.toString());
+                                pending.setLength(0);
+                            }
+                            pending.append(piece);
+                            continue;
+                        }
+                        if (trimmed.startsWith("{")) {
+                            // Ollama / 部分网关是 NDJSON：一行一个完整 JSON
+                            sawFinish |= deliverDataChunk(view, id, trimmed);
+                            continue;
+                        }
+                        // event: / id: / retry: / 注释行：忽略
+                    }
+                    if (pending.length() > 0) {
+                        sawFinish |= deliverDataChunk(view, id, pending.toString());
                     }
                 } finally {
                     try {
@@ -272,6 +615,8 @@ public final class CustomProvider {
                 JSONObject done = new JSONObject();
                 done.put("type", "done");
                 done.put("status", 200);
+                // complete=false 表示「既没看到 finish_reason 也没看到 [DONE] 就断开了」
+                done.put("complete", sawDone || sawFinish);
                 deliver(view, id, done);
             } catch (Exception error) {
                 if (!CANCELLED.remove(id)) {
@@ -483,6 +828,57 @@ public final class CustomProvider {
         return !host.isEmpty() && host.equals(hostOf(second));
     }
 
+    /** 本地回环 / 局域网地址：允许 http（Ollama、LM Studio 等自建服务） */
+    /** 本地回环 / 局域网地址：允许 http（Ollama、LM Studio 等自建服务） */
+    private static boolean isPrivateHost(URL parsed) {
+        String host = parsed == null ? "" : String.valueOf(parsed.getHost()).toLowerCase(Locale.ROOT);
+        if (host.isEmpty()) {
+            return false;
+        }
+        if (host.endsWith(".")) {
+            // 尾点写法歧义太大，直接拒绝
+            return false;
+        }
+        if ("localhost".equals(host) || "::1".equals(host) || "[::1]".equals(host) || "0.0.0.0".equals(host)) {
+            return true;
+        }
+        // 必须是纯 IPv4 字面量，避免 10.evil.com / 192.168.evil.com 这类域名绕过
+        String[] parts = host.split("\\.");
+        if (parts.length != 4) {
+            return false;
+        }
+        int[] octets = new int[4];
+        for (int index = 0; index < 4; index += 1) {
+            String part = parts[index];
+            if (part.isEmpty() || part.length() > 3) {
+                return false;
+            }
+            if (part.length() > 1 && part.startsWith("0")) {
+                // 前导零在浏览器里会被当八进制，和原生解析结果不一致，直接拒绝
+                return false;
+            }
+            for (int digit = 0; digit < part.length(); digit += 1) {
+                if (!Character.isDigit(part.charAt(digit))) {
+                    return false;
+                }
+            }
+            int value = Integer.parseInt(part);
+            if (value > 255) {
+                return false;
+            }
+            octets[index] = value;
+        }
+        if (octets[0] == 127 || octets[0] == 10) {
+            return true;
+        }
+        if (octets[0] == 192 && octets[1] == 168) {
+            return true;
+        }
+        if (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) {
+            return true;
+        }
+        return false;
+    }
     private static void requireHttpsUrl(String url) throws Exception {
         URL parsed;
         try {
@@ -490,9 +886,15 @@ public final class CustomProvider {
         } catch (Exception malformed) {
             throw new Exception("Base URL 格式不正确");
         }
-        if (!"https".equalsIgnoreCase(parsed.getProtocol())
-                || parsed.getHost() == null || parsed.getHost().isEmpty()) {
-            throw new Exception("Base URL 需要以 https:// 开头并包含域名");
+        String scheme = parsed.getProtocol() == null ? "" : parsed.getProtocol().toLowerCase(Locale.ROOT);
+        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+            throw new Exception("Base URL 只支持 http:// 或 https://");
+        }
+        if (!"https".equals(scheme) && !isPrivateHost(parsed)) {
+            throw new Exception("Base URL 需要以 https:// 开头（只有 127.0.0.1 / 局域网地址允许 http://）");
+        }
+        if (parsed.getHost() == null || parsed.getHost().isEmpty()) {
+            throw new Exception("Base URL 需要包含域名或 IP");
         }
         if (parsed.getQuery() != null || parsed.getRef() != null) {
             throw new Exception("Base URL 不能带查询参数或锚点");

@@ -51,4 +51,36 @@ public final class ScreenBridge {
     public int orientation() {
         return activity.getResources().getConfiguration().orientation;
     }
+
+    /**
+     * WebView 页面重载后让原生重新推一次 --ds-safe-top/--ds-safe-bottom。
+     * 原生只在 Activity 启动时推过一次，页面重载会把 documentElement 上的内联变量丢掉。
+     */
+    @JavascriptInterface
+    public void refreshInsets() {
+        activity.runOnUiThread(() -> ChatWindowInsets.refreshInsets(activity));
+    }
+
+    /**
+     * 读取当前安全区（CSS px，已按 density 换算），返回 "top,bottom"。
+     * 页面启动时如果没拿到原生推送，用它兜底写 CSS 变量。
+     */
+    @JavascriptInterface
+    public String safeInsetsCss() {
+        try {
+            android.view.WindowInsets insets = activity.getWindow().getDecorView().getRootWindowInsets();
+            if (insets == null) {
+                return "";
+            }
+            float density = activity.getResources().getDisplayMetrics().density;
+            if (density <= 0f) {
+                density = 1f;
+            }
+            int topPx = insets.getInsets(android.view.WindowInsets.Type.statusBars()).top;
+            int bottomPx = insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom;
+            return Math.round(topPx / density) + "," + Math.round(bottomPx / density);
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
 }

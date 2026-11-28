@@ -653,20 +653,17 @@ export const loadOfficialSession = async (id: string): Promise<Session | undefin
   const summary = useChatStore.getState().sessions.find((item) => item.id === id)
   const session = convertSession(officialId, data, summary)
   if (existing) {
-    const known = new Set(session.messages.map((message) => message.id))
-    const localOnly = existing.messages.filter((message) => !known.has(message.id))
-    // 官方消息保持服务器返回的顺序；本地 API 续聊按时间插到对应位置。
-    const merged = [...session.messages]
-    for (const message of localOnly) {
-      let index = merged.length
-      for (let i = merged.length - 1; i >= 0; i--) {
-        if (merged[i].createdAt <= message.createdAt) {
-          index = i + 1
-          break
-        }
-        index = i
-      }
-      merged.splice(index, 0, message)
+    /*
+     * 官方消息 + 本地消息合并：按内容去重。
+     * 官方 id 是 o_*，导入归档/本地续聊是数字/UUID，只按 id 判断会把同一段问答留两份
+     * （用户导入再同步后，会话里出现成对的重复问答）。去重只删「内容完全相同的副本」，
+     * 本地独有内容一条不丢。
+     */
+    const { mergeOfficialWithLocal } = await import('../chat/officialMerge.js')
+    const mergedResult = mergeOfficialWithLocal(session.messages, existing.messages)
+    const merged = mergedResult.messages
+    if (mergedResult.deduped > 0) {
+      console.info('[official] merged session deduped messages:', mergedResult.deduped, 'session:', id)
     }
     /*
      * 合并完本地续聊消息后重建一次分支选中链：
@@ -753,10 +750,16 @@ export const warmOfficialCache = async (limit = 400): Promise<void> => {
       .filter((summary) => summary.id.startsWith(OFFICIAL_PREFIX))
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .slice(0, limit)
+    const { hasDuplicateMessages } = await import('../chat/officialMerge.js')
     for (const summary of targets) {
       try {
         const stored = await db.loadSession(summary.id)
-        if (stored && stored.updatedAt >= summary.updatedAt) {
+        /*
+         * 本地已有内容且不比服务端旧时默认跳过。
+         * 例外：会话里存在内容完全重复的消息（导入 + 官方同步各留一份的旧数据），
+         * 这时也刷新一次，顺手把重复对去掉。
+         */
+        if (stored && stored.updatedAt >= summary.updatedAt && !hasDuplicateMessages(stored.messages)) {
           continue
         }
         await loadOfficialSession(summary.id)
@@ -1247,9 +1250,45 @@ export const registerVoiceDemoWatcher = () => {
   })
 }
 
+/**
+ * 清理存量重复消息：之前「导入 + 官方同步」留下的成对重复问答，不需要重新联网，
+ * 用本地已有的 o_ 官方消息做基准，把同内容的非官方副本去掉。
+ */
+export const dedupeStoredOfficialSessions = async (): Promise<number> => {
+  const { dedupeOfficialSessionMessages } = await import('../chat/officialMerge.js')
+  const summaries = await db.loadSessionSummaries()
+  /*
+   * 不能只取前 N 个：会话是按 id 乱的，真正有正文的可能排在很后面。
+   * 这里遍历全部摘要、逐个 loadSession（没有正文的会话只是一次空读，开销很小）。
+   */
+  let total = 0
+  for (const summary of summaries) {
+    if (!summary.id.startsWith(OFFICIAL_PREFIX)) {
+      continue
+    }
+    try {
+      const session = await db.loadSession(summary.id)
+      if (!session) {
+        continue
+      }
+      const result = dedupeOfficialSessionMessages(session.messages)
+      if (result.deduped <= 0) {
+        continue
+      }
+      await db.saveSession({ ...session, messages: result.messages })
+      total += result.deduped
+      console.info('[official] cleaned duplicate messages:', result.deduped, 'session:', summary.id)
+    } catch {
+      // 单条会话失败不影响其它
+    }
+  }
+  return total
+}
+
 /** 绑定官方会话加载器；返回注销函数。 */
 export const registerOfficialSync = () => {
   useChatStore.getState().setOfficialLoader(loadOfficialSession)
+  void dedupeStoredOfficialSessions()
   if (officialHasToken()) {
     void syncOfficialSummaries()
     void syncOfficialProfile()

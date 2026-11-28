@@ -360,6 +360,16 @@ public final class BackupBridge {
         return "fail:" + failures;
     }
 
+    /** 分享刚导出的 zip（系统分享面板，跨 ROM 都认，不用先找文件管理器）。 */
+    @JavascriptInterface
+    public String shareExport(String name) {
+        File file = backupFile(name);
+        if (file == null || !file.isFile()) {
+            return "fail:nofile";
+        }
+        return MessageShare.shareExport(activity, name) ? "ok" : "fail:share";
+    }
+
     /** 打开失败时的兜底：把路径复制到剪贴板，用户至少能自己去找。 */
     @JavascriptInterface
     public boolean copyText(String text) {

@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
 import android.util.Base64;
@@ -21,12 +22,51 @@ import java.util.UUID;
 public final class MessageShare extends ContentProvider {
     private static File dir(Context c) { return new File(c.getCacheDir(), "message-cards"); }
     private File resolve(Uri u) throws FileNotFoundException {
-        String name = u.getLastPathSegment();
-        if (!(getContext().getPackageName()+".shares").equals(u.getAuthority()) || u.getPathSegments().size()!=1 ||
-                name==null || !name.matches("[a-f0-9-]{36}\\.(png|csv)")) throw new FileNotFoundException();
-        File f = new File(dir(getContext()), name);
-        if (!f.isFile()) throw new FileNotFoundException();
-        return f;
+        String authority = getContext().getPackageName()+".shares";
+        if (!authority.equals(u.getAuthority())) throw new FileNotFoundException();
+        java.util.List<String> segments = u.getPathSegments();
+        if (segments.size()==1) {
+            String name = segments.get(0);
+            if (!name.matches("[a-f0-9-]{36}\\.(png|csv)")) throw new FileNotFoundException();
+            File f = new File(dir(getContext()), name);
+            if (!f.isFile()) throw new FileNotFoundException();
+            return f;
+        }
+        if (segments.size()==2 && "export".equals(segments.get(0))) {
+            String name = segments.get(1);
+            if (name==null || !name.matches("[\\p{L}\\p{N}._-]{1,120}\\.zip")) throw new FileNotFoundException();
+            File base = new File(Environment.getExternalStorageDirectory(), "DS-Chat");
+            File f = new File(base, name);
+            try {
+                String prefix = base.getCanonicalPath()+File.separator;
+                if (!f.getCanonicalPath().startsWith(prefix) || !f.isFile()) throw new FileNotFoundException();
+            } catch (IOException error) { throw new FileNotFoundException(); }
+            return f;
+        }
+        throw new FileNotFoundException();
+    }
+
+    /** 分享 /sdcard/DS-Chat 里刚导出的 zip：走系统分享面板，不用先找文件管理器。 */
+    public static boolean shareExport(android.app.Activity a, String name) {
+        if (a==null || a.isFinishing() || a.isDestroyed() || name==null || name.isEmpty()) return false;
+        File base = new File(Environment.getExternalStorageDirectory(), "DS-Chat");
+        File f = new File(base, name);
+        if (!f.isFile()) return false;
+        try {
+            Uri uri = new Uri.Builder().scheme("content")
+                    .authority(a.getPackageName()+".shares").appendPath("export").appendPath(name).build();
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("application/zip");
+            send.putExtra(Intent.EXTRA_STREAM, uri);
+            send.setClipData(ClipData.newRawUri(name, uri));
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent chooser = Intent.createChooser(send, null);
+            chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            a.runOnUiThread(()->{ try { a.startActivity(chooser); } catch (Exception ignored) {} });
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
     private static Uri card(Activity a, String value) throws IOException {
         if (value.length()>4*1024*1024) throw new IOException();
@@ -70,8 +110,11 @@ public final class MessageShare extends ContentProvider {
     }
     @Override public boolean onCreate() {return true;}
     @Override public String getType(Uri u) {
-        try {return resolve(u).getName().endsWith(".csv") ? "text/csv" : "image/png";}
-        catch (FileNotFoundException ex) {return null;}
+        try {
+            String n = resolve(u).getName();
+            if (n.endsWith(".zip")) return "application/zip";
+            return n.endsWith(".csv") ? "text/csv" : "image/png";
+        } catch (FileNotFoundException ex) {return null;}
     }
     @Override public ParcelFileDescriptor openFile(Uri u,String mode) throws FileNotFoundException {
         if (!"r".equals(mode)) throw new FileNotFoundException();
@@ -81,7 +124,9 @@ public final class MessageShare extends ContentProvider {
         File f;try {f=resolve(u);} catch (FileNotFoundException ex) {return null;}
         if (projection==null) projection=new String[]{OpenableColumns.DISPLAY_NAME,OpenableColumns.SIZE};
         MatrixCursor rows=new MatrixCursor(projection);MatrixCursor.RowBuilder row=rows.newRow();
-        String name=f.getName().endsWith(".csv") ? tableName(f.lastModified()) : "Chat.png";
+        String name;
+        if (f.getName().endsWith(".zip")) name=f.getName();
+        else name=f.getName().endsWith(".csv") ? tableName(f.lastModified()) : "Chat.png";
         for(String k:projection) row.add(OpenableColumns.DISPLAY_NAME.equals(k)?name:OpenableColumns.SIZE.equals(k)?Long.valueOf(f.length()):null);
         return rows;
     }

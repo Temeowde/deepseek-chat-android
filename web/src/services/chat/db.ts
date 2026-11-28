@@ -87,6 +87,42 @@ export const loadSessionSummaries = async (): Promise<SessionSummary[]> =>
 export const loadSession = async (id: string): Promise<Session | undefined> =>
   (await getDB()).get('sessions', id)
 
+/** 会话选择页用的轻量统计：只数消息条数，不保留正文，避免把 700+ 会话全读进内存。 */
+export type SessionStatsRow = {
+  id: string
+  title: string
+  pinned: boolean
+  createdAt: number
+  updatedAt: number
+  /** 轮次 ≈ 消息条数 / 2（用户 + 回答成对） */
+  rounds: number
+  /** 本地是否有正文（官方同步的会话可能只有摘要） */
+  hasContent: boolean
+}
+
+export const loadSessionStats = async (): Promise<SessionStatsRow[]> => {
+  const db = await getDB()
+  const tx = db.transaction('sessions')
+  const rows: SessionStatsRow[] = []
+  let cursor = await tx.store.openCursor()
+  while (cursor) {
+    const session = cursor.value
+    const messages = session.messages?.length ?? 0
+    rows.push({
+      id: session.id,
+      title: session.title ?? '',
+      pinned: Boolean(session.pinned),
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+      rounds: Math.ceil(messages / 2),
+      hasContent: messages > 0,
+    })
+    cursor = await cursor.continue()
+  }
+  await tx.done
+  return rows
+}
+
 /** 只登记摘要（例如官方账号同步来的会话），消息在打开时再拉取。 */
 export const saveSummary = async (summary: SessionSummary): Promise<void> => {
   const db = await getDB()

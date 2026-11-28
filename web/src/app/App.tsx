@@ -23,6 +23,7 @@ import { SessionView } from '../components/session/SessionView.js'
 import { MobileConversation } from '../components/session/MobileConversation.js'
 import { Welcome } from '../components/session/Welcome.js'
 import { SettingsDialog } from '../components/settings/SettingsDialog.js'
+import { BackupPermissionPrompt } from '../components/settings/BackupPermissionPrompt.js'
 import { Toast } from '../components/base/Toast.js'
 import { showToast } from '../components/base/toastState.js'
 import { onUploadNotice } from '../services/attachments.js'
@@ -276,6 +277,7 @@ export const App = () => {
         <SearchPanel />
       </div>
       <SettingsDialog />
+      <BackupPermissionPrompt />
       <Toast />
     </>
   )

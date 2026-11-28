@@ -1,4 +1,4 @@
-window.createMobileMessageActions = function (React,portal,copy,rate) {
+﻿window.createMobileMessageActions = function (React,portal,copy,rate) {
   const h=React.createElement,Ctx=React.createContext(null);
   const icon=key=>h('span',{className:'ds-ui-icon','aria-hidden':true,style:{'--ds-icon':`url("ui-icons/${key}.svg")`}});
   const {Share,send}=window.createChatShare(React,icon,copy);
@@ -247,7 +247,7 @@ window.createMobileMessageActions = function (React,portal,copy,rate) {
         onClick:()=>{show(null);if(k==='select')select(menu);else if(k==='share')startShare(menu.id);else btn.click();}},icon(i),label);
     };
     const user=menu?.row.dataset.chatRole==='user';
-    let items=[];if(menu)items=[action('copy',tr('复制','Copy'),'copy'),action('select',tr('选择文本','Select text'),'text-select'),...(user?[action('edit',tr('修改','Edit'),'pencil')]:[action('regenerate',tr('重新生成','Regenerate'),'rotate-cw'),action('speak',menu.row.querySelector('[data-msg-action=speak]')?.ariaLabel||tr('朗读','Read aloud'),'volume-2')]),action('share',tr('分享','Share'),'forward')].filter(Boolean);
+    let items=[];if(menu)items=[action('copy',tr('复制','Copy'),'copy'),action('select',tr('选择文本','Select text'),'text-select'),...(user?[action('edit',tr('修改','Edit'),'pencil')]:[action('regenerate',tr('重新生成','Regenerate'),'rotate-cw'),action('speak',menu.row.querySelector('[data-msg-action=speak]')?.ariaLabel||tr('朗读','Read aloud'),'volume-2'),action('usage',tr('本轮消耗','Usage'),'database')]),action('share',tr('分享','Share'),'forward')].filter(Boolean);
     const place=(x,y,w,h)=>({left:Math.max(8,Math.min(innerWidth-w-8,x-w/2)),top:Math.max(8,Math.min(innerHeight-h-8,y+h+12<=innerHeight?y+10:y-h-8))});
     return h(Ctx.Provider,{value},children,portal(h(React.Fragment,null,
       menu&&h('div',{className:'ds-msg-scrim',onPointerDown:e=>{if(e.target===e.currentTarget){e.preventDefault();show(null);}}},h('div',{role:'menu',className:'ds-msg-menu',style:place(menu.x,menu.y,187,items.length*44)},items)),

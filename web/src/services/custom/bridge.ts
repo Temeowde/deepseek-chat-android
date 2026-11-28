@@ -11,13 +11,15 @@ export type CustomProviderConfig = {
   model: string
   hasKey: boolean
   keyLength: number
+  /** 本地/局域网地址（通常不需要 Key） */
+  local?: boolean
 }
 
 export type CustomSaveResult = { ok: boolean; error?: string }
 
 export type CustomBridgeEvent =
   | { type: 'chunk'; data: string }
-  | { type: 'done'; status?: number }
+  | { type: 'done'; status?: number; complete?: boolean }
   | { type: 'error'; status?: number; message?: string }
 
 type CustomAndroid = {
@@ -46,6 +48,9 @@ declare global {
     __customBridgeDeliver?: (id: string, payload: string) => void
   }
 }
+
+/** 原生事件迟迟不来（WebView 重建/桥丢失）时的前端兜底，避免一直转圈 */
+const CHAT_IDLE_TIMEOUT_MS = 300_000
 
 const sinks = new Map<string, Sink>()
 const modelRequests = new Map<string, ModelRequest>()
@@ -109,6 +114,7 @@ const readConfig = (): CustomProviderConfig => {
       baseUrl: typeof parsed.baseUrl === 'string' ? parsed.baseUrl : '',
       model: typeof parsed.model === 'string' ? parsed.model : '',
       hasKey: parsed.hasKey === true,
+      local: parsed.local === true,
       keyLength:
         typeof parsed.keyLength === 'number' && Number.isFinite(parsed.keyLength)
           ? parsed.keyLength
@@ -207,6 +213,7 @@ export const openCustomStream = (
     },
     close: () => {
       closed = true
+      window.clearTimeout(idleTimer)
       sinks.delete(id)
       wake?.()
       wake = null
@@ -219,6 +226,7 @@ export const openCustomStream = (
       return
     }
     closed = true
+    window.clearTimeout(idleTimer)
     sinks.delete(id)
     wake?.()
     wake = null
@@ -229,9 +237,40 @@ export const openCustomStream = (
     }
   }
 
+  /* 兜底：连续 5 分钟没有任何事件就报错收尾，并顺手取消原生请求 */
+  let idleTimer = 0
+  const armTimer = () => {
+    window.clearTimeout(idleTimer)
+    idleTimer = window.setTimeout(() => {
+      if (closed) {
+        return
+      }
+      sink.push({
+        type: 'error',
+        message: '请求超时：迟迟没有收到供应商的数据，请检查网络或 Base URL 后重试',
+      })
+      try {
+        api.cancel?.(id)
+      } catch {
+        // 忽略
+      }
+      sink.close()
+    }, CHAT_IDLE_TIMEOUT_MS)
+  }
+  armTimer()
+  // 每个事件到达都重新计时（否则长回答会在 5 分钟后被误判超时）
+  const originalPush = sink.push
+  sink.push = (event) => {
+    if (!closed) {
+      armTimer()
+    }
+    originalPush(event)
+  }
+
   try {
     api.chat(id, JSON.stringify(body))
   } catch (error) {
+    window.clearTimeout(idleTimer)
     sinks.delete(id)
     throw error
   }

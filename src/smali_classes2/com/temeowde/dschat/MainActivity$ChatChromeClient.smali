@@ -264,34 +264,13 @@
     return v3
 
     :choose_document
-    invoke-static {v0, p3}, Lcom/temeowde/dschat/AttachmentPicker;->picker(Landroid/app/Activity;Landroid/webkit/WebChromeClient$FileChooserParams;)Landroid/content/Intent;
+    invoke-static {v0, p3}, Lcom/temeowde/dschat/AttachmentPicker;->open(Landroid/app/Activity;Landroid/webkit/WebChromeClient$FileChooserParams;)Z
 
-    move-result-object v0
+    move-result v2
 
-    .line 442
-    .local v0, "intent":Landroid/content/Intent;
-    const/4 v3, 0x1
-
-    .line 447
-    :cond_1
-    :try_start_0
-    iget-object v2, p0, Lcom/temeowde/dschat/MainActivity$ChatChromeClient;->this$0:Lcom/temeowde/dschat/MainActivity;
-
-    const/16 v4, 0x3e9
-
-    invoke-virtual {v2, v0, v4}, Lcom/temeowde/dschat/MainActivity;->startActivityForResult(Landroid/content/Intent;I)V
-    :try_end_0
-    .catch Landroid/content/ActivityNotFoundException; {:try_start_0 .. :try_end_0} :catch_0
-
-    .line 448
-    return v3
-
-    .line 449
-    :catch_0
-    move-exception v2
+    if-nez v2, :opened
 
     .line 450
-    .local v2, "error":Landroid/content/ActivityNotFoundException;
     iget-object v3, p0, Lcom/temeowde/dschat/MainActivity$ChatChromeClient;->this$0:Lcom/temeowde/dschat/MainActivity;
 
     invoke-static {v3, v1}, Lcom/temeowde/dschat/MainActivity;->-$$Nest$fputfileCallback(Lcom/temeowde/dschat/MainActivity;Landroid/webkit/ValueCallback;)V
@@ -313,5 +292,7 @@
     invoke-virtual {v1}, Landroid/widget/Toast;->show()V
 
     .line 453
-    return v4
+    :opened
+    const/4 v0, 0x1
+    return v0
 .end method

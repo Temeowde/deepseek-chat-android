@@ -4,7 +4,7 @@ DeepSeek Chat 是一款非官方 DeepSeek Android 客户端。可以登录自己
 
 ## 下载
 
-**[下载 v4.5.0 APK](https://github.com/Temeowde/deepseek-chat-android/releases/download/v4.5.0/DeepSeek-Chat-4.5.0.apk)** · [所有版本](https://github.com/Temeowde/deepseek-chat-android/releases) · [更新记录](CHANGELOG.md)
+**[下载 v4.6.20 APK](https://github.com/Temeowde/deepseek-chat-android/releases/download/v4.6.20/DeepSeek-Chat-4.6.20.apk)** · [所有版本](https://github.com/Temeowde/deepseek-chat-android/releases) · [更新记录](CHANGELOG.md)
 
 支持 Android 8.0 及以上。在侧栏底部打开设置，填写在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 创建的 API Key；也可以在侧栏底部的账号行登录官方账号，同步官方会话。
 
@@ -13,10 +13,11 @@ DeepSeek Chat 是一款非官方 DeepSeek Android 客户端。可以登录自己
 ## 主要功能
 
 - **官方账号同步**。登录自己的官方账号后，官方 App 里的会话会同步到本地列表，打开会话时自动刷新；侧栏支持下拉刷新。官方额度用完时，可以在同一条对话里用 API 接着聊。
-- **本地备份与恢复**。开启后约每 2 分钟检查一次，有改动的会话增量备份到手机公共目录（通常几百 KB），并定期刷新一份完整备份。支持扫描本机备份、按时间点恢复、恢复前确认与进度显示；卸载重装后也能找回。
-- **导入与导出**。支持导入网页版对话 ZIP、导入本机备份、合并本地历史，以及把全部历史导出为 ZIP。大文件分块读写，导出完成会登记到系统「最近文件」并可一键打开文件管理器。
+- **本地备份与恢复**。默认开启；首次启动/升级时会说明并申请「所有文件访问权限」（只用于读写 `/sdcard/DS-Chat` 的备份，不会读其它文件）。约每 2 分钟检查一次，有改动的会话增量备份到手机公共目录（通常几百 KB），并定期刷新一份完整备份。支持扫描本机备份、按时间点恢复、恢复前确认与进度显示；卸载重装后也能找回。
+- **导入与导出**。支持导入网页版对话 ZIP、导入本机备份、合并本地历史；导出支持**只选部分对话**（搜索标题、按最近更新/消息最多排序），文件名可读（如 `对话导出-2026-11-28-1638-2个对话.zip`），默认写到 `/sdcard/DS-Chat`，完成后可直接分享到微信/QQ。大文件分块读写，导出完成也会登记到系统「最近文件」并可一键打开文件管理器。
 - **自定义 API**。内置 DeepSeek 官方接口，也支持自定义兼容 OpenAI 格式的服务商（可配置多个供应商与模型），在设置 → 数据管理 → 自定义 API 里切换。
 - **朗读**。回答支持朗读，接入官方 4 个朗读音色（贝壳、白浪、海星、暗潮），切换音色时可试听。
+- **用量与上下文**。每轮回答后可查看「本轮消耗额度」：缓存命中/未命中、输入与输出 token、金额估算，以及截止本轮的上下文占用率（按 API 实际上限 1,048,576 计算）。
 - **搜索与整理**。按标题、提问或回答搜索历史，直接定位到匹配消息。置顶、重命名和批量整理会话；修改提问或重新生成时可切换回答分支，也可停止生成后继续回答。
 - **阅读与分享**。切换会话时保留阅读位置。查看联网搜索引用、展开表格和导出 CSV，也可将选中的问答分享为文本或长图。
 - **输入与设置**。支持相册最近图片、拍照、文件和语音输入。可调节主题、界面语言、字体、正文大小、思考内容折叠和朗读音色。
@@ -36,12 +37,12 @@ $env:ANDROID_SDK = 'D:\AndroidToolchain\sdk'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-产物：`DeepSeek-Chat-4.5.0.apk`
+产物：`DeepSeek-Chat-4.6.20.apk`
 
 安装：
 
 ```bash
-adb install -r DeepSeek-Chat-4.5.0.apk
+adb install -r DeepSeek-Chat-4.6.20.apk
 ```
 
 Linux / macOS 下可以继续使用 `assemble.sh`（需要 python3）。

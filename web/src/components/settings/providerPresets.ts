@@ -81,7 +81,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     id: 'fireworks',
     label: 'Fireworks',
-    baseUrl: 'https://api.fireworks.ai/inference',
+    baseUrl: 'https://api.fireworks.ai/inference/v1',
     model: 'accounts/fireworks/models/deepseek-v4p1-flash',
   },
   {

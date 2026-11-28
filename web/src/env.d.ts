@@ -32,6 +32,8 @@ interface BackupAndroidBridge {
   abortBackupWrite?: (name: string) => boolean
   /** 把文件登记进系统媒体库，让它出现在「最近文件」里 */
   scanMedia?: (name: string) => boolean
+  /** 分享刚导出的 zip（调用系统分享面板；返回 "ok" 或 "fail:原因"） */
+  shareExport?: (name: string) => string
   /** 打开系统「文件」App（返回 "ok:..." 或 "fail:原因"） */
   openFilesApp?: () => string | boolean
   /** 复制文本到系统剪贴板（打开失败时的兜底） */
@@ -43,6 +45,10 @@ interface ScreenAndroidBridge {
   landscape: () => void
   portrait: () => void
   orientation: () => number
+  /** WebView 页面重载后让原生重推一次安全区 CSS 变量 */
+  refreshInsets?: () => void
+  /** 当前安全区（CSS px），格式 "top,bottom"；拿不到返回空串 */
+  safeInsetsCss?: () => string
 }
 
 /** 头像缓存桥：原生下载一次并存到缓存目录，返回 dataURL。 */

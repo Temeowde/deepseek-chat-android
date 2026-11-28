@@ -1,7 +1,6 @@
-import type { TranslationMessage } from '../../i18n/index.js'
+﻿import type { TranslationMessage } from '../../i18n/index.js'
 import type { ApiErrorKind } from '../api/client.js'
 import type {
-  ChatModel,
   MessageUsage,
   ServerToolBlock,
   StopDetails,
@@ -94,8 +93,10 @@ export type AssistantMessage = MessageBranch & {
   id: string
   role: 'assistant'
   createdAt: number
-  /** 未记录模型时为 null，续写使用当前默认模型。 */
-  model: ChatModel | null
+  /** 实际请求的模型名（官方通道 deepseek-flash / deepseek-v4-pro，第三方通道为各自的模型名）；未记录时为 null。 */
+  model: string | null
+  /** 本轮实际走的通道：搜索/附件会把自定义通道强制切到 DeepSeek，此时记录 deepseek。 */
+  provider?: 'deepseek' | 'workbuddy' | 'custom'
   /** 请求时是否开启深度思考 */
   thinking?: boolean
   /** 请求时是否声明 deepseek_web_search；关闭时仍声明 deepseek_read_url */

@@ -53,6 +53,12 @@ const assistantText = (content: Extract<MessageParam, { role: 'assistant' }>['co
  * 图片以 base64 data URL 内联（WorkBuddy 网关实测接受这个格式）；
  * 文档没有对应表示，直接报错而不是发一个无效引用。
  */
+/**
+ * 把一条用户消息转成 OpenAI 内容：纯文本走字符串，带图片时用 parts 数组。
+ * 图片以 base64 data URL 内联；文档附件和「只有服务端 file_id 的历史附件」
+ * 在这一通道没有对应表示，以前是直接抛错，结果整个历史会话都发不出去，
+ * 现在改成：能内联的文本附件拼进正文，发不了的附件用一行文字说明后跳过。
+ */
 const userContent = (
   content: Extract<MessageParam, { role: 'user' }>['content']
 ): string | OpenAIContentPart[] => {
@@ -62,6 +68,7 @@ const userContent = (
   const parts: OpenAIContentPart[] = []
   const texts: string[] = []
   let hasImage = false
+  let skipped = 0
   for (const block of content) {
     if (block.type === 'text') {
       texts.push(block.text)
@@ -75,10 +82,16 @@ const userContent = (
       hasImage = true
       continue
     }
-    throw new ApiError(
-      'protocol',
-      '这个聊天方式只支持图片；文档附件请切换到 DeepSeek 通道'
-    )
+    if (block.type === 'document' && block.source.type === 'text') {
+      // 文本附件（PDF/Word/PPT 本地解析出来的正文）直接并入正文，OpenAI 格式能收
+      texts.push(block.source.data)
+      continue
+    }
+    // 其余（只有 file_id 的历史图片/文档、官方通道专用块）这一通道发不了，跳过并说明
+    skipped += 1
+  }
+  if (skipped > 0) {
+    texts.push(`[这条历史消息里有 ${skipped} 个附件在当前通道发不出去，已跳过]`)
   }
   if (!hasImage) {
     return texts.join('\n')
@@ -87,7 +100,6 @@ const userContent = (
   const merged = [...parts, ...(texts.join('\n').trim() ? [{ type: 'text' as const, text: texts.join('\n') }] : [])]
   return merged
 }
-
 const toOpenAIMessages = (request: WorkBuddyRequest): OpenAIMessage[] => {
   const messages: OpenAIMessage[] = []
   if (request.system.trim()) {
@@ -161,6 +173,8 @@ type OpenAIChunk = {
     delta?: {
       content?: string | null
       reasoning_content?: string | null
+      reasoning?: string | null
+      thinking?: string | null
       tool_calls?: unknown
     }
     finish_reason?: string | null
@@ -246,7 +260,21 @@ export class StreamTranslator {
     }
     const choice = Array.isArray(chunk.choices) ? chunk.choices[0] : undefined
     const delta = choice?.delta ?? {}
-    const reasoning = typeof delta.reasoning_content === 'string' ? delta.reasoning_content : ''
+    /*
+     * 各家 OpenAI 兼容接口的思考字段名不统一：
+     * - DeepSeek / 通义 / 硅基流动：reasoning_content
+     * - OpenRouter 及部分网关：reasoning
+     * - 少数实现：thinking
+     * 以前只认 reasoning_content，别的厂商的思考过程就被整段丢掉了。
+     */
+    const reasoning =
+      typeof delta.reasoning_content === 'string' && delta.reasoning_content
+        ? delta.reasoning_content
+        : typeof delta.reasoning === 'string' && delta.reasoning
+          ? delta.reasoning
+          : typeof delta.thinking === 'string'
+            ? delta.thinking
+            : ''
     const content = typeof delta.content === 'string' ? delta.content : ''
 
     if (this.thinkingEnabled && reasoning) {
@@ -267,6 +295,22 @@ export class StreamTranslator {
       this.finishReason = choice.finish_reason
     }
     return events
+  }
+
+  /**
+   * 是否收到过 finish_reason。
+   * OpenAI 兼容接口正常结束一定会给（stop/length/tool_calls）；
+   * 没有就给完了通常意味着网关/网络把连接从中间掐断了。
+   */
+  /** 流被提前掐断（没有 [DONE] 也没有 finish_reason）：标成 max_tokens，让「继续生成」可用 */
+  markIncomplete(): void {
+    if (!this.finishReason) {
+      this.finishReason = 'length'
+    }
+  }
+
+  sawFinish(): boolean {
+    return this.finishReason !== ''
   }
 
   finish(): MessageStreamEvent[] {

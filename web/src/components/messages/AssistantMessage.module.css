@@ -144,9 +144,6 @@
     gap: 0;
     padding-block: 0 8px;
 
-    &[data-inline='false'] {
-      display: none;
-    }
   }
 
   .actions {
@@ -156,10 +153,6 @@
     min-width: 0;
     gap: 0;
     opacity: 1;
-
-    &[data-inline='false'] {
-      display: none;
-    }
 
     button {
       display: grid;
@@ -179,6 +172,7 @@
       margin-inline-start: auto;
     }
 
+
     button:disabled {
       opacity: 0.45;
       cursor: default;
@@ -194,8 +188,10 @@
       background: none;
       border-radius: 0;
     }
+
   }
 }
+
 
 @media (prefers-reduced-motion: reduce) {
   .waitingDot { animation: none; }

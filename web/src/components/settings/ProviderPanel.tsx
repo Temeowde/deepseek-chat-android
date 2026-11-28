@@ -591,6 +591,42 @@ const WorkBuddyField = () => {
 }
 
 /** 自定义 OpenAI 兼容供应商：Base URL / Key / 模型，Key 由原生 Keystore 保存。 */
+/**
+ * 本地/局域网地址（Ollama、LM Studio 等）通常不需要 API Key，也常是 http。
+ * 判断规则与原生 isPrivateHost 保持一致：只认 IP 字面量 / localhost / ::1。
+ */
+const isLocalBaseUrl = (value: string): boolean => {
+  try {
+    // 先按原文判断歧义写法：前导零 / 尾点（浏览器会把它们规范化，和原生判定不一致）
+    const rawHost = value.trim().replace(/^https?:\/\//i, '').split(/[/:?#]/)[0]
+    if (rawHost.endsWith('.')) {
+      return false
+    }
+    if (/^\d+(\.\d+){3}$/.test(rawHost) && rawHost.split('.').some((part) => part.length > 1 && part.startsWith('0'))) {
+      return false
+    }
+    const url = new URL(value)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return false
+    }
+    const host = url.hostname.toLowerCase()
+    if (host === 'localhost' || host === '::1' || host === '[::1]' || host === '0.0.0.0') {
+      return true
+    }
+    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+      return false
+    }
+    const parts = host.split('.').map(Number)
+    if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+      return false
+    }
+    const [a, b] = parts
+    return a === 127 || a === 10 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31)
+  } catch {
+    return false
+  }
+}
+
 const CustomProviderField = () => {
   const t = useTranslate()
   const available = customAvailable()
@@ -610,7 +646,8 @@ const CustomProviderField = () => {
   const [keyConfirmDelete, setKeyConfirmDelete] = useState(false)
   /* 没配过就把说明摊开；配过之后收起来，只留一个强调色入口 */
   const [notesOpen, setNotesOpen] = useState(() => !config.hasKey)
-  const configured = config.hasKey
+  // 本地/局域网服务没有 Key 也算配置完成
+  const configured = config.hasKey || config.local === true
 
   const modelMenu = useAnchoredPosition<HTMLDivElement, HTMLDivElement>(modelOpen, {
     align: 'start',
@@ -685,9 +722,28 @@ const CustomProviderField = () => {
     }
     setError('')
     setStatus(t('customSaved'))
-    setConfig(getCustomConfig())
-    setApiKey('')
-    setEditingKey(false)
+    /*
+     * 只信「保存成功 + 这次真的填了 Key」，不要只看紧接着的读回结果：
+     * 刚写完就立刻读配置偶尔会读到空的，会把 UI 吓得以为 Key 没存上，
+     * 于是清掉输入框、藏起已保存的掩码行 —— 看起来就是「保存后 Key 消失了」。
+     */
+    const typedKey = apiKey.trim()
+    const next = getCustomConfig()
+    // 本地/局域网服务本来就没有 Key：不能因为它没有 Key 就当成「没保存成功」
+    const local = isLocalBaseUrl(next.baseUrl || baseUrl)
+    const hasKey = next.hasKey || typedKey.length > 0 || local
+    setConfig({
+      ...next,
+      hasKey,
+      keyLength: next.keyLength > 0 ? next.keyLength : typedKey.length,
+    })
+    if (hasKey) {
+      setApiKey('')
+      setEditingKey(false)
+    } else {
+      setError(t('customKeyMissing'))
+      setEditingKey(true)
+    }
     setKeyConfirmDelete(false)
     return true
   }
@@ -695,6 +751,10 @@ const CustomProviderField = () => {
   const test = async () => {
     if (!baseUrl.trim()) {
       setError(t('customRequired'))
+      return
+    }
+    if (!apiKey.trim() && !config.hasKey && !isLocalBaseUrl(baseUrl)) {
+      setError(t('customNeedKeyFirst'))
       return
     }
     setBusy(true)
@@ -854,10 +914,12 @@ const CustomProviderField = () => {
               </label>
               <div className={styles.customField}>
                 <span>{t('customApiKey')}</span>
-                {config.hasKey && !editingKey ? (
+                {config.local === true && !config.hasKey ? (
+                  <div className={styles.hint}>{t('customLocalNoKey')}</div>
+                ) : config.hasKey && !editingKey ? (
                   <div className={clsx(styles.apiKeySaved, styles.apiKeyBox)}>
                     <span className={styles.apiKeyMask}>
-                      {'*'.repeat(Math.min(Math.max(config.keyLength || 12, 8), 12))}
+                      {'•'.repeat(Math.min(Math.max(config.keyLength || 18, 18), 32))}
                     </span>
                     <div className={styles.apiKeyActions}>
                       <button

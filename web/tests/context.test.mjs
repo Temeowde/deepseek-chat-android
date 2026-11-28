@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 上下文超限功能：单元级验证（离线，不需要设备/网络/构建）
  *
  * 运行（Node >= 22，需 transform-types 以支持 TS 参数属性风格之外的源码；本机 Node 24 验证）：
@@ -93,27 +93,67 @@ const run = (name, fn) => {
 
 /* ---------------- contextMemory ---------------- */
 run('estimateTokens：空值 0、非空为正、中文/英文/emoji 可复现', () => {
-  assert.equal(memory.CHARS_PER_TOKEN, 1.6)
+  assert.equal(memory.CHARS_PER_TOKEN, 1.2)
   assert.equal(memory.estimateTokens(null), 0)
   assert.equal(memory.estimateTokens(''), 0)
   assert.equal(memory.estimateTokens('a'), 1)
-  assert.equal(memory.estimateTokens('abcd'), 3)
+  assert.equal(memory.estimateTokens('abcd'), 4)
   assert.equal(memory.estimateTokens('中文'), 2)
   assert.equal(memory.estimateTokens('😀'), 2)
-  assert.equal(memory.estimateTokens('a'.repeat(1000)), 625)
+  assert.equal(memory.estimateTokens('a'.repeat(1000)), 834)
 })
 
-run('contextMemory：读写往返、session 隔离、key 前缀', () => {
+run('contextMemory：读写往返、session 隔离、key 前缀（v2 分段）', () => {
   storage.clear()
   storageThrows = { get: false, set: false, remove: false }
   assert.equal(memory.readContextMemory('s1'), null)
-  memory.writeContextMemory('s1', { summary: '摘要A', coveredRounds: 3, updatedAt: 123 })
-  memory.writeContextMemory('s2', { summary: '摘要B', coveredRounds: 1, updatedAt: 456 })
-  assert.deepEqual(memory.readContextMemory('s1'), { summary: '摘要A', coveredRounds: 3, updatedAt: 123 })
+  memory.writeContextMemory('s1', {
+    segments: [{ summary: '摘要A', from: 0, to: 3 }],
+    coveredRounds: 3,
+    updatedAt: 123,
+  })
+  memory.writeContextMemory('s2', {
+    segments: [{ summary: '摘要B', from: 0, to: 1 }],
+    coveredRounds: 1,
+    updatedAt: 456,
+  })
+  assert.deepEqual(memory.readContextMemory('s1'), {
+    segments: [{ summary: '摘要A', from: 0, to: 3 }],
+    coveredRounds: 3,
+    updatedAt: 123,
+  })
   assert.ok([...storage.keys()].includes('ds.chat-context-memory.v1:s1'))
   memory.clearContextMemory('s1')
   assert.equal(memory.readContextMemory('s1'), null)
-  assert.equal(memory.readContextMemory('s2').summary, '摘要B')
+  assert.equal(memory.readContextMemory('s2').segments[0].summary, '摘要B')
+})
+
+run('contextMemory：旧版单份 summary 自动迁移成一段', () => {
+  storage.clear()
+  storage.set('ds.chat-context-memory.v1:legacy', JSON.stringify({
+    summary: '旧摘要', coveredRounds: 4, anchorId: 'a0', updatedAt: 9,
+  }))
+  assert.deepEqual(memory.readContextMemory('legacy'), {
+    segments: [{ summary: '旧摘要', from: 0, to: 4 }],
+    coveredRounds: 4,
+    anchorId: 'a0',
+    updatedAt: 9,
+  })
+})
+
+run('contextMemory：多段摘要带编号与 token 估算', () => {
+  const multi = {
+    segments: [
+      { summary: '第一段', from: 0, to: 2 },
+      { summary: '第二段', from: 2, to: 5 },
+    ],
+    coveredRounds: 5,
+    updatedAt: 1,
+  }
+  const text = memory.memorySummaryText(multi)
+  assert.ok(text.includes('【第 1/2 段】第一段'))
+  assert.ok(text.includes('【第 2/2 段】第二段'))
+  assert.equal(memory.memorySummaryTokens(multi), memory.estimateTokens(text))
 })
 
 run('contextMemory：损坏/非法数据一律 null，不抛', () => {
@@ -140,7 +180,11 @@ run('contextMemory：存储异常时读写删均静默容错', () => {
   storageThrows = { get: true, set: false, remove: false }
   assert.equal(memory.readContextMemory('s'), null)
   storageThrows = { get: false, set: true, remove: false }
-  assert.doesNotThrow(() => memory.writeContextMemory('s', { summary: 'S', coveredRounds: 1, updatedAt: 1 }))
+  assert.doesNotThrow(() => memory.writeContextMemory('s', {
+    segments: [{ summary: 'S', from: 0, to: 1 }],
+    coveredRounds: 1,
+    updatedAt: 1,
+  }))
   storageThrows = { get: false, set: false, remove: true }
   assert.doesNotThrow(() => memory.clearContextMemory('s'))
   storageThrows = { get: false, set: false, remove: false }
@@ -229,7 +273,11 @@ const answer = (i, text = 'A' + i, extra = {}) => ({
 })
 const current = user(999, 'CURRENT')
 const history = Array.from({ length: 8 }, (_, i) => [user(i), answer(i)]).flat()
-const memoryOf = (summary, coveredRounds) => ({ summary, coveredRounds, updatedAt: 1 })
+const memoryOf = (summary, coveredRounds) => ({
+  segments: coveredRounds > 0 ? [{ summary, from: 0, to: coveredRounds }] : [],
+  coveredRounds,
+  updatedAt: 1,
+})
 const summaryPair = (summary) => [
   { role: 'user', content: `【以下是本对话更早内容的摘要，请把它当作已经发生过的上下文】\n${summary}` },
   { role: 'assistant', content: [{ type: 'text', text: '好的，我已了解之前对话的要点，会在此基础上继续。' }] },
@@ -253,14 +301,14 @@ run('toRequestMessages：覆盖轮数超界/锚点不符/非法摘要时忽略�
   const over = toRequestMessages(history, current, undefined, false, undefined, memoryOf('S', 99))
   assert.equal(over.length, 17, '覆盖轮数超界：忽略摘要，不 clamp 顶掉全部历史')
   const wrongAnchor = toRequestMessages(history, current, undefined, false, undefined, {
-    summary: 'S',
+    segments: [{ summary: 'S', from: 0, to: 2 }],
     coveredRounds: 2,
     anchorId: 'other-branch-message',
     updatedAt: 1,
   })
   assert.equal(wrongAnchor.length, 17, '锚点不符：忽略旧摘要')
   const rightAnchor = toRequestMessages(history, current, undefined, false, undefined, {
-    summary: 'S',
+    segments: [{ summary: 'S', from: 0, to: 2 }],
     coveredRounds: 2,
     anchorId: 'u0',
     updatedAt: 1,
@@ -268,6 +316,21 @@ run('toRequestMessages：覆盖轮数超界/锚点不符/非法摘要时忽略�
   assert.equal(rightAnchor.length, 15, '锚点匹配：正常跳过 2 轮')
   const empty = toRequestMessages(history, current, undefined, false, undefined, memoryOf('   ', 3))
   assert.equal(empty.length, 17, '空摘要不注入')
+})
+
+run('toRequestMessages：多段摘要按编号注入、跳过累计覆盖轮次', () => {
+  const multi = {
+    segments: [
+      { summary: '第一段', from: 0, to: 2 },
+      { summary: '第二段', from: 2, to: 4 },
+    ],
+    coveredRounds: 4,
+    updatedAt: 1,
+  }
+  const messages = toRequestMessages(history, current, undefined, false, undefined, multi)
+  assert.deepEqual(messages.slice(0, 2), summaryPair('【第 1/2 段】第一段\n\n【第 2/2 段】第二段'))
+  assert.deepEqual(messages[2], { role: 'user', content: 'Q4' })
+  assert.ok(!JSON.stringify(messages).includes('"Q0"'))
 })
 
 run('getContextRounds：只保留「提问 + 可用回答」轮次', () => {

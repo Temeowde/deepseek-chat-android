@@ -1,0 +1,509 @@
+/*
+ * 导出选择页：做减法 + 跟设置页同一套转场。
+ * 灰底、一个搜索框、一条排序/全选、一张白色列表卡、一条底部操作栏。
+ *
+ * 全屏覆盖层必须自己让出状态栏/手势条：本 WebView 里 env(safe-area-inset-*) 恒为 0，
+ * 只认原生写入的 --ds-safe-top / --ds-safe-bottom。
+ */
+.overlay {
+  --esp-bg: #f8f8f8;
+  --esp-card: #fff;
+  --esp-text: #0f0f0f;
+  --esp-sub: #9a9ca1;
+  --esp-hint: #b0b2b6;
+  --esp-line: #ececee;
+  --esp-field: #eeeef0;
+  --esp-btn: #ededed;
+  --esp-check-border: #d7d8db;
+  --esp-brand: var(--dsw-alias-brand-text, #426efe);
+
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  justify-content: center;
+  background: var(--esp-bg);
+  color: var(--esp-text);
+  animation: esp-fade-in 220ms var(--ds-ease-out, cubic-bezier(0.4, 0, 0.2, 1)) both;
+}
+
+body[data-ds-dark-theme] .overlay {
+  --esp-bg: #1e1e1e;
+  --esp-card: #2a2a2a;
+  --esp-text: #ececec;
+  --esp-sub: #8f9195;
+  --esp-hint: #74767a;
+  --esp-line: #3a3a3a;
+  --esp-field: #333;
+  --esp-btn: #333;
+  --esp-check-border: #5a5c60;
+}
+
+.overlay[data-closing] {
+  animation: esp-fade-out 200ms ease-in both;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 560px;
+  height: 100%;
+  padding-top: var(--ds-safe-top, 0px);
+  padding-bottom: var(--ds-safe-bottom, 0px);
+  background: var(--esp-bg);
+  color: var(--esp-text);
+  animation: esp-panel-in 300ms var(--ds-ease-out, cubic-bezier(0.4, 0, 0.2, 1)) both;
+}
+
+.panel[data-closing] {
+  animation: esp-panel-out 200ms ease-in both;
+}
+
+/* ---------- 顶栏 ---------- */
+
+.header {
+  position: relative;
+  display: grid;
+  flex: none;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 8px;
+}
+
+.back {
+  position: relative;
+  display: grid;
+  grid-column: 1;
+  place-items: center;
+  justify-self: start;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.back:active {
+  transform: scale(0.92);
+}
+
+.back::before {
+  position: absolute;
+  inset: 0;
+  width: 30px;
+  height: 30px;
+  margin: auto;
+  border-radius: 50%;
+  background: var(--esp-btn);
+  content: '';
+}
+
+.back svg {
+  position: relative;
+  z-index: 1;
+  transform: rotate(180deg) translateX(1px);
+}
+
+.title {
+  grid-column: 2;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 搜索 ---------- */
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 0 12px;
+}
+
+.searchField {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  box-sizing: border-box;
+  height: 38px;
+  margin: 4px 16px 10px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--esp-field);
+  color: var(--esp-sub);
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.searchField:focus-within {
+  background: var(--esp-card);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--esp-brand) 55%, transparent);
+}
+
+.searchField svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.search {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--esp-text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.search::placeholder {
+  color: var(--esp-hint);
+}
+
+.search::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* ---------- 排序 / 全选 ---------- */
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 8px;
+}
+
+.sortButton {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--esp-sub);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+  transition: color 140ms ease;
+}
+
+.sortButton:active {
+  color: var(--esp-text);
+}
+
+.sortButton svg {
+  transition: transform 160ms ease;
+}
+
+.selectAll {
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--esp-brand);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+/* ---------- 会话列表 ---------- */
+
+.listCard {
+  margin: 0 12px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--esp-card);
+}
+
+.row {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 只有首屏前 12 行播入场动画：700 个会话时不能让每一行都跑动画 */
+.rowEnter {
+  animation: esp-row-in 260ms var(--ds-ease-out, cubic-bezier(0.4, 0, 0.2, 1)) both;
+}
+
+.row::after {
+  position: absolute;
+  right: 14px;
+  bottom: 0;
+  left: 14px;
+  height: 0.5px;
+  background: var(--esp-line);
+  content: '';
+}
+
+.row:last-child::after {
+  display: none;
+}
+
+.row:active {
+  background: color-mix(in srgb, var(--esp-text) 4%, transparent);
+}
+
+.rowBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowTitleLine {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.pinTag {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--esp-field);
+  color: var(--esp-sub);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.rowTitle {
+  overflow: hidden;
+  font-size: 15px;
+  /* 22 + 14*2 padding = 50px，与虚拟列表 ROW_HEIGHT 严格一致 */
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowDate {
+  flex: none;
+  color: var(--esp-sub);
+  font-size: 12px;
+  line-height: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 右侧勾选圈：未选是空心圆，选中是蓝底白勾，勾出现时有个很小的弹入 */
+.check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 21px;
+  height: 21px;
+  border: 1.5px solid var(--esp-check-border);
+  border-radius: 50%;
+  color: #fff;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms var(--ds-ease-out, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.checkOn {
+  border-color: transparent;
+  background: var(--esp-brand);
+}
+
+.check svg {
+  width: 13px;
+  height: 13px;
+  animation: esp-check-pop 220ms cubic-bezier(0.2, 0.9, 0.25, 1.3) both;
+}
+
+.empty {
+  padding: 32px 16px;
+  color: var(--esp-sub);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ---------- 底部操作栏 ---------- */
+
+.footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--esp-line);
+  background: var(--esp-bg);
+}
+
+.count {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--esp-sub);
+  font-size: 12.5px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ---------- 排序选择条（底部弹层） ---------- */
+
+.sheetScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1410;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(0 0 0 / 32%);
+  animation: esp-fade-in 180ms ease both;
+}
+
+.sheetScrim[data-closing] {
+  animation: esp-fade-out 180ms ease-in both;
+}
+
+.sortSheet {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 560px;
+  padding: 6px 12px calc(10px + var(--ds-safe-bottom, 0px));
+  border-radius: 18px 18px 0 0;
+  background: var(--esp-card);
+  color: var(--esp-text);
+  animation: esp-sheet-in 380ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.sortSheet[data-closing] {
+  animation: esp-sheet-out 200ms ease-in both;
+}
+
+.sheetGrabber {
+  width: 36px;
+  height: 4px;
+  margin: 2px auto 8px;
+  border-radius: 2px;
+  background: var(--esp-line);
+}
+
+.sheetRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheetRow:active {
+  background: color-mix(in srgb, var(--esp-text) 5%, transparent);
+}
+
+.sheetCheck {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: var(--esp-brand);
+  color: #fff;
+}
+
+.sheetCheck svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ---------- 动画 ---------- */
+
+@keyframes esp-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes esp-fade-out {
+  to { opacity: 0; }
+}
+
+/* 与设置页二级页同款：右侧 20px 滑入 + 淡入 */
+@keyframes esp-panel-in {
+  from { transform: translateX(20px); opacity: 0.25; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes esp-panel-out {
+  to { transform: translateX(14px); opacity: 0; }
+}
+
+@keyframes esp-row-in {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes esp-check-pop {
+  from { transform: scale(0.4); }
+  to { transform: none; }
+}
+
+@keyframes esp-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@keyframes esp-sheet-out {
+  to { transform: translateY(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .panel,
+  .row,
+  .check svg,
+  .sheetScrim,
+  .sortSheet {
+    animation: none !important;
+  }
+}

@@ -15,7 +15,7 @@ import type {
   UserMessage,
 } from './types.js'
 import type { ContextMemory } from './contextMemory.js'
-import { estimateTokens } from './contextMemory.js'
+import { estimateTokens, memorySummaryText } from './contextMemory.js'
 
 /**
  * 长文本（含文本附件正文）超过这个估算 token 数时，DeepSeek 官方通道改用内联 document 块发送。
@@ -442,9 +442,15 @@ export const toRequestMessages = (
   const memoryAnchor = rounds[0]?.[0]?.id
   const validMemory =
     memory &&
-    memory.summary.trim() &&
+    memory.segments.length > 0 &&
     memory.coveredRounds > 0 &&
     memory.coveredRounds <= rounds.length &&
+    memory.segments.every(
+      (segment) =>
+        segment.summary.trim() !== '' &&
+        segment.to <= rounds.length &&
+        segment.from < segment.to
+    ) &&
     (!memory.anchorId || !memoryAnchor || memory.anchorId === memoryAnchor)
       ? memory
       : null
@@ -458,7 +464,7 @@ export const toRequestMessages = (
     // 摘要内容一旦生成就固定不变，保证后续请求的前缀稳定（缓存命中、费用低）。
     messages.push({
       role: 'user',
-      content: `【以下是本对话更早内容的摘要，请把它当作已经发生过的上下文】\n${validMemory?.summary ?? ''}`,
+      content: `【以下是本对话更早内容的摘要，请把它当作已经发生过的上下文】\n${validMemory ? memorySummaryText(validMemory) : ''}`,
     })
     messages.push({
       role: 'assistant',

@@ -8,6 +8,7 @@ export type ApiErrorCondition =
   | 'unauthorized'
   | 'insufficientBalance'
   | 'tooLarge'
+  | 'tooSlow'
   | 'rateLimited'
   | 'serverBusy'
   | 'network'
@@ -20,6 +21,10 @@ export const classifyStatus = (status: number | undefined): ApiErrorCondition =>
   }
   if (status === 402) {
     return 'insufficientBalance'
+  }
+  if (status === 408) {
+    // 上传过慢 / 服务端受理超时：换网络或重试可能成功
+    return 'tooSlow'
   }
   if (status === 413) {
     return 'tooLarge'
@@ -46,12 +51,33 @@ export const classifyApiError = (error: unknown): ApiErrorCondition => {
 /** 重试可能成功的情况：网络、限流、服务端繁忙；参数或鉴权类错误重试无用 */
 export const isRetryableApiError = (error: unknown): boolean => {
   const condition = classifyApiError(error)
+  if (!(error instanceof ApiError)) {
+    return true
+  }
+  /*
+   * 这些都值得给「重试」入口：
+   * - network / rateLimited / serverBusy / tooSlow：立刻重试可能好；
+   * - unauthorized / insufficientBalance：用户改 Key / 充值之后也应该能直接点重试；
+   * - tooLarge 不给重试（文件没换，重试必然失败，文案已经让用户换小文件）。
+   */
   return (
-    !(error instanceof ApiError) ||
     condition === 'network' ||
     condition === 'rateLimited' ||
-    condition === 'serverBusy'
+    condition === 'serverBusy' ||
+    condition === 'tooSlow' ||
+    condition === 'unauthorized' ||
+    condition === 'insufficientBalance'
   )
+}
+
+/**
+ * 自动重试（不等用户点）只用于「换个时机可能自己好」的情况：
+ * 网络失败、限流、服务端繁忙。401/402/408/413 这类重试前需要用户先改东西，
+ * 自动整包重传只会白耗流量（大文件还会在服务端留下重复文件）。
+ */
+export const isAutoRetryableApiError = (error: unknown): boolean => {
+  const condition = classifyApiError(error)
+  return !(error instanceof ApiError) || condition === 'network' || condition === 'rateLimited' || condition === 'serverBusy'
 }
 
 /** 服务端判定附件失效的情况：本地有原件时重新上传即可自愈 */
@@ -81,7 +107,15 @@ export const extractFileIds = (message: string): string[] => [
 ]
 
 /** 上传失败里能识别出具体原因的情况；其余统一按「上传失败」处理 */
-export type UploadErrorCode = 'fileCountLimit' | 'storageLimit' | 'parseFailed'
+export type UploadErrorCode =
+  | 'fileCountLimit'
+  | 'storageLimit'
+  | 'parseFailed'
+  | 'unauthorized'
+  | 'insufficientBalance'
+  | 'tooSlow'
+  | 'tooLarge'
+  | 'rateLimited'
 
 export type UploadErrorInfo = { code: UploadErrorCode; limit?: string }
 
@@ -97,7 +131,26 @@ const PARSE_FAILED_PATTERNS = [
  * 识别 Files API 上传的 400。配额类文案带上限数值，单个 Key 与账号合计（across all sub keys）共用同一提示。
  */
 export const getUploadErrorInfo = (error: unknown): UploadErrorInfo | null => {
-  if (!(error instanceof ApiError) || error.status !== 400) {
+  if (!(error instanceof ApiError)) {
+    return null
+  }
+  // 先按状态码给出可直接行动的原因（Key / 余额 / 超时 / 过大 / 限流）
+  if (error.status === 401) {
+    return { code: 'unauthorized' }
+  }
+  if (error.status === 402) {
+    return { code: 'insufficientBalance' }
+  }
+  if (error.status === 408) {
+    return { code: 'tooSlow' }
+  }
+  if (error.status === 413) {
+    return { code: 'tooLarge' }
+  }
+  if (error.status === 429) {
+    return { code: 'rateLimited' }
+  }
+  if (error.status !== 400) {
     return null
   }
   const { message } = error

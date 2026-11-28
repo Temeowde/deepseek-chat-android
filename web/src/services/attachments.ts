@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { LinkedMessage, TranslationMessage } from '../i18n/index.js'
 import { uploadFile } from './api/client.js'
-import { classifyApiError, getUploadErrorInfo, isRetryableApiError } from './api/errors.js'
+import { isAutoRetryableApiError, isRetryableApiError, classifyApiError, getUploadErrorInfo } from './api/errors.js'
 import type { FilePurpose } from './api/types.js'
 import { ACCEPT_FILE_EXTS } from './uploadExts.js'
 import { prepareImageForUpload } from './vision.js'
@@ -42,16 +42,38 @@ export const getUploadPurpose = (name: string, isImage: boolean): FilePurpose | 
   return TEXT_RECOGNITION_EXTS.has(getFileExt(name)) ? 'text_recognition' : 'user_data'
 }
 
+/** 服务端图片理解不支持、也不能靠文档解析兜底的图片格式 */
+const UNSUPPORTED_IMAGE_EXTS = new Set([
+  // 服务端图片理解不收、也不是 JPEG/PNG 内容的格式。
+  // 注意：jfif / pjpeg / pjp 其实就是 JPEG，apng 就是 PNG，不能拦。
+  'svg', 'svgz', 'ico', 'xbm', 'dib', 'avif', 'bmp', 'tif', 'tiff',
+])
+
 /** 文件允许的最大体积（MB），按上传时的 purpose 区分 */
 const getMaxSizeMB = (file: File) =>
   getUploadPurpose(file.name, isImage(resolveMimeType(file))) === 'user_data'
     ? MAX_USER_DATA_SIZE_MB
     : MAX_SIZE_MB
 
+/** 本地 IndexedDB 读不出原件（损坏/被清理）：不能再显示成普通「上传失败」 */
+export class StorageReadError extends Error {
+  constructor(readonly fileName?: string) {
+    super('read local attachment failed')
+    this.name = 'StorageReadError'
+  }
+}
+
 /** 添加前校验：格式 → 大小 → 数量，任一不满足即整批不添加 */
 export const validateFiles = (files: File[], currentCount: number): TranslationMessage | null => {
   if (files.some((file) => !isAcceptedExt(file.name))) {
     return { key: 'uploadUnsupportedFormat' }
+  }
+  if (files.some((file) => file.size === 0)) {
+    return { key: 'uploadEmptyFile' }
+  }
+  // 按扩展名拦，别依赖 MIME：部分 provider 不返回 MIME，会让这些文件漏到上传阶段才失败
+  if (files.some((file) => UNSUPPORTED_IMAGE_EXTS.has(getFileExt(file.name)))) {
+    return { key: 'uploadUnsupportedImageFormat' }
   }
   const oversized = files.find((file) => file.size > getMaxSizeMB(file) * 1024 * 1024)
   if (oversized) {
@@ -68,11 +90,36 @@ export const validateFiles = (files: File[], currentCount: number): TranslationM
  * 服务端原文多为英文且较长，不直接展示。
  */
 export const describeUploadError = (error: unknown): TranslationMessage => {
+  if (error instanceof StorageReadError) {
+    return { key: 'uploadLocalReadFailed' }
+  }
+  // 客户端上传超时（DOMException TimeoutError）也要给出可行动文案
+  if (error instanceof Error && /timeout/i.test(error.name + ' ' + error.message)) {
+    return { key: 'uploadTooSlow' }
+  }
+  const info = getUploadErrorInfo(error)
+  if (info) {
+    if (info.code === 'unauthorized') {
+      return { key: 'uploadKeyInvalid' }
+    }
+    if (info.code === 'insufficientBalance') {
+      return { key: 'uploadInsufficientBalance' }
+    }
+    if (info.code === 'tooSlow') {
+      return { key: 'uploadTooSlow' }
+    }
+    if (info.code === 'tooLarge') {
+      return { key: 'uploadTooLarge' }
+    }
+    if (info.code === 'rateLimited') {
+      return { key: 'uploadRateLimited' }
+    }
+    if (info.code === 'parseFailed') {
+      return { key: 'uploadParseFailed' }
+    }
+  }
   if (classifyApiError(error) === 'serverBusy') {
     return { key: 'uploadServerBusy' }
-  }
-  if (getUploadErrorInfo(error)?.code === 'parseFailed') {
-    return { key: 'uploadParseFailed' }
   }
   return { key: 'uploadFileStatusFailed' }
 }
@@ -123,6 +170,77 @@ const next = () => {
 }
 
 /** 排队上传，最多同时上传 MAX_CONCURRENT 个；排队期间中止的任务不会发出请求 */
+/** 单次上传超时：图片 90s、文档 180s（服务端文档解析上限 120s） */
+const uploadTimeoutMs = (isImage: boolean) => (isImage ? 90_000 : 180_000)
+
+const delay = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    const onAbort = () => {
+      window.clearTimeout(timer)
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+
+/** 图片压缩卡住时不要卡死整个上传队列：超时就按原图上传，交给服务端判断 */
+const prepareImageWithTimeout = async (file: File, name: string) => {
+  let timer = 0
+  try {
+    return await Promise.race([
+      prepareImageForUpload(file, name),
+      new Promise<{ blob: Blob; name: string }>((resolve) => {
+        timer = window.setTimeout(() => resolve({ blob: file, name }), 20_000)
+      }),
+    ])
+  } finally {
+    window.clearTimeout(timer)
+  }
+}
+
+/** 一次上传尝试：带超时，外部取消（signal）时立刻中止 */
+const uploadOnce = async (
+  apiKey: string,
+  file: Blob,
+  name: string,
+  isImage: boolean,
+  signal: AbortSignal
+): Promise<string> => {
+  if (signal.aborted) {
+    throw signal.reason ?? new DOMException('Aborted', 'AbortError')
+  }
+  const controller = new AbortController()
+  const timer = window.setTimeout(
+    () => controller.abort(new DOMException('上传超时', 'TimeoutError')),
+    uploadTimeoutMs(isImage)
+  )
+  const onAbort = () => controller.abort(signal.reason)
+  if (signal.aborted) {
+    controller.abort(signal.reason)
+  } else {
+    signal.addEventListener('abort', onAbort, { once: true })
+  }
+  try {
+    const original = file instanceof File ? file : new File([file], name, { type: file.type })
+    const prepared = isImage
+      ? await prepareImageWithTimeout(original, name)
+      : { blob: original, name }
+    const body =
+      prepared.blob instanceof File
+        ? prepared.blob
+        : new File([prepared.blob], prepared.name, { type: prepared.blob.type })
+    const uploaded = await uploadFile(apiKey, body, getUploadPurpose(prepared.name, isImage), controller.signal)
+    return uploaded.id
+  } finally {
+    window.clearTimeout(timer)
+    signal.removeEventListener('abort', onAbort)
+  }
+}
+
+/** 排队上传，最多同时上传 MAX_CONCURRENT 个；网络/限流类错误自动重试一次 */
 const enqueueUpload = (
   apiKey: string,
   file: Blob,
@@ -133,20 +251,23 @@ const enqueueUpload = (
   new Promise<string>((resolve, reject) => {
     queue.push(async () => {
       if (signal.aborted) {
-        reject(signal.reason)
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
         return
       }
       try {
-        const original = file instanceof File ? file : new File([file], name, { type: file.type })
-        /*
-         * 上传前压到 4096px 以内：服务端对超过 4096px 的图片直接 400（image too large），
-         * 导入的历史图片多是手机原图（4000~8000px），不压就必然失败。
-         */
-        const prepared = isImage ? await prepareImageForUpload(original, name) : { blob: original, name }
-        const body = prepared.blob instanceof File ? prepared.blob : new File([prepared.blob], prepared.name, { type: prepared.blob.type })
-        resolve((await uploadFile(apiKey, body, getUploadPurpose(prepared.name, isImage), signal)).id)
+        resolve(await uploadOnce(apiKey, file, name, isImage, signal))
       } catch (error) {
-        reject(error)
+        if (signal.aborted || !isAutoRetryableApiError(error)) {
+          reject(error)
+          return
+        }
+        // 网络抖动/限流/超时/5xx：等 1.5 秒自动重试一次，仍失败再交给界面
+        try {
+          await delay(1500, signal)
+          resolve(await uploadOnce(apiKey, file, name, isImage, signal))
+        } catch (retryError) {
+          reject(retryError)
+        }
       }
     })
     next()

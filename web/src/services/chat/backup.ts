@@ -183,14 +183,22 @@ const backfillImages = async (
 
 /** 导出为历史会话导出格式的 ZIP，可再次导入。 */
 /**
- * 导出全部历史对话。
+ * 导出历史对话：默认导出全部；传 sessionIds 时只导出选中的会话（部分导出）。
  *
  * 官方账号同步下来的会话本地只有摘要，没有消息实体；直接导出会被跳过，
  * 用户拿到的包就很小。所以这里先逐个把这些会话从官方接口下载下来（顺带落库），
  * 再统一打包，保证「全部导出」是字面意义上的全部。
  */
+export type ExportHistoryOptions = {
+  onProgress?: (percent: number) => void
+  /** 只导出这些会话；省略 = 全部（保持旧行为） */
+  sessionIds?: readonly string[]
+  /** 写进 manifest 的诊断信息（版本/机型/设置，不含对话正文） */
+  diagnostics?: Record<string, unknown>
+}
+
 export const exportHistory = (
-  onProgress?: (percent: number) => void,
+  options: ExportHistoryOptions = {},
 ): Promise<{
   name: string
   blob: Blob
@@ -220,12 +228,15 @@ export const exportHistory = (
   skippedSessions: number
 }> =>
   enqueueBackup(async () => {
+    const onProgress = options.onProgress
     const { sessions, sessionCache } = useChatStore.getState()
-    if (sessions.length === 0) {
+    const wanted = options.sessionIds ? new Set(options.sessionIds) : null
+    const list = wanted ? sessions.filter((summary) => wanted.has(summary.id)) : sessions
+    if (list.length === 0) {
       // 启动早期会话列表还没加载，或本地确实没数据：不能写一个"空备份"骗用户
-      throw new Error('本地还没有可导出的对话')
+      throw new Error(wanted ? '没有选择可导出的对话' : '本地还没有可导出的对话')
     }
-    const total = sessions.length
+    const total = list.length
     const ready: Session[] = []
     let skipped = 0
     let fetched = 0
@@ -269,7 +280,7 @@ export const exportHistory = (
       while (true) {
         const index = cursor
         cursor += 1
-        const summary = sessions[index]
+        const summary = list[index]
         if (!summary) {
           return
         }
@@ -410,7 +421,8 @@ export const exportHistory = (
         // exportArchive 内部跳过/容错统计：图片缺失、非法时间、损坏会话
         skippedImages = report?.skippedImages ?? 0
         skippedSessions += report?.skippedSessions ?? 0
-      }
+      },
+      options.diagnostics
     )
     onProgress?.(100)
     if (!blob || blob.size <= 0) {

@@ -14,10 +14,14 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
     private WindowInsets finalInsets;
     private WindowInsetsAnimation imeAnimation;
 
+    /** 当前 Activity 的实例：WebView 页面重载后由 JS 调 refreshInsets 重新推送安全区 */
+    private static ChatWindowInsets active;
+
     public static void install(Activity activity, View root) {
         activity.getWindow().setDecorFitsSystemWindows(false);
         forceTransparentBars(activity);
         ChatWindowInsets controller = new ChatWindowInsets(root);
+        active = controller;
         root.setWindowInsetsAnimationCallback(controller);
         root.setOnApplyWindowInsetsListener(controller::onApply);
         // 侧栏要从屏幕左缘往右拖，必须把左边缘从系统返回手势里排除，
@@ -33,6 +37,21 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
     }
 
     /**
+     * WebView 页面重载后重新推一次安全区。
+     *
+     * 原生只在 Activity 启动时推过一次 --ds-safe-*，页面重载会丢掉 documentElement 上的内联变量，
+     * 之后没有任何时机重推，顶栏就会顶进状态栏，直到用户重启 App。
+     * 页面启动时通过 ScreenAndroid.refreshInsets() 调到这里。
+     */
+    public static void refreshInsets(Activity activity) {
+        ChatWindowInsets controller = active;
+        if (controller == null) {
+            return;
+        }
+        controller.pushStatusBar(controller.root);
+    }
+
+    /**
      * 只推状态栏高度（不含导航栏、不含 IME）。
      * 注意：getInsets() 返回的是**物理像素**，而 CSS 的 px 是 CSS px，
      * 单位换算必须除以 density，否则会被 devicePixelRatio 放大。
@@ -43,9 +62,7 @@ public final class ChatWindowInsets extends WindowInsetsAnimation.Callback {
             return;
         }
         int topPx = insets.getInsets(WindowInsets.Type.statusBars()).top;
-        if (topPx == pushedStatusBar) {
-            return;
-        }
+        // 不能因为值没变就跳过：WebView 重载后页面里的变量已经丢了，必须重推。
         pushedStatusBar = topPx;
         float density = root.getResources().getDisplayMetrics().density;
         if (density <= 0) {

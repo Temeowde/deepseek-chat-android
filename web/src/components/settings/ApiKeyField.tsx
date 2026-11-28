@@ -88,7 +88,7 @@ export const ApiKeyField = ({ editor }: { editor: ApiKeyEditor }) => {
         ) : null}
         {apiKey && !editing ? (
           <div className={clsx(styles.apiKeySaved, styles.apiKeyBox)}>
-            <span className={styles.apiKeyMask}>{'*'.repeat(apiKey.length)}</span>
+            <span className={styles.apiKeyMask}>{'•'.repeat(Math.min(Math.max(apiKey.length, 18), 32))}</span>
             <div className={styles.apiKeyActions}>
               <button
                 type="button"

@@ -1,0 +1,23 @@
+﻿declare const styles: {
+  readonly "overlay": string;
+  readonly "sheet": string;
+  readonly "handle": string;
+  readonly "header": string;
+  readonly "icon": string;
+  readonly "title": string;
+  readonly "tag": string;
+  readonly "amount": string;
+  readonly "subtitle": string;
+  readonly "card": string;
+  readonly "section": string;
+  readonly "name": string;
+  readonly "nameMain": string;
+  readonly "nameSub": string;
+  readonly "values": string;
+  readonly "valueRow": string;
+  readonly "valueLabel": string;
+  readonly "value": string;
+  readonly "footer": string;
+  readonly "ring": string;
+};
+export = styles;

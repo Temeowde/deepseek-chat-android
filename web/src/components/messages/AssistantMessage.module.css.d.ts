@@ -1,4 +1,4 @@
-declare const styles: {
+﻿declare const styles: {
   readonly "message": string;
   readonly "actions": string;
   readonly "waiting": string;

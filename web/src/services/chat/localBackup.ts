@@ -573,7 +573,7 @@ const runBackup = async (trigger: BackupTrigger): Promise<string | null> => {
       fileName = INC_PREFIX + (safeDeviceTag(api) ? safeDeviceTag(api) + '-' : '') + stamp(new Date()) + '.zip'
       incremental = true
     } else {
-      const full = await exportHistory(reportProgress)
+      const full = await exportHistory({ onProgress: reportProgress })
       blob = full.blob
       fileName = BACKUP_PREFIX + (safeDeviceTag(api) ? safeDeviceTag(api) + '-' : '') + stamp(new Date()) + '.zip'
       writeStorage(BASE_KEY, fileName)

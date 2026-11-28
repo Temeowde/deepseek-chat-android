@@ -2201,3 +2201,10 @@ body[data-ds-dark-theme] .apiChoiceHint {
     transform: translateX(320%);
   }
 }
+
+/* 已保存 Key 的掩码：圆点更醒目，字距拉开一点，一眼看出「确实存了东西」 */
+.apiKeyMask {
+  letter-spacing: 1.5px;
+  line-height: 1;
+  color: var(--ds-set-text, #0f0f0f);
+}

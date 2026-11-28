@@ -178,7 +178,15 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
   }
   const retryFile = useCallback(
     (id: string) => {
-      if (!useChatStore.getState().importingHistory && ensureAttachmentKey()) {
+      // 用真实附件做 Key 校验：以前传空数组，空 Key 也会直接发起上传，必然 401
+      const attachment = getDraft(sessionId).attachments.find((item) => item.id === id)
+      if (!attachment) {
+        return
+      }
+      if (
+        !useChatStore.getState().importingHistory &&
+        ensureAttachmentKey([attachment.file])
+      ) {
         retryDraftAttachment(sessionId, id, useSettings.getState().apiKey ?? '', inlineImages)
       }
     },
@@ -251,12 +259,20 @@ const Input = ({ sessionId, unavailable = false, edit }: InputProps) => {
       }
       return
     }
-    if (
-      unavailable ||
-      useChatStore.getState().importingHistory ||
-      voice.status !== 'idle' ||
-      !prepareDraftMessage(getDraft(sessionId), useUploads.getState().tasks)
-    ) {
+    if (unavailable || useChatStore.getState().importingHistory || voice.status !== 'idle') {
+      return
+    }
+    const draft = getDraft(sessionId)
+    if (!prepareDraftMessage(draft, useUploads.getState().tasks)) {
+      // 附件还在传/传失败时，以前点发送毫无反应，用户会以为发送坏了
+      const tasks = useUploads.getState().tasks
+      const pending = draft.attachments.some((item) => {
+        const status = tasks[item.id]?.status
+        return status !== 'done' && status !== 'inline' && status !== 'inline-text'
+      })
+      if (pending) {
+        showToast(t('uploadNotReadyHint'))
+      }
       return
     }
     // 文本与上传完成态由提交动作读取最新快照，不使用上一次渲染的草稿。

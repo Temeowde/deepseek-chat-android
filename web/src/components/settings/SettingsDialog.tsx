@@ -21,6 +21,7 @@ import {
   type HistoryImportProgress,
 } from '../../services/chat/backup.js'
 import { useIsMobile } from '../../app/viewport.js'
+import { buildExportDiagnostics } from '../../services/chat/exportDiagnostics.js'
 import { useChatStore, type HistoryImportMode } from '../../services/chat/store.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
@@ -41,6 +42,7 @@ import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
 import { showToast } from '../base/toastState.js'
 import { useApiKeyEditor } from './ApiKeyField.js'
+import { ExportSessionPicker } from './ExportSessionPicker.js'
 import {
   ProviderConfig,
   ProviderKeyPanel,
@@ -775,7 +777,7 @@ const ImportHistory = ({
   )
 }
 
-/** 灏嗗叏閮ㄤ細璇濆強鍥剧墖瀵煎嚭涓?ZIP 鏂囦欢骞朵笅杞?*/
+
 /**
  * 鏈湴淇濈暀寮€鍏炽€? *
  * 默认关闭：Android 11+ 写公共目录需要「所有文件访问权限」，
@@ -1324,11 +1326,15 @@ const ExportHistory = ({
   const [errorText, setErrorText] = useState('')
   /** 大包改写到 /sdcard/DS-Chat 时记下完整路径，导出完成后展示给用户 */
   const [savedPath, setSavedPath] = useState('')
-  /** 点导出先确认，避免误触直接开始长时间导出 */
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  /** 刚导出到 DS-Chat 的文件名：给「分享刚导出的文件」用 */
+  const [shareName, setShareName] = useState('')
+  /** 打开会话选择页（默认全选 = 导出全部） */
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const sessionCount = useChatStore((state) => state.sessions.length)
 
-  const onExport = async () => {
+  const onExport = async (sessionIds?: string[]) => {
     setSavedPath('')
+    setShareName('')
     setBusy(true)
     onBusyChange?.(true)
     setStatus(null)
@@ -1336,7 +1342,11 @@ const ExportHistory = ({
     setErrorText('')
     setPercent(0)
     try {
-      const report = await exportHistory((value) => setPercent(value))
+      const report = await exportHistory({
+        onProgress: (value) => setPercent(value),
+        sessionIds,
+        diagnostics: buildExportDiagnostics({ selected: sessionIds?.length ?? sessionCount, total: sessionCount }),
+      })
       const { name, blob } = report
       /*
        * 「导出成功」必须按真实内容判定：
@@ -1371,7 +1381,7 @@ const ExportHistory = ({
        * 再把完整路径提示给用户；小包保持原来的下载行为。
        */
       const chunkBridge = window.BackupAndroid
-      const chunkReady = !!(chunkBridge?.hasAccess?.() && typeof chunkBridge.beginBackupWrite === 'function')
+      const chunkReady = !!(chunkBridge?.hasAccess?.())
       if (!chunkReady && blob.size > 48 * 1024 * 1024) {
         /*
          * 没有分块桥（旧版 App / 没「所有文件访问权限」）时只能一次性转 Base64：
@@ -1383,9 +1393,20 @@ const ExportHistory = ({
             '（需要「所有文件访问权限」才能分块写）。请到 设置 → 数据管理 → 备份 里给本机备份打开权限后重试。'
         )
       }
-      if (blob.size > 8 * 1024 * 1024 && chunkReady) {
-        const savedPath = await saveZipToBackupDir(name, blob)
+      const exportCount = sessionIds?.length ?? sessionCount
+      const stampMatch = name.match(/(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})(\d{2})/)
+      const stamp = stampMatch ? `${stampMatch[1]}-${stampMatch[2]}${stampMatch[3]}` : String(Date.now())
+      if (chunkReady) {
+        /*
+         * 有「所有文件访问权限」时，所有导出（不分大小）都写进 /sdcard/DS-Chat。
+         * 文件名用「对话导出-日期-数量」，和备份的 deepseek_inc- / dschat-auto- 一眼区分开；
+         * 导出后可以直接「分享刚导出的文件」，不用先去文件管理器里翻。
+         */
+        const saveName = `对话导出-${stamp}-${exportCount}个对话.zip`
+        const savedPath = await saveZipToBackupDir(saveName, blob)
         setSavedPath(savedPath)
+        setShareName(saveName)
+        showToast(t('exportSavedToast', { path: savedPath }))
       } else if (window.DeepSeekAndroid) {
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader()
@@ -1401,6 +1422,9 @@ const ExportHistory = ({
           reader.readAsDataURL(blob)
         })
         window.DeepSeekAndroid.exportFile(name, base64)
+        const fallbackPath = `下载/DeepSeek Chat/${name}`
+        setSavedPath(fallbackPath)
+        showToast(t('exportSavedDownloads', { name }))
       } else {
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
@@ -1433,33 +1457,30 @@ const ExportHistory = ({
           label={t('exportAllLabel')}
           value={value}
           disabled={disabled || busy || empty}
-          onClick={() => setConfirmOpen(true)}
-          description={savedPath ? `已保存到 ${savedPath}` : errorText || undefined}
+          onClick={() => setPickerOpen(true)}
+          description={savedPath ? `已保存到 ${savedPath}` : errorText || t('exportSelectHint')}
         />
-        {confirmOpen ? (
-          <Modal
-            title={t('exportConfirmTitle')}
-            onClose={() => setConfirmOpen(false)}
-            footer={
-              <>
-                <Button variant="outlined" size="m" autoFocus onClick={() => setConfirmOpen(false)}>
-                  {t('cancel')}
-                </Button>
-                <Button
-                  variant="primary"
-                  size="m"
-                  onClick={() => {
-                    setConfirmOpen(false)
-                    void onExport()
-                  }}
-                >
-                  {t('exportConfirmStart')}
-                </Button>
-              </>
-            }
-          >
-            <p>{t('exportConfirmBody')}</p>
-          </Modal>
+        {pickerOpen ? (
+          <ExportSessionPicker
+            onClose={() => setPickerOpen(false)}
+            onConfirm={(ids) => {
+              setPickerOpen(false)
+              void onExport(ids)
+            }}
+          />
+        ) : null}
+        {shareName && window.BackupAndroid?.shareExport ? (
+          <DataRow
+            label={t('exportShareFile')}
+            value={t('exportShare')}
+            onClick={() => {
+              const result = window.BackupAndroid?.shareExport?.(shareName) ?? ''
+              if (String(result).startsWith('fail')) {
+                const copied = savedPath ? window.BackupAndroid?.copyText?.(savedPath) : false
+                showToast(copied ? t('exportShareFailedCopied', { path: savedPath }) : t('exportShareFailed'))
+              }
+            }}
+          />
         ) : null}
         {savedPath && window.BackupAndroid?.openFilesApp ? (
           <DataRow
@@ -1483,23 +1504,34 @@ const ExportHistory = ({
   }
 
   return (
-    <SettingCell
-      label={t('exportAllLabel')}
-      description={description}
-      status={status}
-      action={
-        <Button
-          variant="outlined"
-          size="m"
-          className={styles.cellButton}
-          disabled={disabled || busy || empty}
-          onClick={() => void onExport()}
-        >
-          <IconDownloadOutline16 />
-          {t('exportAllDownload')}
-        </Button>
-      }
-    />
+    <>
+      <SettingCell
+        label={t('exportAllLabel')}
+        description={description}
+        status={status}
+        action={
+          <Button
+            variant="outlined"
+            size="m"
+            className={styles.cellButton}
+            disabled={disabled || busy || empty}
+            onClick={() => setPickerOpen(true)}
+          >
+            <IconDownloadOutline16 />
+            {t('exportAllDownload')}
+          </Button>
+        }
+      />
+      {pickerOpen ? (
+        <ExportSessionPicker
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(ids) => {
+            setPickerOpen(false)
+            void onExport(ids)
+          }}
+        />
+      ) : null}
+    </>
   )
 }
 

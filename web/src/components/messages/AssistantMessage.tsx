@@ -1,12 +1,13 @@
-import { Tool } from './mobileActions.js'
+﻿import { Tool } from './mobileActions.js'
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
 import { memo, useState } from 'react'
 import { IconWarningOutline16 } from '../base/icons.js'
 import { MaskIcon } from '../base/MaskIcon.js'
 import { describeReply, getContextLimit } from '../../services/chat/describe.js'
-import { compressSessionContext } from '../../services/chat/contextCompression.js'
+import { CompressProgressError, compressSessionContext } from '../../services/chat/contextCompression.js'
 import { canContinueReply } from '../../services/chat/reply.js'
+import { estimateUsageCost } from '../../services/chat/usageCost.js'
 import { continueReply, regenerateReply, retryWithTruncatedQuestion } from '../../services/chat/store.js'
 import { showToast } from '../base/toastState.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
@@ -19,6 +20,7 @@ import { SiteThumbnails } from '../search/SiteLogo.js'
 import { toggleSearchPanel, useSearchPanel } from '../search/searchPanelState.js'
 import { ReadAloudButton } from './ReadAloudButton.js'
 import { CopyButton } from './CopyButton.js'
+import { UsageSheet } from './UsageSheet.js'
 import { ReplyArea } from './ReplyArea.js'
 import { useReplyView } from './useReplyView.js'
 import {
@@ -55,6 +57,11 @@ export const AssistantMessage = memo(function AssistantMessage({
   const [compressing, setCompressing] = useState(false)
   /** 截断重发按钮的进行中状态（仅"当前这条太大"这条错误提示会用到） */
   const [trimming, setTrimming] = useState(false)
+  /** 本轮消耗额度面板 */
+  const [usageOpen, setUsageOpen] = useState(false)
+  const usageCost = message.usage
+    ? estimateUsageCost(message.usage, message.model, message.createdAt)
+    : null
   const zhText = !document.documentElement.lang.startsWith('en')
   /**
    * 用户主动点「截断后发送」：只把当前这条文本截到安全长度重新发一次。
@@ -101,6 +108,11 @@ export const AssistantMessage = memo(function AssistantMessage({
       )
       regenerateReply(sessionId, message.id)
     } catch (error) {
+      // 只是「还没压完」，进度已保存：不要显示成失败
+      if (error instanceof CompressProgressError) {
+        showToast(error.message)
+        return
+      }
       showToast(
         (zhText ? '压缩失败：' : 'Compression failed: ') +
           (error instanceof Error ? error.message : String(error))
@@ -248,6 +260,15 @@ export const AssistantMessage = memo(function AssistantMessage({
               <ReadAloudButton messageId={message.id} text={responseText} />
             ) : null}
             {responseText && !refused && <Tool kind="share" message={message} />}
+            {usageCost ? (
+              <IconButton
+                data-msg-action="usage"
+                icon={<MaskIcon name="database" />}
+                tooltip={t('usageTitle')}
+                tooltipPlacement="bottom"
+                onClick={() => setUsageOpen(true)}
+              />
+            ) : null}
             <IconButton
               data-msg-action="regenerate"
               icon={<MaskIcon name="rotate-cw" />}
@@ -278,6 +299,15 @@ export const AssistantMessage = memo(function AssistantMessage({
           ) : null}
         </div>
       )}
+      {usageOpen && message.usage ? (
+        <UsageSheet
+          usage={message.usage}
+          model={message.model}
+          provider={message.provider}
+          at={message.createdAt}
+          onClose={() => setUsageOpen(false)}
+        />
+      ) : null}
     </div>
   )
 })

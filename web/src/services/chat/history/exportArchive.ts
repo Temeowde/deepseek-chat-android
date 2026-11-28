@@ -242,6 +242,8 @@ export const exportArchive = async (
   onProgress?: (done: number, total: number) => void,
   /** 打包完成后的统计；失败时不回调 */
   onReport?: (report: ExportReport) => void,
+  /** 写进 manifest 的诊断信息（不含对话正文）；老版本导入会忽略该字段 */
+  diagnostics?: Record<string, unknown>,
 ): Promise<Blob> => {
   const list: readonly Session[] = Array.isArray(sessions) ? sessions : await collectSessions(sessions)
   const total = list.length
@@ -257,7 +259,10 @@ export const exportArchive = async (
   let skippedImages = 0
   let skippedSessions = 0
   try {
-    const manifest: Manifest = { export_format_version: EXPORT_FORMAT_VERSION }
+    const manifest: Manifest = {
+      export_format_version: EXPORT_FORMAT_VERSION,
+      ...(diagnostics ? { diagnostics } : {}),
+    }
     await writer.add(MANIFEST_PATH, json(manifest))
     for (const [position, session] of list.entries()) {
       onProgress?.(done, total)
