@@ -1075,3 +1075,22 @@
 - 单测：startup-safety 6/6 PASS；tsc 无新增错误。
 - 其他线从 **295** 起用。
 - APK：`C:\Users\zzzy\DS-Chat-APK\DS-Chat-4.6.21.apk`
+
+---
+
+## 验证记录（lead / 模拟器复现老机型白屏&闪退）
+
+- 时间：2026-11-28 20:3x
+- 版本：**4.6.22 / androidVersionCode 295**
+- 模拟器：`D:\AndroidToolchain\sdk` 下新增 emulator + `system-images;android-28;google_apis;x86_64`，AVD `api28`（1.5GB RAM / 2 核，WHPX）。启动命令：`emulator -avd api28 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 1536 -cores 2`；本机 adb 自动识别 `emulator-5554`。
+- 复现到的真实白屏/闪退：
+  · Chrome 69：`Uncaught ReferenceError: globalThis is not defined`（bundle 第一行）→ 已加内联 polyfill；
+  · Chrome 69：`Uncaught TypeError: Intl.DisplayNames is not a constructor`（location.ts 顶层）→ 已特性检测回退；
+  · Android 9：`ClassNotFoundException: android.view.WindowInsetsAnimation$Callback`（MainActivity 类校验）→ 新增 ChatInsetsCompat 反射兼容层；
+  · 卸载 WebView：`MissingWebViewPackageException`（new WebView）→ ChatRecovery 捕获弹窗。
+- 回归脚本 `tools/dev/repro-startup.mjs`：模拟器 API28 **8/8 PASS**；真机 Android 14 **8/8 PASS**。
+- 压力测试：模拟器灌 700 个会话摘要 + 40 个 300 条消息长会话，冷启动约 0.9s，页面正常。
+- 单测：startup-safety **8/8 PASS**。
+- 模拟器 AVD 数据可丢弃；不要把它和真机混淆（adb serial `emulator-5554`）。
+- 其他线从 **296** 起用。
+- APK：`C:\Users\zzzy\DS-Chat-APK\DS-Chat-4.6.22.apk`

@@ -75,6 +75,20 @@
       </div>
     </div>
     <script>
+      /*
+       * 旧 WebView 最低到 Chromium 66；globalThis 到 Chrome 71 才有。
+       * 打包后的 bundle（以及 compat.js 自己）第一行就可能用到 globalThis，
+       * 缺失时会直接 Uncaught ReferenceError → 整页白屏，所以必须在 bundle 之前补。
+       */
+      (function () {
+        if (typeof globalThis === "undefined") {
+          try {
+            window.globalThis = window;
+          } catch (e) {}
+        }
+      })();
+    </script>
+    <script>
       /* 启动兜底：写在 bundle 之前、只用 ES5，保证 React 挂载失败/脚本解析失败时不是白屏。 */
       (function () {
         var booted = false;

@@ -1466,11 +1466,15 @@
     invoke-virtual {v0, v1}, Landroid/widget/LinearLayout;->setOrientation(I)V
 
     .line 166
-    new-instance v2, Landroid/webkit/WebView;
+    invoke-static {p0}, Lcom/temeowde/dschat/ChatRecovery;->createWebView(Landroid/app/Activity;)Landroid/webkit/WebView;
 
-    invoke-direct {v2, p0}, Landroid/webkit/WebView;-><init>(Landroid/content/Context;)V
+    move-result-object v2
 
+    if-nez v2, :chat_webview_ready
 
+    return-void
+
+    :chat_webview_ready
     iput-object v2, p0, Lcom/temeowde/dschat/MainActivity;->webView:Landroid/webkit/WebView;
 
     .line 167
@@ -1649,20 +1653,7 @@
     invoke-virtual {v0, v1, v4}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
 
     .line 194
-    sget v1, Landroid/os/Build$VERSION;->SDK_INT:I
-
-    const/16 v3, 0x1e
-
-    if-lt v1, v3, :chat_legacy_insets
-
-    invoke-static {p0, v0}, Lcom/temeowde/dschat/ChatWindowInsets;->install(Landroid/app/Activity;Landroid/view/View;)V
-
-    goto :chat_insets_ready
-
-    :chat_legacy_insets
-    invoke-static {v0}, Lcom/temeowde/dschat/SystemUi;->installInsets(Landroid/view/View;)V
-
-    :chat_insets_ready
+    invoke-static {p0, v0}, Lcom/temeowde/dschat/ChatInsetsCompat;->install(Landroid/app/Activity;Landroid/view/View;)V
     .line 195
     invoke-virtual {p0, v0}, Lcom/temeowde/dschat/MainActivity;->setContentView(Landroid/view/View;)V
 

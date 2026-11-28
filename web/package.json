@@ -1,7 +1,7 @@
 {
   "name": "chat-demo",
-  "version": "4.6.21",
-  "androidVersionCode": 294,
+  "version": "4.6.22",
+  "androidVersionCode": 295,
   "description": "基于 DeepSeek API 的静态聊天示例。",
   "license": "MIT",
   "private": true,

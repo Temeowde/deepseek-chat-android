@@ -3,6 +3,23 @@
 > 3.3.0 – 4.4.x 是内部迭代版本（只出过测试包），v4.5.0 把它们合并整理成第一个对外发布版。
 > 下面按功能归类，写清楚每个能力做了什么、修了什么坑。
 
+## v4.6.22
+
+### 用模拟器复现并修掉老机型白屏 / 闪退（Android 9 + Chrome 69）
+
+- **Android 8/9 打开瞬间闪退**：`ChatWindowInsets` 继承了 API 30 才有的 `WindowInsetsAnimation.Callback`，MainActivity 在字节码里直接引用它，低版本类校验阶段就抛 `ClassNotFoundException: android.view.WindowInsetsAnimation$Callback`。新增 `ChatInsetsCompat` 兼容层：API 30 的类全部反射调用，低版本走 `SystemUi.installInsets`；`ScreenBridge` 的安全区读取也改走兼容层，API 26~29 用旧的 `getSystemWindowInset*`。
+- **Chrome 66~70 白屏**：老 WebView 没有 `globalThis`（Chrome 71 才有），打包 bundle 第一行就 `Uncaught ReferenceError`。在 bundle 之前加内联 polyfill。
+- **Chrome 69 白屏**：`Intl.DisplayNames` 到 Chrome 81 才有，`location.ts` 模块顶层 `new` 直接抛 TypeError。改为特性检测 + 回退到国家代码。
+- **没安装/停用 WebView 时打开闪退**：`new WebView` 抛 `MissingWebViewPackageException`，现在由 `ChatRecovery.createWebView` 捕获并弹「系统 WebView 不可用」说明，不再闪退。
+- 修复上一版安全创建补丁里的分支极性错误（`if-eqz` → `if-nez`），该错误会导致正常机型只剩白屏。
+- 新增真机/模拟器启动回归脚本 `tools/dev/repro-startup.mjs`，覆盖：冷启动、启动兜底页、旧 WebView 提示、渲染进程崩溃恢复、一次性清理标记。
+
+### 模拟器验证结果
+
+- Android 9（API 28，Chrome 69，1.5GB RAM）：修复前稳定复现 `globalThis is not defined` / `Intl.DisplayNames is not a constructor` 白屏，以及 `WindowInsetsAnimation$Callback` 闪退；修复后启动正常，回归脚本 8/8 PASS。
+- 卸载 WebView 后：修复前 `MissingWebViewPackageException` 闪退；修复后显示说明弹窗，不再闪退。
+- 700 个会话 + 40 个 300 条消息的长会话：冷启动约 0.9 秒，界面正常。
+- 本机（Android 14 / WebView 150）：回归脚本 8/8 PASS。
 ## v4.6.21
 
 ### 启动兜底：白屏不再纯白，卡死/闪退先给用户一条出路

@@ -86,6 +86,28 @@ run('原生 WebView 兜底：安全创建 / 渲染进程崩溃 / 加载失败', 
   assert.match(activity, /android\/webkit\/WebView/)
 })
 
+
+run('旧 WebView 兜底：globalThis / Intl.DisplayNames / API30 类不能拖垮启动', () => {
+  const html = read('src/index.html')
+  assert.match(html, /window\.globalThis = window/)
+  const location = read('src/services/location.ts')
+  assert.match(location, /typeof Intl\.DisplayNames !== 'function'/)
+  const activity = read('../src/smali_classes2/com/temeowde/dschat/MainActivity.smali')
+  assert.doesNotMatch(activity, /ChatWindowInsets;->/)
+  const screen = read('../src/java/com/temeowde/dschat/ScreenBridge.java')
+  assert.doesNotMatch(screen, /ChatWindowInsets|WindowInsets\.Type/)
+  const insets = read('../src/java/com/temeowde/dschat/ChatInsetsCompat.java')
+  assert.match(insets, /Class\.forName\(INSETS_CLASS\)/)
+})
+
+run('WebView 创建失败（未安装 WebView）不再闪退', () => {
+  const activity = read('../src/smali_classes2/com/temeowde/dschat/MainActivity.smali')
+  assert.match(activity, /ChatRecovery;->createWebView/)
+  assert.match(activity, /if-nez v2, :chat_webview_ready/)
+  const java = read('../src/java/com/temeowde/dschat/ChatRecovery.java')
+  assert.match(java, /MissingWebViewPackage|WebView create failed|系统 WebView 不可用/)
+})
+
 console.log(`\n结果：${passed} PASS / ${failures.length} FAIL（共 ${passed + failures.length} 组）`)
 if (failures.length > 0) {
   process.exitCode = 1

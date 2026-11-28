@@ -58,7 +58,7 @@ public final class ScreenBridge {
      */
     @JavascriptInterface
     public void refreshInsets() {
-        activity.runOnUiThread(() -> ChatWindowInsets.refreshInsets(activity));
+        activity.runOnUiThread(() -> ChatInsetsCompat.refreshInsets(activity));
     }
 
     /**
@@ -67,20 +67,6 @@ public final class ScreenBridge {
      */
     @JavascriptInterface
     public String safeInsetsCss() {
-        try {
-            android.view.WindowInsets insets = activity.getWindow().getDecorView().getRootWindowInsets();
-            if (insets == null) {
-                return "";
-            }
-            float density = activity.getResources().getDisplayMetrics().density;
-            if (density <= 0f) {
-                density = 1f;
-            }
-            int topPx = insets.getInsets(android.view.WindowInsets.Type.statusBars()).top;
-            int bottomPx = insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom;
-            return Math.round(topPx / density) + "," + Math.round(bottomPx / density);
-        } catch (Exception ignored) {
-            return "";
-        }
+        return ChatInsetsCompat.safeInsetsCss(activity);
     }
 }

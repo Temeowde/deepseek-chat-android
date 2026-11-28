@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -66,8 +67,11 @@ public final class ChatRecovery {
     /** 创建聊天 WebView；系统 WebView 缺失/被停用时返回 null，由调用方直接结束当前页面。 */
     public static WebView createWebView(Activity activity) {
         try {
-            return new WebView(activity);
+            WebView view = new WebView(activity);
+            Log.i("ChatRecovery", "WebView created");
+            return view;
         } catch (Throwable error) {
+            Log.e("ChatRecovery", "WebView create failed", error);
             show(activity, "系统 WebView 不可用",
                     "这台手机的 Android System WebView 缺失或被停用了，聊天界面无法显示。" +
                             "请在系统设置 → 应用里启用/更新「Android System WebView」后再打开。",
